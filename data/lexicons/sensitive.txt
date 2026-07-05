@@ -1,0 +1,4 @@
+# Sensitive speech/rumor lexicon.
+# Add real Chinese entries here after team review.
+sensitive_placeholder
+rumor_placeholder

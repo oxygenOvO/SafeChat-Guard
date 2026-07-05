@@ -1,0 +1,20 @@
+{
+  "app": {
+    "name": "SafeChat-Guard",
+    "host": "127.0.0.1",
+    "port": 8000
+  },
+  "risk": {
+    "block_threshold": 80,
+    "sanitize_threshold": 40
+  },
+  "llm": {
+    "provider": "mock",
+    "api_key_env": "QWEN_API_KEY",
+    "base_url": "",
+    "model": "qwen-tiny"
+  },
+  "logging": {
+    "path": "data/logs/events.jsonl"
+  }
+}

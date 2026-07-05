@@ -1,0 +1,4 @@
+# Pornographic/low俗 content lexicon.
+# Add real Chinese entries here after team review.
+porn_placeholder
+adult_placeholder
