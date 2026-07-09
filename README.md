@@ -1,84 +1,104 @@
-<<<<<<< HEAD
-# SafeChat-Guard
+﻿# SafeChat-Guard
 
-面向中文对话场景的大模型输入/输出违规内容过滤与价值观安全评估系统。
+面向中文对话场景的大模型输入/输出违规内容过滤与日志统计系统。
 
-本项目用于 2026 第二届大学生人工智能安全竞赛题目 1：面向对话场景的大模型输入/输出违规内容过滤系统。
+本项目用于人工智能安全竞赛定向题目：面向对话场景的大模型输入/输出违规内容过滤系统。
 
-## 最终目标
+## 核心功能
 
-做出一个可运行的 Web 系统，完成：
+- 输入侧过滤：关键词、正则、归一化后的违规内容检测。
+- 语义二次判定：可接入轻量分类模型；缺少模型依赖时自动降级，不影响规则链路运行。
+- 分级处理：高风险拦截，中低风险脱敏/改写，正常内容放行。
+- 输出侧二次校验：对大模型回复再次检测，命中违规内容时拦截或脱敏改写。
+- 日志统计：记录每次请求的检测结果、处理动作、风险类别、风险等级和命中规则。
+- Web Demo：提供基础网页界面与 `/api/chat`、`/api/stats` 接口。
 
-- 用户输入检测
-- 大模型输出校验
-- 违规内容过滤
-- 高风险拦截、低风险脱敏、正常放行
-- 违规词库和正则规则管理
-- 对话日志记录
-- 基础统计面板
-- 中文对抗归一化：谐音、拼音缩写、表情符号等
-- 可选创新：五维价值观安全评分面板
+## 成员 C 交付内容
 
-## 一句话架构
+成员 C 负责输出校验、脱敏改写和日志统计，主要文件：
 
-用户输入 -> 文本归一化 -> 关键词/正则过滤 -> 语义分类二次判断 -> 分级处理 -> 调用大模型 -> 输出再次过滤 -> 日志与统计。
+```text
+safechat_guard/output_guard.py
+safechat_guard/logger.py
+safechat_guard/pipeline.py
+tests/test_output_guard.py
+```
 
-## 快速开始
+输出侧覆盖类别：
 
-第一版不依赖第三方库，直接运行：
+- 色情低俗
+- 暴力威胁
+- 广告引流
+- 敏感话术
+- 违法违规
+- 自伤自杀
+- 隐私泄露
+
+日志字段包括：
+
+- 时间
+- 用户输入
+- 原始模型输出
+- 风险类别
+- 风险等级
+- 是否拦截
+- 是否改写
+- 最终输出
+- 命中规则
+
+日志默认保存到：
+
+```text
+data/logs/events.jsonl
+```
+
+## 快速运行
 
 ```powershell
-cd C:\Users\Lenovo\Documents\Codex\2026-07-04\new-chat\SafeChat-Guard
 python app.py
 ```
 
-打开浏览器访问：
+浏览器访问：
 
 ```text
 http://127.0.0.1:8000
 ```
 
-## 当前状态
+## 基础检查
 
-这是第一版项目骨架，已经包含规则过滤、分级处理、日志记录和简单网页界面。下一步优先补充真实词库、测试集和语义分类模型。
-=======
-# safety-guard
+如果已安装 pytest：
 
-#### 介绍
-{**以下是 Gitee 平台说明，您可以替换此简介**
-Gitee 是 OSCHINA 推出的基于 Git 的代码托管平台（同时支持 SVN）。专为开发者提供稳定、高效、安全的云端软件开发协作平台
-无论是个人、团队、或是企业，都能够用 Gitee 实现代码托管、项目管理、协作开发。企业项目请看 [https://gitee.com/enterprises](https://gitee.com/enterprises)}
+```powershell
+python -m pytest tests
+```
 
-#### 软件架构
-软件架构说明
+如果没有 pytest，也可以直接做语法检查：
 
+```powershell
+python -B -c "from pathlib import Path; files=list(Path('safechat_guard').glob('*.py'))+list(Path('tests').glob('*.py'))+[Path('app.py')]; [compile(p.read_text(encoding='utf-8'), str(p), 'exec') for p in files]; print('syntax ok')"
+```
 
-#### 安装教程
+## 接口说明
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+启动 `app.py` 后：
 
-#### 使用说明
+- `POST /api/chat`：提交用户输入，返回输入过滤、模型回复、输出过滤结果。
+- `GET /api/stats`：返回日志统计，包括总事件数、拦截数、改写数、类别分布、风险等级分布。
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+## 目录结构
 
-#### 参与贡献
-
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
-
-
-#### 特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
->>>>>>> 8190670ce9f1883c66d98a0a88651113bf503f30
+```text
+safechat_guard/
+  pipeline.py             # 主流程
+  output_guard.py         # 输出侧二次校验与脱敏改写
+  logger.py               # JSONL日志与统计
+  rule_filter.py          # 关键词/正则检测
+  normalizer.py           # 中文对抗归一化
+  semantic_classifier.py  # 语义分类器，可选依赖
+data/
+  lexicons/               # 违规词库
+  rules/                  # 正则规则
+templates/                # 前端页面
+static/                   # 前端样式与脚本
+tests/                    # 测试用例
+```
