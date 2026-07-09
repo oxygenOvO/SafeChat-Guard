@@ -3,9 +3,15 @@ import json
 from .llm_client import LLMClientFactory
 from .logger import EventLogger
 from .normalizer import TextNormalizer
+from .output_guard import OutputGuard
 from .rule_filter import RuleFilter
 from .sanitizer import Sanitizer
-from .semantic_classifier import SemanticClassifier
+try:
+    from .semantic_classifier import SemanticClassifier
+except ModuleNotFoundError:
+    class SemanticClassifier:
+        def detect(self, text: str) -> list:
+            return []
 
 
 class SafeChatPipeline:
@@ -17,6 +23,10 @@ class SafeChatPipeline:
         self.sanitizer = Sanitizer()
         self.llm = LLMClientFactory.create(config.get("llm", {}))
         self.logger = EventLogger(config.get("logging", {}).get("path", "data/logs/events.jsonl"))
+        self.output_guard = OutputGuard(
+            block_threshold=int(config["risk"].get("block_threshold", 80)),
+            sanitize_threshold=int(config["risk"].get("sanitize_threshold", 40)),
+        )
 
     @classmethod
     def from_config(cls, path: str):
@@ -36,11 +46,8 @@ class SafeChatPipeline:
 
         safe_message = input_result.get("sanitized_text") or message
         raw_reply = self.llm.chat(safe_message)
-        output_result = self._filter_text(raw_reply, stage="output")
-        final_reply = output_result.get("sanitized_text") or raw_reply
-
-        if output_result["action"] == "block":
-            final_reply = "The model output was blocked because it contains high-risk unsafe content."
+        output_result = self._filter_output(raw_reply)
+        final_reply = output_result.get("final_text") or output_result.get("sanitized_text") or raw_reply
 
         event = {
             "stage": "chat",
@@ -48,6 +55,11 @@ class SafeChatPipeline:
             "safe_input": safe_message,
             "raw_reply": raw_reply,
             "final_reply": final_reply,
+            "risk_categories": output_result.get("risk_categories", []),
+            "risk_level": output_result.get("risk_level", "none"),
+            "blocked": output_result.get("blocked", False),
+            "rewritten": output_result.get("rewritten", False),
+            "matched_rules": output_result.get("matched_rules", []),
             "input_filter": input_result,
             "output_filter": output_result,
         }
@@ -58,6 +70,13 @@ class SafeChatPipeline:
             "input_filter": input_result,
             "output_filter": output_result,
         }
+
+    def _filter_output(self, text: str) -> dict:
+        normalized = self.normalizer.normalize(text)
+        detections = self.rule_filter.detect(normalized)
+        if not detections:
+            detections.extend(self.semantic_classifier.detect(normalized))
+        return self.output_guard.process(text, normalized, detections)
 
     def _filter_text(self, text: str, stage: str) -> dict:
         normalized = self.normalizer.normalize(text)
@@ -91,17 +110,4 @@ class SafeChatPipeline:
         }
 
     def stats(self) -> dict:
-        events = self.logger.read_all()
-        total = len(events)
-        blocked = 0
-        sanitized = 0
-        for event in events:
-            for key in ["input_filter", "output_filter", "result"]:
-                result = event.get(key)
-                if not result:
-                    continue
-                if result.get("action") == "block":
-                    blocked += 1
-                if result.get("action") == "sanitize":
-                    sanitized += 1
-        return {"total_events": total, "blocked": blocked, "sanitized": sanitized}
+        return self.logger.stats()
