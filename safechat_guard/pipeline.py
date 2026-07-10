@@ -77,6 +77,12 @@ class SafeChatPipeline:
             detections.extend(self.semantic_classifier.detect(normalized))
         return self.output_guard.process(text, normalized, detections)
 
+    def filter_input(self, text: str) -> dict:
+        return self._filter_text(text, stage="input")
+
+    def filter_output(self, text: str) -> dict:
+        return self._filter_output(text)
+
     def _filter_text(self, text: str, stage: str) -> dict:
         normalized = self.normalizer.normalize(text)
         detections = self.rule_filter.detect(normalized)

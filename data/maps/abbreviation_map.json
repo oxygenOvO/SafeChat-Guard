@@ -5,6 +5,18 @@
     "category_hint": "ad",
     "confidence": 0.9
   },
+  "v-x": {
+    "target": "微信",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.9
+  },
+  "v x": {
+    "target": "微信",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
   "vxh": {
     "target": "微信号",
     "type": "abbreviation",

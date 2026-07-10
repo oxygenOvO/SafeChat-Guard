@@ -55,6 +55,7 @@ class TextNormalizer:
                     JsonMapProvider(map_dir / "abbreviation_map.json"),
                     category="abbreviation",
                 ),
+                NoiseCharNormalizer(),
             ]
         )
 

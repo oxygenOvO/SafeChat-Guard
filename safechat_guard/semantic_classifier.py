@@ -158,6 +158,7 @@ class SemanticClassifier:
                 reason="疑似广告引流、私下联系或交易导流",
                 phrases=(
                     "加微信",
+                    "联系微信",
                     "加vx",
                     "加v",
                     "私聊",
@@ -176,6 +177,8 @@ class SemanticClassifier:
                     "兼职赚钱",
                     "课程资料",
                     "领取资料",
+                    "领取优惠券",
+                    "推广渠道",
                 ),
             ),
             SemanticRule(

@@ -32,6 +32,16 @@ python app.py
 http://127.0.0.1:8000
 ```
 
+比赛展示控制台使用 D 组整合后的 Streamlit 前端：
+
+```powershell
+python -m pip install -r requirements.txt
+python -m streamlit run frontend/streamlit_app.py
+```
+
+浏览器通常会自动打开 `http://localhost:8501`。该页面直接调用
+`SafeChatPipeline`，批量评测、规则展示和日志审计均使用整体项目真实数据。
+
 训练或加载可选的轻量语义模型时，再安装：
 
 ```powershell
@@ -73,6 +83,7 @@ data/
   violation_sentences/    # 语义模型训练语料
 scripts/                  # 数据准备与模型训练脚本
 tests/                    # 自动化测试
+frontend/                 # Streamlit 比赛展示控制台
 ```
 
 ## 协作说明
