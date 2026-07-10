@@ -33,7 +33,12 @@ class EventLogger:
         rewritten = 0
 
         for event in events:
-            for result in [event.get("input_filter"), event.get("output_filter"), event.get("result")]:
+            results = (
+                event.get("input_filter"),
+                event.get("output_filter"),
+                event.get("result"),
+            )
+            for result in results:
                 if not result:
                     continue
                 action = result.get("action", "unknown")
@@ -43,12 +48,19 @@ class EventLogger:
                 if action in {"sanitize", "rewrite"} or result.get("rewritten"):
                     rewritten += 1
 
-                level = result.get("risk_level", self._level_from_score(result.get("risk_score", 0)))
+                level = result.get(
+                    "risk_level",
+                    self._level_from_score(result.get("risk_score", 0)),
+                )
                 level_counter[level] += 1
 
                 categories = result.get("risk_categories")
                 if not categories:
-                    categories = [d.get("category") for d in result.get("detections", []) if d.get("category")]
+                    categories = [
+                        detection.get("category")
+                        for detection in result.get("detections", [])
+                        if detection.get("category")
+                    ]
                 for category in categories or ["normal"]:
                     category_counter[category] += 1
 
@@ -61,7 +73,8 @@ class EventLogger:
             "action_counts": dict(action_counter),
         }
 
-    def _level_from_score(self, score: int) -> str:
+    @staticmethod
+    def _level_from_score(score: int) -> str:
         if score >= 80:
             return "high"
         if score >= 40:

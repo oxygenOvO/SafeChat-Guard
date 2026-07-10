@@ -150,7 +150,7 @@ class OutputGuard:
         for detection in detections:
             label = CATEGORY_LABELS.get(detection.category, detection.category)
             for match in sorted(set(detection.matches), key=len, reverse=True):
-                if not match or detection.source.endswith("regex"):
+                if not match:
                     continue
                 if match in PRIVACY_REPLACEMENT_NAMES:
                     continue

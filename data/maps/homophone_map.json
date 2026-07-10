@@ -1,6 +1,176 @@
 {
-  "??": "??",
-  "??": "??",
-  "??": "??",
-  "???": "???"
+  "加薇": {
+    "target": "加微信",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.95
+  },
+  "加v": {
+    "target": "加微信",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.95
+  },
+  "加威": {
+    "target": "加微信",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.9
+  },
+  "薇信": {
+    "target": "微信",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.95
+  },
+  "威信": {
+    "target": "微信",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.9
+  },
+  "微芯": {
+    "target": "微信",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "扣扣": {
+    "target": "QQ",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.95
+  },
+  "企鹅号": {
+    "target": "QQ",
+    "type": "variant",
+    "category_hint": "ad",
+    "confidence": 0.8
+  },
+  "转帐": {
+    "target": "转账",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "沙币": {
+    "target": "傻逼",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "傻杯": {
+    "target": "傻逼",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "书杯": {
+    "target": "傻逼",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "煞笔": {
+    "target": "傻逼",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "尼玛": {
+    "target": "你妈",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "泥马": {
+    "target": "你妈",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "草泥马": {
+    "target": "操你妈",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "涩情": {
+    "target": "色情",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "瑟情": {
+    "target": "色情",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "月炮": {
+    "target": "约炮",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "做唉": {
+    "target": "做爱",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "看骗": {
+    "target": "看片",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "黄骗": {
+    "target": "黄片",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "诚人网站": {
+    "target": "成人网站",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "诚人视频": {
+    "target": "成人视频",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "诚人内容": {
+    "target": "成人内容",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "小姝": {
+    "target": "小姐",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "纱人": {
+    "target": "杀人",
+    "type": "homophone",
+    "category_hint": "violence",
+    "confidence": 0.85
+  },
+  "诈药": {
+    "target": "炸药",
+    "type": "homophone",
+    "category_hint": "violence",
+    "confidence": 0.85
+  },
+  "自傻": {
+    "target": "自杀",
+    "type": "homophone",
+    "category_hint": "violence",
+    "confidence": 0.85
+  }
 }

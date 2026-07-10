@@ -3,20 +3,18 @@ __pycache__/
 *.pyc
 .env
 data/logs/*.jsonl
+.workbuddy/
 
-
-# 模型文件（二进制，体积大，不提交）
+# Optional local model artifacts and generated training data.
 models/*.pkl
 models/*.joblib
-
-# 生成的训练数据（由脚本生成，不提交）
 data/training_data/*.csv
 
-# IDE 配置（个人设置，不需要同步）
+# Editor and operating-system files.
 .vscode/
 .idea/
 *.iml
-
-# 操作系统生成的垃圾文件
 Thumbs.db
 .DS_Store
+.pytest_cache/
+.test_tmp/

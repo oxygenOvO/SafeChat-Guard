@@ -1,58 +1,26 @@
-﻿# SafeChat-Guard
+# SafeChat-Guard
 
 面向中文对话场景的大模型输入/输出违规内容过滤与日志统计系统。
 
-本项目用于人工智能安全竞赛定向题目：面向对话场景的大模型输入/输出违规内容过滤系统。
+本项目用于 2026 第二届大学生人工智能安全竞赛题目 1：面向对话场景的大模型输入/输出违规内容过滤系统。
 
 ## 核心功能
 
-- 输入侧过滤：关键词、正则、归一化后的违规内容检测。
-- 语义二次判定：可接入轻量分类模型；缺少模型依赖时自动降级，不影响规则链路运行。
-- 分级处理：高风险拦截，中低风险脱敏/改写，正常内容放行。
-- 输出侧二次校验：对大模型回复再次检测，命中违规内容时拦截或脱敏改写。
-- 日志统计：记录每次请求的检测结果、处理动作、风险类别、风险等级和命中规则。
-- Web Demo：提供基础网页界面与 `/api/chat`、`/api/stats` 接口。
+- 输入侧过滤：关键词、正则和中文对抗文本归一化。
+- 中文归一化：Unicode、变体字、谐音、拼音、缩写、表情和干扰字符处理。
+- 语义二次判定：默认使用中文规则，可选加载轻量机器学习模型。
+- 分级处理：高风险拦截，中风险脱敏，正常内容放行。
+- 输出侧校验：再次检测模型回复，并处理违规内容和隐私信息。
+- 日志统计：记录风险类别、等级、处理动作和命中规则。
+- Web Demo：提供网页界面以及 `/api/chat`、`/api/stats` 接口。
 
-## 成员 C 交付内容
+## 处理流程
 
-成员 C 负责输出校验、脱敏改写和日志统计，主要文件：
-
-```text
-safechat_guard/output_guard.py
-safechat_guard/logger.py
-safechat_guard/pipeline.py
-tests/test_output_guard.py
-```
-
-输出侧覆盖类别：
-
-- 色情低俗
-- 暴力威胁
-- 广告引流
-- 敏感话术
-- 违法违规
-- 自伤自杀
-- 隐私泄露
-
-日志字段包括：
-
-- 时间
-- 用户输入
-- 原始模型输出
-- 风险类别
-- 风险等级
-- 是否拦截
-- 是否改写
-- 最终输出
-- 命中规则
-
-日志默认保存到：
-
-```text
-data/logs/events.jsonl
-```
+用户输入 -> 文本归一化 -> 关键词/正则过滤 -> 语义分类 -> 分级处理 -> 调用模型 -> 输出保护 -> 日志与统计。
 
 ## 快速运行
+
+基础规则版本只需要 Python 3.11+：
 
 ```powershell
 python app.py
@@ -64,41 +32,49 @@ python app.py
 http://127.0.0.1:8000
 ```
 
-## 基础检查
+训练或加载可选的轻量语义模型时，再安装：
 
-如果已安装 pytest：
+```powershell
+python -m pip install -r requirements.txt
+python scripts/prepare_data_v3.py
+python scripts/train_classifier.py
+```
+
+模型默认保存为 `models/semantic_model.pkl`。模型或相关依赖不存在时，系统会自动使用中文规则分类器。
+
+## 基础检查
 
 ```powershell
 python -m pytest tests
 ```
 
-如果没有 pytest，也可以直接做语法检查：
+未安装 pytest 时，也可以运行语法检查：
 
 ```powershell
-python -B -c "from pathlib import Path; files=list(Path('safechat_guard').glob('*.py'))+list(Path('tests').glob('*.py'))+[Path('app.py')]; [compile(p.read_text(encoding='utf-8'), str(p), 'exec') for p in files]; print('syntax ok')"
+python -m compileall safechat_guard tests
 ```
 
-## 接口说明
-
-启动 `app.py` 后：
-
-- `POST /api/chat`：提交用户输入，返回输入过滤、模型回复、输出过滤结果。
-- `GET /api/stats`：返回日志统计，包括总事件数、拦截数、改写数、类别分布、风险等级分布。
-
-## 目录结构
+## 主要目录
 
 ```text
 safechat_guard/
+  normalization/          # 模块化文本归一化管道
+  normalizer.py           # 兼容入口
+  rule_filter.py          # 关键词与正则检测
+  semantic_classifier.py  # 中文规则与可选轻量模型
+  output_guard.py         # 输出侧校验、隐私脱敏与安全回复
   pipeline.py             # 主流程
-  output_guard.py         # 输出侧二次校验与脱敏改写
-  logger.py               # JSONL日志与统计
-  rule_filter.py          # 关键词/正则检测
-  normalizer.py           # 中文对抗归一化
-  semantic_classifier.py  # 语义分类器，可选依赖
+  logger.py               # JSONL 日志与统计
 data/
-  lexicons/               # 违规词库
+  lexicons/               # 分类词库
+  maps/                   # 归一化映射表
   rules/                  # 正则规则
-templates/                # 前端页面
-static/                   # 前端样式与脚本
-tests/                    # 测试用例
+  test_cases/             # 回归测试样例
+  violation_sentences/    # 语义模型训练语料
+scripts/                  # 数据准备与模型训练脚本
+tests/                    # 自动化测试
 ```
+
+## 协作说明
+
+当前版本已合并输入归一化、中文语义分类、输出侧保护和日志统计。词库、映射表和训练语料应分别维护，避免把训练语料直接混入关键词词库造成类别污染。

@@ -14,5 +14,45 @@
     "level": "medium",
     "score": 60,
     "reason": "possible contact or traffic diversion"
+  },
+  {
+    "name": "email",
+    "category": "ad",
+    "pattern": "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}",
+    "level": "medium",
+    "score": 60,
+    "reason": "possible email address"
+  },
+  {
+    "name": "ipv4",
+    "category": "ad",
+    "pattern": "\\b(?:25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]?\\d)(?:\\.(?:25[0-5]|2[0-4]\\d|1\\d{2}|[1-9]?\\d)){3}\\b",
+    "level": "low",
+    "score": 30,
+    "reason": "possible IPv4 address"
+  },
+  {
+    "name": "url_http",
+    "category": "ad",
+    "pattern": "https?://(?:[A-Za-z0-9-]+\\.)+[A-Za-z]{2,}(?::\\d{1,5})?(?:/[^\\s]*)?",
+    "level": "high",
+    "score": 80,
+    "reason": "possible HTTP or HTTPS URL"
+  },
+  {
+    "name": "url_www",
+    "category": "ad",
+    "pattern": "\\bwww\\.(?:[A-Za-z0-9-]+\\.)+[A-Za-z]{2,}(?:/[^\\s]*)?",
+    "level": "high",
+    "score": 80,
+    "reason": "possible website URL"
+  },
+  {
+    "name": "domain",
+    "category": "ad",
+    "pattern": "\\b(?:[A-Za-z0-9-]+\\.)+(?:com|cn|net|org|cc|vip|top|xyz|io|co|me|gov|edu)\\b",
+    "level": "medium",
+    "score": 65,
+    "reason": "possible domain name"
   }
 ]

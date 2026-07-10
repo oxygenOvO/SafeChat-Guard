@@ -1,8 +1,5 @@
-# First runnable version uses only the Python standard library.
-# Add model/API dependencies here after the baseline system is stable.
-
-# ========== 语义分类与机器学习依赖（李怡萱同学添加） ==========
-scikit-learn>=1.0.0
+# The application baseline uses only the Python standard library.
+# These packages are used only for training/loading the optional semantic model.
 joblib>=1.1.0
 pandas>=1.3.0
-# nlpaug>=1.1.10   # 数据增强用，可选安装，如果装不上可以跳过，不影响核心功能
+scikit-learn>=1.0.0

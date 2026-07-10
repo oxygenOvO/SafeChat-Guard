@@ -6,12 +6,7 @@ from .normalizer import TextNormalizer
 from .output_guard import OutputGuard
 from .rule_filter import RuleFilter
 from .sanitizer import Sanitizer
-try:
-    from .semantic_classifier import SemanticClassifier
-except ModuleNotFoundError:
-    class SemanticClassifier:
-        def detect(self, text: str) -> list:
-            return []
+from .semantic_classifier import SemanticClassifier
 
 
 class SafeChatPipeline:
@@ -47,7 +42,11 @@ class SafeChatPipeline:
         safe_message = input_result.get("sanitized_text") or message
         raw_reply = self.llm.chat(safe_message)
         output_result = self._filter_output(raw_reply)
-        final_reply = output_result.get("final_text") or output_result.get("sanitized_text") or raw_reply
+        final_reply = (
+            output_result.get("final_text")
+            or output_result.get("sanitized_text")
+            or raw_reply
+        )
 
         event = {
             "stage": "chat",
