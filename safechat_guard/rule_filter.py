@@ -61,13 +61,7 @@ class RuleFilter:
             pattern = rule.get("pattern", "")
             if not pattern:
                 continue
-            matches = list(
-                dict.fromkeys(
-                    match.group(0)
-                    for match in re.finditer(pattern, text, flags=re.IGNORECASE)
-                )
-            )
-            if matches:
+            if re.search(pattern, text, flags=re.IGNORECASE):
                 detections.append(
                     Detection(
                         category=rule.get("category", "unknown"),
@@ -75,7 +69,7 @@ class RuleFilter:
                         score=int(rule.get("score", 60)),
                         reason=rule.get("reason", "matched regex rule"),
                         source="regex",
-                        matches=matches,
+                        matches=[pattern],
                     )
                 )
         return detections

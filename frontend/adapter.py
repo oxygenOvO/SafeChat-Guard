@@ -18,7 +18,7 @@ class FrontendPipelineAdapter:
         trace = self.pipeline.normalizer.normalize_with_trace(text)
         baseline_detections = self.pipeline.rule_filter.detect(text.lower())
         baseline = self._summarize_detections(baseline_detections)
-        input_result = self.pipeline.filter_input(text)
+        input_result = self.pipeline._filter_text(text, stage="input")
         input_summary = self._summarize_result(input_result)
 
         if input_result["action"] == "block":
@@ -33,7 +33,7 @@ class FrontendPipelineAdapter:
                 if output_override is not None
                 else self.pipeline.llm.chat(processed_text)
             )
-            output_result = self.pipeline.filter_output(model_response)
+            output_result = self.pipeline._filter_output(model_response)
             final_answer = (
                 output_result.get("final_text")
                 or output_result.get("sanitized_text")
