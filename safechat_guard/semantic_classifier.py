@@ -1,19 +1,29 @@
 # safechat_guard/semantic_classifier.py
-import joblib
 from pathlib import Path
 from .models import Detection
 
+try:
+    import joblib
+except ImportError:
+    joblib = None
+
 class SemanticClassifier:
     def __init__(self, model_path="models/semantic_model.pkl"):
+        self.model_path = model_path
+        self.model = None
+        self._error = None
         project_root = Path(__file__).parent.parent
         full_path = project_root / model_path
-        
+
         if not full_path.exists():
-            print(f"⚠️ 警告: 模型文件 {full_path} 不存在，使用空逻辑")
-            self.model = None
+            self._error = "model file not found"
+        elif joblib is None:
+            self._error = "model dependency missing: joblib"
         else:
-            self.model = joblib.load(full_path)
-            print("✅ 语义分类模型加载成功")
+            try:
+                self.model = joblib.load(full_path)
+            except (OSError, ValueError, TypeError) as exc:
+                self._error = f"model load failed: {type(exc).__name__}"
         
         self.category_to_score = {
             'porn': 85,
@@ -29,6 +39,18 @@ class SemanticClassifier:
             'ad': '广告引流',
             'sensitive': '敏感话术',
             'normal': '正常'
+        }
+
+    def status(self) -> dict:
+        return {
+            "enabled": self.model is not None,
+            "loaded": self.model is not None,
+            "model_path": self.model_path,
+            "model_type": "sklearn_pipeline" if self.model is not None else None,
+            "classes": [
+                str(item) for item in getattr(self.model, "classes_", [])
+            ] if self.model is not None else [],
+            "error": self._error,
         }
 
     def detect(self, text: str) -> list[Detection]:
