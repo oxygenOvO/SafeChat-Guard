@@ -64,14 +64,24 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate
 # Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
+pip install -r requirements-dev.txt
 python scripts/prepare_data_v3.py
 python scripts/train_classifier.py
-pytest -q
+python -m pytest -q
 python app.py
 ```
 
 模型加载状态通过现有 `/api/stats` 返回。模型不存在、依赖缺失或加载失败时，
 状态中会包含明确错误，规则过滤链路仍可继续运行。
+
+## 测试依赖
+
+运行自动化测试前，需要安装开发依赖：
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest -q
+```
 
 ## 局限性
 
