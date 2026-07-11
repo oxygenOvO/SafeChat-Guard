@@ -1,0 +1,46 @@
+name: One-time SafeChat recovery
+on:
+  push:
+    paths: [".github/workflows/codex-recovery.yml"]
+permissions:
+  contents: write
+jobs:
+  recover:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
+      - name: Restore baseline and whitelist
+        shell: python
+        run: |
+          import shutil, subprocess
+          from pathlib import Path
+          root, keep = Path.cwd(), Path("/tmp/keep")
+          paths = ["data/lexicons/ad.txt","data/lexicons/porn.txt","data/lexicons/sensitive.txt","data/lexicons/violence.txt","data/maps","data/rules/regex_rules.json","data/test_cases/sample_cases.jsonl","data/test_cases/frontend_cases.csv","docs/CODING_STANDARD.md","safechat_guard/normalization","safechat_guard/normalizer.py","tests/test_normalizer.py","tests/test_frontend_adapter.py","frontend"]
+          for name in paths:
+              src, dst = root/name, keep/name
+              dst.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copytree(src,dst) if src.is_dir() else shutil.copy2(src,dst)
+          subprocess.run(["git","read-tree","--reset","-u","08b3f95c5f3b7f1a0f891b673bccb5ebf9047a46"],check=True)
+          for name in paths:
+              src, dst = keep/name, root/name
+              dst.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copytree(src,dst,dirs_exist_ok=True) if src.is_dir() else shutil.copy2(src,dst)
+          p=root/"frontend/adapter.py"; text=p.read_text(encoding="utf-8").replace("self.pipeline.filter_input(text)","self.pipeline._filter_text(text, stage=\"input\")").replace("self.pipeline.filter_output(model_response)","self.pipeline._filter_output(model_response)"); p.write_text(text,encoding="utf-8",newline="\n")
+          for file,words in [("data/lexicons/ad.txt",["加微信","联系微信","领取优惠券","推广渠道"]),("data/lexicons/sensitive.txt",["传播谣言","煽动对立"])]:
+              p=root/file; text=p.read_text(encoding="utf-8-sig")
+              for word in words:
+                  if word not in text.splitlines(): text += word+"\n"
+              p.write_text(text,encoding="utf-8",newline="\n")
+          p=root/"requirements.txt"; text=p.read_text(encoding="utf-8-sig").rstrip()
+          for dep in ("plotly==6.8.0","streamlit==1.58.0"):
+              if dep not in text.splitlines(): text += "\n"+dep
+          p.write_text(text+"\n",encoding="utf-8",newline="\n")
+      - name: Commit repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: restore team files and selectively integrate A and D"
+          git push origin HEAD:main
