@@ -4,7 +4,12 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    precision_recall_fscore_support,
+)
 import joblib
 from pathlib import Path
 
@@ -43,7 +48,12 @@ def train():
     # 兼容不同版本的 sklearn
     try:
         # 新版可能不支持 multi_class 参数，直接不带
-        clf = LogisticRegression(max_iter=1000, C=10.0, random_state=42)
+        clf = LogisticRegression(
+            max_iter=1000,
+            C=10.0,
+            random_state=42,
+            class_weight="balanced",
+        )
     except TypeError:
         # 如果报错，尝试用旧版参数名
         clf = LogisticRegression(multi_class='ovr', max_iter=1000, C=1.0, random_state=42)
@@ -66,7 +76,19 @@ def train():
     # 6. 详细报告
     y_pred = model.predict(X_test)
     print("\n📋 详细分类报告:")
-    print(classification_report(y_test, y_pred))
+    print(classification_report(y_test, y_pred, zero_division=0))
+    precision, recall, f1, _ = precision_recall_fscore_support(
+        y_test,
+        y_pred,
+        average="macro",
+        zero_division=0,
+    )
+    print(f"accuracy: {accuracy_score(y_test, y_pred):.4f}")
+    print(f"macro precision: {precision:.4f}")
+    print(f"macro recall: {recall:.4f}")
+    print(f"macro F1: {f1:.4f}")
+    print("confusion matrix:")
+    print(confusion_matrix(y_test, y_pred, labels=sorted(set(y))))
     
     # 7. 保存模型
     MODEL_DIR.mkdir(parents=True, exist_ok=True)

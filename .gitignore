@@ -20,3 +20,4 @@ data/training_data/*.csv
 # 操作系统生成的垃圾文件
 Thumbs.db
 .DS_Store
+.test_tmp/

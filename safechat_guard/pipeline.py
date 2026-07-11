@@ -8,10 +8,25 @@ from .rule_filter import RuleFilter
 from .sanitizer import Sanitizer
 try:
     from .semantic_classifier import SemanticClassifier
-except ModuleNotFoundError:
+except ModuleNotFoundError as exc:
+    _semantic_import_error = f"semantic classifier dependency missing: {exc.name}"
+
     class SemanticClassifier:
+        def __init__(self):
+            self._error = _semantic_import_error
+
         def detect(self, text: str) -> list:
             return []
+
+        def status(self) -> dict:
+            return {
+                "enabled": False,
+                "loaded": False,
+                "model_path": "models/semantic_model.pkl",
+                "model_type": None,
+                "classes": [],
+                "error": self._error,
+            }
 
 
 class SafeChatPipeline:
@@ -74,15 +89,15 @@ class SafeChatPipeline:
     def _filter_output(self, text: str) -> dict:
         normalized = self.normalizer.normalize(text)
         detections = self.rule_filter.detect(normalized)
-        if not detections:
-            detections.extend(self.semantic_classifier.detect(normalized))
+        detections.extend(self.semantic_classifier.detect(normalized))
+        detections = self._deduplicate_detections(detections)
         return self.output_guard.process(text, normalized, detections)
 
     def _filter_text(self, text: str, stage: str) -> dict:
         normalized = self.normalizer.normalize(text)
         detections = self.rule_filter.detect(normalized)
-        if not detections:
-            detections.extend(self.semantic_classifier.detect(normalized))
+        detections.extend(self.semantic_classifier.detect(normalized))
+        detections = self._deduplicate_detections(detections)
 
         score = max([d.score for d in detections], default=0)
         matches = []
@@ -110,4 +125,21 @@ class SafeChatPipeline:
         }
 
     def stats(self) -> dict:
-        return self.logger.stats()
+        stats = self.logger.stats()
+        stats["semantic_classifier"] = self.semantic_classifier.status()
+        return stats
+
+    @staticmethod
+    def _deduplicate_detections(detections: list) -> list:
+        unique = []
+        seen = set()
+        for detection in detections:
+            key = (
+                detection.category,
+                detection.source,
+                tuple(detection.matches),
+            )
+            if key not in seen:
+                seen.add(key)
+                unique.append(detection)
+        return unique
