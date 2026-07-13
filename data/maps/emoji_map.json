@@ -1,0 +1,441 @@
+{
+  "📱": {
+    "target": "手机",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.7
+  },
+  "👉": {
+    "target": "引导",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.65
+  },
+  "🔞": {
+    "target": "色情",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.99,
+    "aliases": ["十八禁", "限制级", "NSFW"]
+  },
+  "🍑": {
+    "target": "臀部",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.90,
+    "aliases": ["屁股", "桃子"]
+  },
+  "🍆": {
+    "target": "茄子",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.88,
+    "aliases": ["男性生殖器", "性暗示"]
+  },
+  "💋": {
+    "target": "亲吻",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.75,
+    "aliases": ["接吻", "嘴唇"]
+  },
+  "🔪": {
+    "target": "刀",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.99,
+    "aliases": ["匕首", "刀具", "武器"]
+  },
+  "🗡️": {
+    "target": "剑",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.99,
+    "aliases": ["长剑", "武器"]
+  },
+  "🔫": {
+    "target": "枪",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.99,
+    "aliases": ["手枪", "枪支", "武器"]
+  },
+  "💣": {
+    "target": "炸弹",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.99,
+    "aliases": ["爆炸物", "爆炸"]
+  },
+  "🧨": {
+    "target": "爆竹",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.75,
+    "aliases": ["炸药", "爆炸物"]
+  },
+  "🩸": {
+    "target": "血液",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.95,
+    "aliases": ["流血", "鲜血"]
+  },
+  "☠️": {
+    "target": "死亡",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.98,
+    "aliases": ["骷髅", "致命"]
+  },
+  "💀": {
+    "target": "骷髅",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.90,
+    "aliases": ["死亡", "尸体"]
+  },
+  "💰": {
+    "target": "赚钱",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.75,
+    "aliases": ["钱", "红包", "交易"]
+  },
+  "💵": {
+    "target": "现金",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.80,
+    "aliases": ["美元", "金钱"]
+  },
+  "💸": {
+    "target": "转账",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.85,
+    "aliases": ["付款", "汇款"]
+  },
+  "📈": {
+    "target": "投资",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.65,
+    "aliases": ["收益", "理财"]
+  },
+  "🎰": {
+    "target": "赌博",
+    "type": "emoji",
+    "category_hint": "gambling",
+    "confidence": 0.98,
+    "aliases": ["老虎机", "博彩"]
+  },
+  "🎲": {
+    "target": "骰子",
+    "type": "emoji",
+    "category_hint": "gambling",
+    "confidence": 0.75,
+    "aliases": ["赌博", "博彩"]
+  },
+  "🃏": {
+    "target": "扑克牌",
+    "type": "emoji",
+    "category_hint": "gambling",
+    "confidence": 0.70,
+    "aliases": ["赌博", "纸牌"]
+  },
+  "🚬": {
+    "target": "香烟",
+    "type": "emoji",
+    "category_hint": "drug",
+    "confidence": 0.75,
+    "aliases": ["吸烟", "烟草"]
+  },
+  "💊": {
+    "target": "药物",
+    "type": "emoji",
+    "category_hint": "drug",
+    "confidence": 0.80,
+    "aliases": ["药片", "毒品", "违禁药物"]
+  },
+  "💉": {
+    "target": "注射器",
+    "type": "emoji",
+    "category_hint": "drug",
+    "confidence": 0.75,
+    "aliases": ["注射", "针剂"]
+  },
+  "💦": {
+    "target": "液体",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.85,
+    "aliases": ["汗水", "高潮", "性暗示"]
+  },
+  "🪢": {
+    "target": "绳子",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.70,
+    "aliases": ["捆绑", "BDSM", "绳艺"]
+  },
+  "👅": {
+    "target": "舌头",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.75,
+    "aliases": ["舔", "挑逗", "性暗示"]
+  },
+  "🪓": {
+    "target": "斧头",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.95,
+    "aliases": ["砍伐", "凶器", "武器"]
+  },
+  "🏹": {
+    "target": "弓箭",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.85,
+    "aliases": ["射击", "武器", "冷兵器"]
+  },
+  "🧱": {
+    "target": "拍砖",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.65,
+    "aliases": ["砖头", "暴力袭击"]
+  },
+  "🪦": {
+    "target": "墓碑",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.90,
+    "aliases": ["死亡", "坟墓", "葬礼"]
+  },
+  "🔗": {
+    "target": "链接",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.90,
+    "aliases": ["网址", "点击跳转", "外链"]
+  },
+  "🎁": {
+    "target": "福利",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.70,
+    "aliases": ["礼物", "免费领取", "优惠"]
+  },
+  "📣": {
+    "target": "通知",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.80,
+    "aliases": ["喇叭", "广告轰炸", "群发"]
+  },
+  "🪙": {
+    "target": "虚拟币",
+    "type": "emoji",
+    "category_hint": "gambling",
+    "confidence": 0.80,
+    "aliases": ["硬币", "筹码", "加密货币"]
+  },
+  "🀄": {
+    "target": "麻将",
+    "type": "emoji",
+    "category_hint": "gambling",
+    "confidence": 0.95,
+    "aliases": ["红中", "博彩", "棋牌"]
+  },
+  "🍃": {
+    "target": "大麻",
+    "type": "emoji",
+    "category_hint": "drug",
+    "confidence": 0.85,
+    "aliases": ["叶子", "飞行", "违禁植物"]
+  },
+  "🍄": {
+    "target": "致幻菇",
+    "type": "emoji",
+    "category_hint": "drug",
+    "confidence": 0.70,
+    "aliases": ["蘑菇", "毒蘑菇", "精神药品"]
+  },
+  "👙": {
+    "target": "内衣",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.85,
+    "aliases": ["比基衣", "性感", "福利姬"]
+  },
+  "🛌": {
+    "target": "开房",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.60,
+    "aliases": ["床", "约炮", "酒店"]
+  },
+  "🔒": {
+    "target": "主奴",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.55,
+    "aliases": ["贞操锁", "BDSM", "字母圈"]
+  },
+  "🐾": {
+    "target": "兽圈",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.60,
+    "aliases": ["恋足", "k9", "主仆"]
+  },
+  "⛓️": {
+    "target": "禁锢",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.65,
+    "aliases": ["铁链", "囚禁", "暴力虐待"]
+  },
+  "🥊": {
+    "target": "斗殴",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.80,
+    "aliases": ["拳击", "打架", "暴力解决"]
+  },
+  "🔥": {
+    "target": "纵火",
+    "type": "emoji",
+    "category_hint": "violence",
+    "confidence": 0.65,
+    "aliases": ["火灾", "毁灭", "爆破"]
+  },
+  "🚨": {
+    "target": "风控",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.75,
+    "aliases": ["警报", "防封", "紧急通知"]
+  },
+  "💥": {
+    "target": "爆款",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.80,
+    "aliases": ["限量", "炸裂", "火爆抢购"]
+  },
+  "👇": {
+    "target": "下行引流",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.85,
+    "aliases": ["看下方", "戳链接", "评论区"]
+  },
+  "💬": {
+    "target": "私信",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.70,
+    "aliases": ["建群", "扣1", "微信号"]
+  },
+  "🐎": {
+    "target": "赛马",
+    "type": "emoji",
+    "category_hint": "gambling",
+    "confidence": 0.80,
+    "aliases": ["赌马", "外围", "博彩"]
+  },
+  "👑": {
+    "target": "庄家",
+    "type": "emoji",
+    "category_hint": "gambling",
+    "confidence": 0.65,
+    "aliases": ["包赢", "娱乐城", "直营平台"]
+  },
+  "🌬️": {
+    "target": "吸食",
+    "type": "emoji",
+    "category_hint": "drug",
+    "confidence": 0.75,
+    "aliases": ["走线", "溜冰", "吞云吐雾"]
+  },
+  "⚖️": {
+    "target": "出货",
+    "type": "emoji",
+    "category_hint": "drug",
+    "confidence": 0.65,
+    "aliases": ["天平", "大宗交易", "纯度"]
+  },
+  "🈳": {
+    "target": "空降",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.85,
+    "aliases": ["日文圆字空", "色情空降"]
+  },
+  "🉑": {
+    "target": "可约",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.80,
+    "aliases": ["日文圆字可", "约会暗示"]
+  },
+  "🈶": {
+    "target": "有货",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.75,
+    "aliases": ["日文圆字有", "货源暗示"]
+  },
+  "🈵": {
+    "target": "满员",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.65,
+    "aliases": ["日文圆字满", "群满暗示"]
+  },
+  "📞": {
+    "target": "联系我",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.70,
+    "aliases": ["电话", "联系方式"]
+  },
+  "💌": {
+    "target": "私聊",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.70,
+    "aliases": ["私信", "约会邀请"]
+  },
+  "🏨": {
+    "target": "开房",
+    "type": "emoji",
+    "category_hint": "porn",
+    "confidence": 0.60,
+    "aliases": ["酒店", "约炮", "住宿"]
+  },
+  "✅": {
+    "target": "加微信",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.55,
+    "aliases": ["勾号", "确认", "引流暗号"]
+  },
+  "🆕": {
+    "target": "新品",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.60,
+    "aliases": ["新", "新货", "上新"]
+  },
+  "🆓": {
+    "target": "免费",
+    "type": "emoji",
+    "category_hint": "ad",
+    "confidence": 0.70,
+    "aliases": ["free", "免费领取"]
+  }
+}

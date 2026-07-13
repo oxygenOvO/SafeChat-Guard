@@ -1,0 +1,116 @@
+{
+  "wei xin": {
+    "target": "微信",
+    "type": "pinyin",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "jia wei xin": {
+    "target": "加微信",
+    "type": "pinyin",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "jia vx": {
+    "target": "加微信",
+    "type": "pinyin_abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "kou kou": {
+    "target": "QQ",
+    "type": "pinyin",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "jia wei": {
+    "target": "加微",
+    "type": "pinyin",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "jian zhi": {
+    "target": "兼职",
+    "type": "pinyin",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "dai gou": {
+    "target": "代购",
+    "type": "pinyin",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "zhuan zhang": {
+    "target": "转账",
+    "type": "pinyin",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "si liao": {
+    "target": "私聊",
+    "type": "pinyin",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "se qing": {
+    "target": "色情",
+    "type": "pinyin",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "yue pao": {
+    "target": "约炮",
+    "type": "pinyin",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "cheng ren": {
+    "target": "成人",
+    "type": "pinyin",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "zuo ai": {
+    "target": "做爱",
+    "type": "pinyin",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "kan pian": {
+    "target": "看片",
+    "type": "pinyin",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "huang pian": {
+    "target": "黄片",
+    "type": "pinyin",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "sha ren": {
+    "target": "杀人",
+    "type": "pinyin",
+    "category_hint": "violence",
+    "confidence": 0.85
+  },
+  "zha yao": {
+    "target": "炸药",
+    "type": "pinyin",
+    "category_hint": "violence",
+    "confidence": 0.85
+  },
+  "zi sha": {
+    "target": "自杀",
+    "type": "pinyin",
+    "category_hint": "violence",
+    "confidence": 0.85
+  },
+  "du pin": {
+    "target": "毒品",
+    "type": "pinyin",
+    "category_hint": "violence",
+    "confidence": 0.85
+  }
+}

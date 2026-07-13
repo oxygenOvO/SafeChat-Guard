@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.test_tmp/
+.env
+outputs/*.csv
+outputs/*.log
+data/logs/*.jsonl
+.streamlit/secrets.toml
+.DS_Store
+Thumbs.db

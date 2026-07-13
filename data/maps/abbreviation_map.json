@@ -1,0 +1,122 @@
+{
+  "vx": {
+    "target": "微信",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.9
+  },
+  "v-x": {
+    "target": "微信",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.9
+  },
+  "v x": {
+    "target": "微信",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "vxh": {
+    "target": "微信号",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "wxh": {
+    "target": "微信号",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "qq": {
+    "target": "QQ",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.9
+  },
+  "kk": {
+    "target": "QQ",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.8
+  },
+  "xhs": {
+    "target": "小红书",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.75
+  },
+  "dy": {
+    "target": "抖音",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.7
+  },
+  "wb": {
+    "target": "微博",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.7
+  },
+  "pyq": {
+    "target": "朋友圈",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.7
+  },
+  "nsfw": {
+    "target": "色情",
+    "type": "abbreviation",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "av": {
+    "target": "色情视频",
+    "type": "abbreviation",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "yp": {
+    "target": "约炮",
+    "type": "abbreviation",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "jj": {
+    "target": "兼职",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.8
+  },
+  "dg": {
+    "target": "代购",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.8
+  },
+  "mf": {
+    "target": "免费",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.7
+  },
+  "vip": {
+    "target": "会员",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.6
+  },
+  "cz": {
+    "target": "充值",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.7
+  },
+  "zk": {
+    "target": "折扣",
+    "type": "abbreviation",
+    "category_hint": "ad",
+    "confidence": 0.7
+  }
+}
