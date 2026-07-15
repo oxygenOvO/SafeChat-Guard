@@ -1,0 +1,182 @@
+{
+  "evaluation_scope": "weak_label_grouped_holdout",
+  "model": "word",
+  "official_competition_metric": false,
+  "schema_version": 2,
+  "test": {
+    "accuracy": 0.3230769230769231,
+    "confusion_matrix": {
+      "labels": [
+        "normal",
+        "ad",
+        "porn",
+        "violence",
+        "sensitive"
+      ],
+      "values": [
+        [
+          21,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          11,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          11,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          10,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          12,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "macro_f1": 0.09767441860465116,
+    "macro_precision": 0.06461538461538462,
+    "macro_recall": 0.2,
+    "normal_false_positive_rate": 0.0,
+    "per_class": {
+      "ad": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "support": 11
+      },
+      "normal": {
+        "f1": 0.4883720930232558,
+        "precision": 0.3230769230769231,
+        "recall": 1.0,
+        "support": 21
+      },
+      "porn": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "support": 11
+      },
+      "sensitive": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "support": 12
+      },
+      "violence": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "support": 10
+      }
+    },
+    "risk_recall": 0.0,
+    "sample_count": 65,
+    "weighted_f1": 0.1577817531305903
+  },
+  "validation": {
+    "accuracy": 0.3230769230769231,
+    "confusion_matrix": {
+      "labels": [
+        "normal",
+        "ad",
+        "porn",
+        "violence",
+        "sensitive"
+      ],
+      "values": [
+        [
+          21,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          11,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          11,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          10,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          12,
+          0,
+          0,
+          0,
+          0
+        ]
+      ]
+    },
+    "macro_f1": 0.09767441860465116,
+    "macro_precision": 0.06461538461538462,
+    "macro_recall": 0.2,
+    "normal_false_positive_rate": 0.0,
+    "per_class": {
+      "ad": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "support": 11
+      },
+      "normal": {
+        "f1": 0.4883720930232558,
+        "precision": 0.3230769230769231,
+        "recall": 1.0,
+        "support": 21
+      },
+      "porn": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "support": 11
+      },
+      "sensitive": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "support": 12
+      },
+      "violence": {
+        "f1": 0.0,
+        "precision": 0.0,
+        "recall": 0.0,
+        "support": 10
+      }
+    },
+    "risk_recall": 0.0,
+    "sample_count": 65,
+    "weighted_f1": 0.1577817531305903
+  }
+}

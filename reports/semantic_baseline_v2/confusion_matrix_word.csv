@@ -1,0 +1,11 @@
+split,actual_label,predicted_normal,predicted_ad,predicted_porn,predicted_violence,predicted_sensitive
+validation,normal,21,0,0,0,0
+validation,ad,11,0,0,0,0
+validation,porn,11,0,0,0,0
+validation,violence,10,0,0,0,0
+validation,sensitive,12,0,0,0,0
+test,normal,21,0,0,0,0
+test,ad,11,0,0,0,0
+test,porn,11,0,0,0,0
+test,violence,10,0,0,0,0
+test,sensitive,12,0,0,0,0

@@ -1,0 +1,182 @@
+{
+  "evaluation_scope": "weak_label_grouped_holdout",
+  "model": "char",
+  "official_competition_metric": false,
+  "schema_version": 2,
+  "test": {
+    "accuracy": 0.5384615384615384,
+    "confusion_matrix": {
+      "labels": [
+        "normal",
+        "ad",
+        "porn",
+        "violence",
+        "sensitive"
+      ],
+      "values": [
+        [
+          18,
+          1,
+          0,
+          2,
+          0
+        ],
+        [
+          5,
+          2,
+          3,
+          1,
+          0
+        ],
+        [
+          4,
+          0,
+          5,
+          2,
+          0
+        ],
+        [
+          2,
+          0,
+          2,
+          5,
+          1
+        ],
+        [
+          6,
+          0,
+          1,
+          0,
+          5
+        ]
+      ]
+    },
+    "macro_f1": 0.48773448773448774,
+    "macro_precision": 0.5937662337662337,
+    "macro_recall": 0.4820346320346321,
+    "normal_false_positive_rate": 0.14285714285714285,
+    "per_class": {
+      "ad": {
+        "f1": 0.2857142857142857,
+        "precision": 0.6666666666666666,
+        "recall": 0.18181818181818182,
+        "support": 11
+      },
+      "normal": {
+        "f1": 0.6428571428571429,
+        "precision": 0.5142857142857142,
+        "recall": 0.8571428571428571,
+        "support": 21
+      },
+      "porn": {
+        "f1": 0.45454545454545453,
+        "precision": 0.45454545454545453,
+        "recall": 0.45454545454545453,
+        "support": 11
+      },
+      "sensitive": {
+        "f1": 0.5555555555555556,
+        "precision": 0.8333333333333334,
+        "recall": 0.4166666666666667,
+        "support": 12
+      },
+      "violence": {
+        "f1": 0.5,
+        "precision": 0.5,
+        "recall": 0.5,
+        "support": 10
+      }
+    },
+    "risk_recall": 0.6136363636363636,
+    "sample_count": 65,
+    "weighted_f1": 0.5124542124542124
+  },
+  "validation": {
+    "accuracy": 0.676923076923077,
+    "confusion_matrix": {
+      "labels": [
+        "normal",
+        "ad",
+        "porn",
+        "violence",
+        "sensitive"
+      ],
+      "values": [
+        [
+          21,
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          3,
+          6,
+          2,
+          0,
+          0
+        ],
+        [
+          3,
+          1,
+          7,
+          0,
+          0
+        ],
+        [
+          2,
+          0,
+          2,
+          3,
+          3
+        ],
+        [
+          4,
+          0,
+          0,
+          1,
+          7
+        ]
+      ]
+    },
+    "macro_f1": 0.6291486291486291,
+    "macro_precision": 0.7159740259740259,
+    "macro_recall": 0.613030303030303,
+    "normal_false_positive_rate": 0.0,
+    "per_class": {
+      "ad": {
+        "f1": 0.6666666666666666,
+        "precision": 0.8571428571428571,
+        "recall": 0.5454545454545454,
+        "support": 11
+      },
+      "normal": {
+        "f1": 0.7777777777777778,
+        "precision": 0.6363636363636364,
+        "recall": 1.0,
+        "support": 21
+      },
+      "porn": {
+        "f1": 0.6363636363636364,
+        "precision": 0.6363636363636364,
+        "recall": 0.6363636363636364,
+        "support": 11
+      },
+      "sensitive": {
+        "f1": 0.6363636363636364,
+        "precision": 0.7,
+        "recall": 0.5833333333333334,
+        "support": 12
+      },
+      "violence": {
+        "f1": 0.42857142857142855,
+        "precision": 0.75,
+        "recall": 0.3,
+        "support": 10
+      }
+    },
+    "risk_recall": 0.7272727272727273,
+    "sample_count": 65,
+    "weighted_f1": 0.6552114552114551
+  }
+}
