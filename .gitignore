@@ -21,3 +21,6 @@ data/training_data/*.csv
 Thumbs.db
 .DS_Store
 .test_tmp/
+.pytest_cache/
+wheelhouse/
+data/logs/
