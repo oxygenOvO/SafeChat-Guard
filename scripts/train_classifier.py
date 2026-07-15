@@ -26,7 +26,7 @@ def train():
     print("🚀 开始训练语义分类模型...")
     
     # 1. 读取数据
-    df = pd.read_csv(DATA_PATH)
+    df = pd.read_csv(DATA_PATH, encoding='utf-8-sig')
     X = df['text'].values
     y = df['label'].values
     print(f"📊 总样本数: {len(X)}")
