@@ -1,0 +1,154 @@
+train_sample_id,eval_sample_id,train_text,eval_text,match_type,train_label,eval_label
+adv_02338a26f87ffed9,adv_3a76ce158da916f9,点@击链接领奖品,点 击链接领奖品,normalized,ad,ad
+adv_02338a26f87ffed9,adv_57f76349d46c8cd2,点@击链接领奖品,点 击 链 接 领 奖 品,normalized,ad,ad
+adv_02338a26f87ffed9,adv_f1bd7f859be88932,点@击链接领奖品,点击🔗领奖品,normalized,ad,ad
+adv_02338a26f87ffed9,eval_a708de3c72cdc044,点@击链接领奖品,点击链接领奖品,normalized,ad,ad
+adv_0305ffaea101308d,adv_3bbf0fda17daca8e,兼 职打字员招聘,兼 职 打 字 员 招 聘,normalized,ad,ad
+adv_0305ffaea101308d,adv_6e1cc2972820adef,兼 职打字员招聘,兼@职打字员招聘,normalized,ad,ad
+adv_0305ffaea101308d,adv_ae695a4e81dd751a,兼 职打字员招聘,jian zhi打字员招聘,normalized,ad,ad
+adv_0305ffaea101308d,adv_e63ced52a87039fe,兼 职打字员招聘,jj打字员招聘,normalized,ad,ad
+adv_0305ffaea101308d,eval_c560ee0b290d9529,兼 职打字员招聘,兼职打字员招聘,normalized,ad,ad
+adv_0e5425b8e6334d7d,eval_db1bec7c1aafa45e,附近的人找小姝,附近的人找小姐,normalized,porn,porn
+adv_11804f8490ba03ea,adv_1f6d0ab80b0d21e4,威信转账有返现,微-信转账有返现,normalized,ad,ad
+adv_11804f8490ba03ea,adv_4fa9cb201b3d7719,威信转账有返现,wei xin转账有返现,normalized,ad,ad
+adv_12d94673d86e340a,adv_3204c607a1e8e00d,免 费 领 取 试 用 装,🆓领取试用装,normalized,ad,ad
+adv_12d94673d86e340a,adv_8b149cebf72c52ec,免 费 领 取 试 用 装,mf领取试用装,normalized,ad,ad
+adv_12d94673d86e340a,adv_bc9dcbd9522d736a,免 费 领 取 试 用 装,免 费领取试用装,normalized,ad,ad
+adv_12d94673d86e340a,adv_cdf5b3b5fe668527,免 费 领 取 试 用 装,免@费领取试用装,normalized,ad,ad
+adv_12d94673d86e340a,eval_993fcee54de29a88,免 费 领 取 试 用 装,免费领取试用装,normalized,ad,ad
+adv_1520b4828b5c30ef,adv_6d072a556c0fc0e2,宝妈jj创业,宝妈jian zhi创业,normalized,ad,ad
+adv_1520b4828b5c30ef,eval_f125d868f5353a8a,宝妈jj创业,宝妈兼职创业,normalized,ad,ad
+adv_168ee91a64edf55f,adv_bd4510f3796dc859,扫 码 进 群 领 红 包,扫@码进群领红包,normalized,ad,ad
+adv_168ee91a64edf55f,adv_f15013f99ad1a341,扫 码 进 群 领 红 包,扫 码进群领红包,normalized,ad,ad
+adv_168ee91a64edf55f,eval_1ffa031028d07519,扫 码 进 群 领 红 包,扫码进群领红包,normalized,ad,ad
+adv_16931edf6e65700c,adv_402c71247fbf728a,加 我 微 信 有 福 利,加我微-信有福利,normalized,ad,ad
+adv_16931edf6e65700c,adv_43dcd47fd29f5dd2,加 我 微 信 有 福 利,加我威信有福利,normalized,ad,ad
+adv_16931edf6e65700c,adv_49429d06926399a7,加 我 微 信 有 福 利,加我微信有🎁,normalized,ad,ad
+adv_16931edf6e65700c,adv_6fec67e5049bccdd,加 我 微 信 有 福 利,加我wei xin有福利,normalized,ad,ad
+adv_16931edf6e65700c,adv_75fd38ad2bab0fcc,加 我 微 信 有 福 利,加我v x有福利,normalized,ad,ad
+adv_16931edf6e65700c,adv_84046498000d5ea3,加 我 微 信 有 福 利,加 我微信有福利,normalized,ad,ad
+adv_16931edf6e65700c,adv_f6af3dee96b5c5c6,加 我 微 信 有 福 利,加@我微信有福利,normalized,ad,ad
+adv_16931edf6e65700c,eval_59b37935f43ac657,加 我 微 信 有 福 利,加我微信有福利,normalized,ad,ad
+adv_16ee65db399b572c,adv_6c947900c5de7e40,网 赚 项 目 推 荐,网@赚项目推荐,normalized,ad,ad
+adv_16ee65db399b572c,adv_843184eb15e5c42e,网 赚 项 目 推 荐,网 赚项目推荐,normalized,ad,ad
+adv_16ee65db399b572c,eval_bf238cae3a9ac836,网 赚 项 目 推 荐,网赚项目推荐,normalized,ad,ad
+adv_1f6d0ab80b0d21e4,adv_4fa9cb201b3d7719,微-信转账有返现,wei xin转账有返现,normalized,ad,ad
+adv_299f60d5e1716dce,adv_3b13f566b691219f,日@赚千元不是梦,日 赚 千 元 不 是 梦,normalized,ad,ad
+adv_299f60d5e1716dce,adv_9d8d58e70b849ce0,日@赚千元不是梦,日 赚千元不是梦,normalized,ad,ad
+adv_299f60d5e1716dce,eval_e225986dd1610407,日@赚千元不是梦,日赚千元不是梦,normalized,ad,ad
+adv_2cfedf7a7686cd34,adv_ed433b1784e36ea4,涩情视频网站,色-情视频网站,normalized,porn,porn
+adv_2cfedf7a7686cd34,eval_691cf9a2fddd1fe6,涩情视频网站,色情视频网站,normalized,porn,porn
+adv_3204c607a1e8e00d,adv_8b149cebf72c52ec,🆓领取试用装,mf领取试用装,normalized,ad,ad
+adv_3204c607a1e8e00d,adv_bc9dcbd9522d736a,🆓领取试用装,免 费领取试用装,normalized,ad,ad
+adv_3204c607a1e8e00d,adv_cdf5b3b5fe668527,🆓领取试用装,免@费领取试用装,normalized,ad,ad
+adv_3204c607a1e8e00d,eval_993fcee54de29a88,🆓领取试用装,免费领取试用装,normalized,ad,ad
+adv_33b1f6d3f540bba9,adv_cff18197f2528251,微 商代理招募,微@商代理招募,normalized,ad,ad
+adv_33b1f6d3f540bba9,adv_e52c10ebe49d4c24,微 商代理招募,微 商 代 理 招 募,normalized,ad,ad
+adv_33b1f6d3f540bba9,eval_a47703998c1e9d37,微 商代理招募,微商代理招募,normalized,ad,ad
+adv_3a76ce158da916f9,adv_57f76349d46c8cd2,点 击链接领奖品,点 击 链 接 领 奖 品,normalized,ad,ad
+adv_3a76ce158da916f9,adv_f1bd7f859be88932,点 击链接领奖品,点击🔗领奖品,normalized,ad,ad
+adv_3a76ce158da916f9,eval_a708de3c72cdc044,点 击链接领奖品,点击链接领奖品,normalized,ad,ad
+adv_3a9501c512c4c195,adv_58600d0c66a78415,yue pao软件哪个靠谱,约-炮软件哪个靠谱,normalized,porn,porn
+adv_3a9501c512c4c195,adv_762504a1052e7052,yue pao软件哪个靠谱,月炮软件哪个靠谱,normalized,porn,porn
+adv_3a9501c512c4c195,eval_c8f03727ccdfa9a2,yue pao软件哪个靠谱,约炮软件哪个靠谱,normalized,porn,porn
+adv_3b13f566b691219f,adv_9d8d58e70b849ce0,日 赚 千 元 不 是 梦,日 赚千元不是梦,normalized,ad,ad
+adv_3b13f566b691219f,eval_e225986dd1610407,日 赚 千 元 不 是 梦,日赚千元不是梦,normalized,ad,ad
+adv_3bbf0fda17daca8e,adv_6e1cc2972820adef,兼 职 打 字 员 招 聘,兼@职打字员招聘,normalized,ad,ad
+adv_3bbf0fda17daca8e,adv_ae695a4e81dd751a,兼 职 打 字 员 招 聘,jian zhi打字员招聘,normalized,ad,ad
+adv_3bbf0fda17daca8e,adv_e63ced52a87039fe,兼 职 打 字 员 招 聘,jj打字员招聘,normalized,ad,ad
+adv_3bbf0fda17daca8e,eval_c560ee0b290d9529,兼 职 打 字 员 招 聘,兼职打字员招聘,normalized,ad,ad
+adv_3e9c6b3336bc13f3,adv_d2672820b5cb172a,淘 宝刷单兼职,淘宝刷单jian zhi,normalized,ad,ad
+adv_3e9c6b3336bc13f3,adv_d4893e3e113acfe3,淘 宝刷单兼职,淘 宝 刷 单 兼 职,normalized,ad,ad
+adv_3e9c6b3336bc13f3,adv_d5af9d957723c8f7,淘 宝刷单兼职,淘@宝刷单兼职,normalized,ad,ad
+adv_3e9c6b3336bc13f3,adv_e466a5c838c16e0d,淘 宝刷单兼职,淘宝刷单jj,normalized,ad,ad
+adv_3e9c6b3336bc13f3,eval_fa76a857d51341b1,淘 宝刷单兼职,淘宝刷单兼职,normalized,ad,ad
+adv_402c71247fbf728a,adv_43dcd47fd29f5dd2,加我微-信有福利,加我威信有福利,normalized,ad,ad
+adv_402c71247fbf728a,adv_49429d06926399a7,加我微-信有福利,加我微信有🎁,normalized,ad,ad
+adv_402c71247fbf728a,adv_6fec67e5049bccdd,加我微-信有福利,加我wei xin有福利,normalized,ad,ad
+adv_402c71247fbf728a,adv_75fd38ad2bab0fcc,加我微-信有福利,加我v x有福利,normalized,ad,ad
+adv_402c71247fbf728a,adv_84046498000d5ea3,加我微-信有福利,加 我微信有福利,normalized,ad,ad
+adv_402c71247fbf728a,adv_f6af3dee96b5c5c6,加我微-信有福利,加@我微信有福利,normalized,ad,ad
+adv_402c71247fbf728a,eval_59b37935f43ac657,加我微-信有福利,加我微信有福利,normalized,ad,ad
+adv_43dcd47fd29f5dd2,adv_49429d06926399a7,加我威信有福利,加我微信有🎁,normalized,ad,ad
+adv_43dcd47fd29f5dd2,adv_6fec67e5049bccdd,加我威信有福利,加我wei xin有福利,normalized,ad,ad
+adv_43dcd47fd29f5dd2,adv_75fd38ad2bab0fcc,加我威信有福利,加我v x有福利,normalized,ad,ad
+adv_43dcd47fd29f5dd2,adv_84046498000d5ea3,加我威信有福利,加 我微信有福利,normalized,ad,ad
+adv_43dcd47fd29f5dd2,adv_f6af3dee96b5c5c6,加我威信有福利,加@我微信有福利,normalized,ad,ad
+adv_43dcd47fd29f5dd2,eval_59b37935f43ac657,加我威信有福利,加我微信有福利,normalized,ad,ad
+adv_49429d06926399a7,adv_6fec67e5049bccdd,加我微信有🎁,加我wei xin有福利,normalized,ad,ad
+adv_49429d06926399a7,adv_75fd38ad2bab0fcc,加我微信有🎁,加我v x有福利,normalized,ad,ad
+adv_49429d06926399a7,adv_84046498000d5ea3,加我微信有🎁,加 我微信有福利,normalized,ad,ad
+adv_49429d06926399a7,adv_f6af3dee96b5c5c6,加我微信有🎁,加@我微信有福利,normalized,ad,ad
+adv_49429d06926399a7,eval_59b37935f43ac657,加我微信有🎁,加我微信有福利,normalized,ad,ad
+adv_51b02fb96a26d313,eval_68f00a0fab00d692,有没有诚人网站推荐,有没有成人网站推荐,normalized,porn,porn
+adv_57f76349d46c8cd2,adv_f1bd7f859be88932,点 击 链 接 领 奖 品,点击🔗领奖品,normalized,ad,ad
+adv_57f76349d46c8cd2,eval_a708de3c72cdc044,点 击 链 接 领 奖 品,点击链接领奖品,normalized,ad,ad
+adv_58600d0c66a78415,adv_762504a1052e7052,约-炮软件哪个靠谱,月炮软件哪个靠谱,normalized,porn,porn
+adv_58600d0c66a78415,eval_c8f03727ccdfa9a2,约-炮软件哪个靠谱,约炮软件哪个靠谱,normalized,porn,porn
+adv_59c203fcc6a3053b,adv_c3854b5ec9d3a731,学生jj赚钱,学生jian zhi赚钱,normalized,ad,ad
+adv_59c203fcc6a3053b,eval_effd0672229ad48a,学生jj赚钱,学生兼职赚钱,normalized,ad,ad
+adv_5df58422c6f78f2c,adv_fa617a180fcf083c,低价dai gou正品,低价dg正品,normalized,ad,ad
+adv_5df58422c6f78f2c,eval_8526d5dee6427b18,低价dai gou正品,低价代购正品,normalized,ad,ad
+adv_6ad542b856f223ce,eval_7be7592c5fc596c1,做唉姿势教学,做爱姿势教学,normalized,porn,porn
+adv_6c947900c5de7e40,adv_843184eb15e5c42e,网@赚项目推荐,网 赚项目推荐,normalized,ad,ad
+adv_6c947900c5de7e40,eval_bf238cae3a9ac836,网@赚项目推荐,网赚项目推荐,normalized,ad,ad
+adv_6d072a556c0fc0e2,eval_f125d868f5353a8a,宝妈jian zhi创业,宝妈兼职创业,normalized,ad,ad
+adv_6e1cc2972820adef,adv_ae695a4e81dd751a,兼@职打字员招聘,jian zhi打字员招聘,normalized,ad,ad
+adv_6e1cc2972820adef,adv_e63ced52a87039fe,兼@职打字员招聘,jj打字员招聘,normalized,ad,ad
+adv_6e1cc2972820adef,eval_c560ee0b290d9529,兼@职打字员招聘,兼职打字员招聘,normalized,ad,ad
+adv_6f8bbeaf8bf5fac4,adv_73eece25414b33c2,在@家工作月入过万,在 家 工 作 月 入 过 万,normalized,ad,ad
+adv_6f8bbeaf8bf5fac4,adv_890f5602f0d26269,在@家工作月入过万,在 家工作月入过万,normalized,ad,ad
+adv_6f8bbeaf8bf5fac4,eval_569ad182fe8f4d36,在@家工作月入过万,在家工作月入过万,normalized,ad,ad
+adv_6fec67e5049bccdd,adv_75fd38ad2bab0fcc,加我wei xin有福利,加我v x有福利,normalized,ad,ad
+adv_6fec67e5049bccdd,adv_84046498000d5ea3,加我wei xin有福利,加 我微信有福利,normalized,ad,ad
+adv_6fec67e5049bccdd,adv_f6af3dee96b5c5c6,加我wei xin有福利,加@我微信有福利,normalized,ad,ad
+adv_6fec67e5049bccdd,eval_59b37935f43ac657,加我wei xin有福利,加我微信有福利,normalized,ad,ad
+adv_73eece25414b33c2,adv_890f5602f0d26269,在 家 工 作 月 入 过 万,在 家工作月入过万,normalized,ad,ad
+adv_73eece25414b33c2,eval_569ad182fe8f4d36,在 家 工 作 月 入 过 万,在家工作月入过万,normalized,ad,ad
+adv_75fd38ad2bab0fcc,adv_84046498000d5ea3,加我v x有福利,加 我微信有福利,normalized,ad,ad
+adv_75fd38ad2bab0fcc,adv_f6af3dee96b5c5c6,加我v x有福利,加@我微信有福利,normalized,ad,ad
+adv_75fd38ad2bab0fcc,eval_59b37935f43ac657,加我v x有福利,加我微信有福利,normalized,ad,ad
+adv_762504a1052e7052,eval_c8f03727ccdfa9a2,月炮软件哪个靠谱,约炮软件哪个靠谱,normalized,porn,porn
+adv_84046498000d5ea3,adv_f6af3dee96b5c5c6,加 我微信有福利,加@我微信有福利,normalized,ad,ad
+adv_84046498000d5ea3,eval_59b37935f43ac657,加 我微信有福利,加我微信有福利,normalized,ad,ad
+adv_843184eb15e5c42e,eval_bf238cae3a9ac836,网 赚项目推荐,网赚项目推荐,normalized,ad,ad
+adv_890f5602f0d26269,eval_569ad182fe8f4d36,在 家工作月入过万,在家工作月入过万,normalized,ad,ad
+adv_8b149cebf72c52ec,adv_bc9dcbd9522d736a,mf领取试用装,免 费领取试用装,normalized,ad,ad
+adv_8b149cebf72c52ec,adv_cdf5b3b5fe668527,mf领取试用装,免@费领取试用装,normalized,ad,ad
+adv_8b149cebf72c52ec,eval_993fcee54de29a88,mf领取试用装,免费领取试用装,normalized,ad,ad
+adv_8e62d9372baae801,eval_8012946ad53d3d85,限时抢购zk,限时抢购折扣,normalized,ad,ad
+adv_9c410fa63f3b4565,adv_febd323020f50b1e,月炮群怎么加,约-炮群怎么加,normalized,porn,porn
+adv_9c410fa63f3b4565,eval_9118633eec2e9b73,月炮群怎么加,约炮群怎么加,normalized,porn,porn
+adv_9d8d58e70b849ce0,eval_e225986dd1610407,日 赚千元不是梦,日赚千元不是梦,normalized,ad,ad
+adv_ae695a4e81dd751a,adv_e63ced52a87039fe,jian zhi打字员招聘,jj打字员招聘,normalized,ad,ad
+adv_ae695a4e81dd751a,eval_c560ee0b290d9529,jian zhi打字员招聘,兼职打字员招聘,normalized,ad,ad
+adv_bc9dcbd9522d736a,adv_cdf5b3b5fe668527,免 费领取试用装,免@费领取试用装,normalized,ad,ad
+adv_bc9dcbd9522d736a,eval_993fcee54de29a88,免 费领取试用装,免费领取试用装,normalized,ad,ad
+adv_bd4510f3796dc859,adv_f15013f99ad1a341,扫@码进群领红包,扫 码进群领红包,normalized,ad,ad
+adv_bd4510f3796dc859,eval_1ffa031028d07519,扫@码进群领红包,扫码进群领红包,normalized,ad,ad
+adv_be44c3551ce35c34,eval_0acd57aaf9fb976e,看黄骗的地方,看黄片的地方,normalized,porn,porn
+adv_c31382aaed695b34,eval_33a6e986988c8e83,拼团砍价mf拿,拼团砍价免费拿,normalized,ad,ad
+adv_c3854b5ec9d3a731,eval_effd0672229ad48a,学生jian zhi赚钱,学生兼职赚钱,normalized,ad,ad
+adv_cdf5b3b5fe668527,eval_993fcee54de29a88,免@费领取试用装,免费领取试用装,normalized,ad,ad
+adv_cff18197f2528251,adv_e52c10ebe49d4c24,微@商代理招募,微 商 代 理 招 募,normalized,ad,ad
+adv_cff18197f2528251,eval_a47703998c1e9d37,微@商代理招募,微商代理招募,normalized,ad,ad
+adv_d2672820b5cb172a,adv_d4893e3e113acfe3,淘宝刷单jian zhi,淘 宝 刷 单 兼 职,normalized,ad,ad
+adv_d2672820b5cb172a,adv_d5af9d957723c8f7,淘宝刷单jian zhi,淘@宝刷单兼职,normalized,ad,ad
+adv_d2672820b5cb172a,adv_e466a5c838c16e0d,淘宝刷单jian zhi,淘宝刷单jj,normalized,ad,ad
+adv_d2672820b5cb172a,eval_fa76a857d51341b1,淘宝刷单jian zhi,淘宝刷单兼职,normalized,ad,ad
+adv_d4893e3e113acfe3,adv_d5af9d957723c8f7,淘 宝 刷 单 兼 职,淘@宝刷单兼职,normalized,ad,ad
+adv_d4893e3e113acfe3,adv_e466a5c838c16e0d,淘 宝 刷 单 兼 职,淘宝刷单jj,normalized,ad,ad
+adv_d4893e3e113acfe3,eval_fa76a857d51341b1,淘 宝 刷 单 兼 职,淘宝刷单兼职,normalized,ad,ad
+adv_d5af9d957723c8f7,adv_e466a5c838c16e0d,淘@宝刷单兼职,淘宝刷单jj,normalized,ad,ad
+adv_d5af9d957723c8f7,eval_fa76a857d51341b1,淘@宝刷单兼职,淘宝刷单兼职,normalized,ad,ad
+adv_d913565784dcfe65,adv_ee710766175697c6,同城月炮群,同城约-炮群,normalized,porn,porn
+adv_dc90fd3d0db826b0,eval_b060796b0e1880cc,会员cz返利,会员充值返利,normalized,ad,ad
+adv_e466a5c838c16e0d,eval_fa76a857d51341b1,淘宝刷单jj,淘宝刷单兼职,normalized,ad,ad
+adv_e52c10ebe49d4c24,eval_a47703998c1e9d37,微 商 代 理 招 募,微商代理招募,normalized,ad,ad
+adv_e63ced52a87039fe,eval_c560ee0b290d9529,jj打字员招聘,兼职打字员招聘,normalized,ad,ad
+adv_ed433b1784e36ea4,eval_691cf9a2fddd1fe6,色-情视频网站,色情视频网站,normalized,porn,porn
+adv_f15013f99ad1a341,eval_1ffa031028d07519,扫 码进群领红包,扫码进群领红包,normalized,ad,ad
+adv_f1bd7f859be88932,eval_a708de3c72cdc044,点击🔗领奖品,点击链接领奖品,normalized,ad,ad
+adv_f6af3dee96b5c5c6,eval_59b37935f43ac657,加@我微信有福利,加我微信有福利,normalized,ad,ad
+adv_fa617a180fcf083c,eval_8526d5dee6427b18,低价dg正品,低价代购正品,normalized,ad,ad
+adv_febd323020f50b1e,eval_9118633eec2e9b73,约-炮群怎么加,约炮群怎么加,normalized,porn,porn

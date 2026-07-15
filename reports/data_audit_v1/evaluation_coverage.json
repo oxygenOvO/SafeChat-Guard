@@ -1,0 +1,78 @@
+{
+  "adversarial_by_type": {
+    "abbreviation": 10,
+    "character_split": 10,
+    "emoji": 10,
+    "homophone": 10,
+    "mixed_language": 10,
+    "phone_obfuscation": 10,
+    "pinyin": 10,
+    "repeat_character": 10,
+    "space_insertion": 10,
+    "symbol_insertion": 10,
+    "traditional_simplified": 10,
+    "url_obfuscation": 10,
+    "variant_character": 10
+  },
+  "adversarial_total": 130,
+  "baseline_by_label": {
+    "ad": 30,
+    "normal": 80,
+    "porn": 30,
+    "sensitive": 30,
+    "violence": 30
+  },
+  "baseline_by_scenario": {
+    "contextual": 72,
+    "direct": 120,
+    "education": 2,
+    "negation": 2,
+    "news": 1,
+    "prevention": 1,
+    "quotation": 1,
+    "research": 1
+  },
+  "baseline_coverage": {
+    "ad": {
+      "actual_count": 30,
+      "shortfall": 0,
+      "target_count": 30,
+      "unique_count": 30
+    },
+    "normal": {
+      "actual_count": 80,
+      "shortfall": 0,
+      "target_count": 80,
+      "unique_count": 80
+    },
+    "porn": {
+      "actual_count": 30,
+      "shortfall": 0,
+      "target_count": 30,
+      "unique_count": 30
+    },
+    "sensitive": {
+      "actual_count": 30,
+      "shortfall": 0,
+      "target_count": 30,
+      "unique_count": 30
+    },
+    "violence": {
+      "actual_count": 30,
+      "shortfall": 0,
+      "target_count": 30,
+      "unique_count": 30
+    }
+  },
+  "baseline_total": 200,
+  "evaluation_duplicate_candidates": 153,
+  "leakage_candidates": 0,
+  "review_status": "pending",
+  "target_shortfall": {
+    "ad": 0,
+    "normal": 0,
+    "porn": 0,
+    "sensitive": 0,
+    "violence": 0
+  }
+}

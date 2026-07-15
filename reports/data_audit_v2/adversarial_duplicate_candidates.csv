@@ -1,0 +1,75 @@
+train_sample_id,eval_sample_id,train_text,eval_text,match_type,train_label,eval_label
+adv2_001652c099f011cf,adv2_51b02fb96a26d313,有没有cheng ren网站推荐,有没有诚人网站推荐,normalized,porn,porn
+adv2_00171dc5e772a395,adv2_6371d2e943f1bfed,微商代 理招募,微商代@理招募,normalized,ad,ad
+adv2_0305ffaea101308d,adv2_6e1cc2972820adef,兼 职打字员招聘,兼@职打字员招聘,normalized,ad,ad
+adv2_0305ffaea101308d,adv2_ae695a4e81dd751a,兼 职打字员招聘,jian zhi打字员招聘,normalized,ad,ad
+adv2_0d614102cf848e14,adv2_3a9501c512c4c195,约@炮软件哪个靠谱,yue pao软件哪个靠谱,normalized,porn,porn
+adv2_0d614102cf848e14,adv2_4038e6b2c721adcc,约@炮软件哪个靠谱,约 炮软件哪个靠谱,normalized,porn,porn
+adv2_0d614102cf848e14,adv2_58600d0c66a78415,约@炮软件哪个靠谱,约-炮软件哪个靠谱,normalized,porn,porn
+adv2_0d614102cf848e14,adv2_5a537c015b02d848,约@炮软件哪个靠谱,yp软件哪个靠谱,normalized,porn,porn
+adv2_0d614102cf848e14,adv2_762504a1052e7052,约@炮软件哪个靠谱,月炮软件哪个靠谱,normalized,porn,porn
+adv2_0e2ef3bb3db6d70f,adv2_ac3dcdee237ed67f,自傻方法大全,自 杀方法大全,normalized,sensitive,sensitive
+adv2_0e2ef3bb3db6d70f,adv2_ff452ef430377aa5,自傻方法大全,zi sha方法大全,normalized,sensitive,sensitive
+adv2_0f37432ffdbc0035,adv2_bf0cd673d40b5906,zi sha式袭击,自傻式袭击,normalized,sensitive,sensitive
+adv2_104135400ef892f5,adv2_a052b705003ce497,裸@聊直播平台,裸 聊直播平台,normalized,porn,porn
+adv2_11804f8490ba03ea,adv2_165dd2cb3ceeb9b5,威信转账有返现,微♡信转账有返现,normalized,ad,ad
+adv2_11804f8490ba03ea,adv2_38ace1f3dd54492d,威信转账有返现,v x转账有返现,normalized,ad,ad
+adv2_165dd2cb3ceeb9b5,adv2_38ace1f3dd54492d,微♡信转账有返现,v x转账有返现,normalized,ad,ad
+adv2_2081d7f818980dcf,adv2_60fe275b86fd3a93,zha yao制作教程,诈药制作教程,normalized,violence,violence
+adv2_2081d7f818980dcf,adv2_6ef6d10aadf310f6,zha yao制作教程,炸-药制作教程,normalized,violence,violence
+adv2_2aea6736e70aa571,adv2_7d2edf59d52e62a1,催 情 药水哪里有卖,催@情药水哪里有卖,normalized,sensitive,sensitive
+adv2_2c21d5522f76e876,adv2_4232a3a6a9939c3b,yue pao群怎么加,yp群怎么加,normalized,porn,porn
+adv2_2c21d5522f76e876,adv2_93976bdac0118753,yue pao群怎么加,约 炮群怎么加,normalized,porn,porn
+adv2_2c21d5522f76e876,adv2_99c0d7ff0e41ad0c,yue pao群怎么加,约@炮群怎么加,normalized,porn,porn
+adv2_2c21d5522f76e876,adv2_febd323020f50b1e,yue pao群怎么加,约-炮群怎么加,normalized,porn,porn
+adv2_2e8038baca9a467f,adv2_89b10b7784662d44,色 情视频网站,av网站,normalized,porn,porn
+adv2_2e8038baca9a467f,adv2_98e24a05fc77dd3c,色 情视频网站,🔞视频网站,normalized,porn,porn
+adv2_2e8038baca9a467f,adv2_ed433b1784e36ea4,色 情视频网站,色-情视频网站,normalized,porn,porn
+adv2_3a9501c512c4c195,adv2_4038e6b2c721adcc,yue pao软件哪个靠谱,约 炮软件哪个靠谱,normalized,porn,porn
+adv2_3a9501c512c4c195,adv2_58600d0c66a78415,yue pao软件哪个靠谱,约-炮软件哪个靠谱,normalized,porn,porn
+adv2_3a9501c512c4c195,adv2_5a537c015b02d848,yue pao软件哪个靠谱,yp软件哪个靠谱,normalized,porn,porn
+adv2_3a9501c512c4c195,adv2_762504a1052e7052,yue pao软件哪个靠谱,月炮软件哪个靠谱,normalized,porn,porn
+adv2_4038e6b2c721adcc,adv2_58600d0c66a78415,约 炮软件哪个靠谱,约-炮软件哪个靠谱,normalized,porn,porn
+adv2_4038e6b2c721adcc,adv2_5a537c015b02d848,约 炮软件哪个靠谱,yp软件哪个靠谱,normalized,porn,porn
+adv2_4038e6b2c721adcc,adv2_762504a1052e7052,约 炮软件哪个靠谱,月炮软件哪个靠谱,normalized,porn,porn
+adv2_4232a3a6a9939c3b,adv2_93976bdac0118753,yp群怎么加,约 炮群怎么加,normalized,porn,porn
+adv2_4232a3a6a9939c3b,adv2_99c0d7ff0e41ad0c,yp群怎么加,约@炮群怎么加,normalized,porn,porn
+adv2_4232a3a6a9939c3b,adv2_febd323020f50b1e,yp群怎么加,约-炮群怎么加,normalized,porn,porn
+adv2_43dcd47fd29f5dd2,adv2_49429d06926399a7,加我威信有福利,加我微信有🎁,normalized,ad,ad
+adv2_43dcd47fd29f5dd2,adv2_6fec67e5049bccdd,加我威信有福利,加我wei xin有福利,normalized,ad,ad
+adv2_43dcd47fd29f5dd2,adv2_75fd38ad2bab0fcc,加我威信有福利,加我v x有福利,normalized,ad,ad
+adv2_43dcd47fd29f5dd2,adv2_caf3458bedf3d79b,加我威信有福利,加我微♡信有福利,normalized,ad,ad
+adv2_49429d06926399a7,adv2_6fec67e5049bccdd,加我微信有🎁,加我wei xin有福利,normalized,ad,ad
+adv2_49429d06926399a7,adv2_75fd38ad2bab0fcc,加我微信有🎁,加我v x有福利,normalized,ad,ad
+adv2_49429d06926399a7,adv2_caf3458bedf3d79b,加我微信有🎁,加我微♡信有福利,normalized,ad,ad
+adv2_4d16ae4530e3e7b0,adv2_50a21c89fece7de9,自制炸 药方法,自制炸-药方法,normalized,violence,violence
+adv2_4d16ae4530e3e7b0,adv2_52d3cf2824a4c9c2,自制炸 药方法,自制炸@药方法,normalized,violence,violence
+adv2_4d16ae4530e3e7b0,adv2_dd5dc088514d8eaf,自制炸 药方法,自制zha yao方法,normalized,violence,violence
+adv2_4d16ae4530e3e7b0,adv2_e6908ea620956d8f,自制炸 药方法,自制诈药方法,normalized,violence,violence
+adv2_50a21c89fece7de9,adv2_52d3cf2824a4c9c2,自制炸-药方法,自制炸@药方法,normalized,violence,violence
+adv2_50a21c89fece7de9,adv2_dd5dc088514d8eaf,自制炸-药方法,自制zha yao方法,normalized,violence,violence
+adv2_50a21c89fece7de9,adv2_e6908ea620956d8f,自制炸-药方法,自制诈药方法,normalized,violence,violence
+adv2_52d3cf2824a4c9c2,adv2_dd5dc088514d8eaf,自制炸@药方法,自制zha yao方法,normalized,violence,violence
+adv2_52d3cf2824a4c9c2,adv2_e6908ea620956d8f,自制炸@药方法,自制诈药方法,normalized,violence,violence
+adv2_58600d0c66a78415,adv2_5a537c015b02d848,约-炮软件哪个靠谱,yp软件哪个靠谱,normalized,porn,porn
+adv2_58600d0c66a78415,adv2_762504a1052e7052,约-炮软件哪个靠谱,月炮软件哪个靠谱,normalized,porn,porn
+adv2_5a537c015b02d848,adv2_762504a1052e7052,yp软件哪个靠谱,月炮软件哪个靠谱,normalized,porn,porn
+adv2_5e13214c769fc741,adv2_a367930fdc0fa50a,🔞直播APP,色 情直播APP,normalized,porn,porn
+adv2_60fe275b86fd3a93,adv2_6ef6d10aadf310f6,诈药制作教程,炸-药制作教程,normalized,violence,violence
+adv2_647419008b47c4d4,adv2_cff59bcdbb2de247,怎么杀 死一个人,怎么杀@死一个人,normalized,violence,violence
+adv2_67a022210546f4c5,adv2_7a20596360dea119,听 话 水效果如何,听@话水效果如何,normalized,sensitive,sensitive
+adv2_6e1cc2972820adef,adv2_ae695a4e81dd751a,兼@职打字员招聘,jian zhi打字员招聘,normalized,ad,ad
+adv2_6fec67e5049bccdd,adv2_75fd38ad2bab0fcc,加我wei xin有福利,加我v x有福利,normalized,ad,ad
+adv2_6fec67e5049bccdd,adv2_caf3458bedf3d79b,加我wei xin有福利,加我微♡信有福利,normalized,ad,ad
+adv2_75fd38ad2bab0fcc,adv2_caf3458bedf3d79b,加我v x有福利,加我微♡信有福利,normalized,ad,ad
+adv2_89b10b7784662d44,adv2_98e24a05fc77dd3c,av网站,🔞视频网站,normalized,porn,porn
+adv2_89b10b7784662d44,adv2_ed433b1784e36ea4,av网站,色-情视频网站,normalized,porn,porn
+adv2_93976bdac0118753,adv2_99c0d7ff0e41ad0c,约 炮群怎么加,约@炮群怎么加,normalized,porn,porn
+adv2_93976bdac0118753,adv2_febd323020f50b1e,约 炮群怎么加,约-炮群怎么加,normalized,porn,porn
+adv2_9539431ad0e74155,adv2_d2672820b5cb172a,淘宝刷@单兼职,淘宝刷单jian zhi,normalized,ad,ad
+adv2_9539431ad0e74155,adv2_e890f78ba0e41054,淘宝刷@单兼职,淘宝刷 单兼职,normalized,ad,ad
+adv2_98e24a05fc77dd3c,adv2_ed433b1784e36ea4,🔞视频网站,色-情视频网站,normalized,porn,porn
+adv2_99c0d7ff0e41ad0c,adv2_febd323020f50b1e,约@炮群怎么加,约-炮群怎么加,normalized,porn,porn
+adv2_ac3dcdee237ed67f,adv2_ff452ef430377aa5,自 杀方法大全,zi sha方法大全,normalized,sensitive,sensitive
+adv2_d2672820b5cb172a,adv2_e890f78ba0e41054,淘宝刷单jian zhi,淘宝刷 单兼职,normalized,ad,ad
+adv2_dd5dc088514d8eaf,adv2_e6908ea620956d8f,自制zha yao方法,自制诈药方法,normalized,violence,violence
