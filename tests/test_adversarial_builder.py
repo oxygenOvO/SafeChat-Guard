@@ -1,6 +1,12 @@
 import csv
 import json
+import sys
 from collections import Counter
+from pathlib import Path
+
+import pytest
+
+import scripts.build_evaluation_sets as evaluation_builder
 
 from scripts.build_evaluation_sets import (
     ADVERSARIAL_FIELDS,
@@ -230,3 +236,99 @@ def test_manual_review_summary_is_machine_readable_without_mutating_input(tmp_pa
     assert summary["status_by_perturbation_type"]["emoji"] == {
         "total": 2, "verified": 1, "pending": 1, "rejected": 0,
     }
+
+
+def test_manual_review_default_input_path_exists(monkeypatch):
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["build_evaluation_sets.py", "--mode", "manual-review-summary"],
+    )
+
+    args = evaluation_builder.parse_args()
+
+    assert args.review_input == Path(
+        "reports/manual_review/adversarial_sample_v2_reviewed.csv"
+    )
+    assert args.review_input.is_file()
+
+
+def test_manual_review_summary_runs_with_default_input(monkeypatch, tmp_path, capsys):
+    output = tmp_path / "default-summary.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "build_evaluation_sets.py",
+            "--mode",
+            "manual-review-summary",
+            "--review-summary",
+            str(output),
+        ],
+    )
+
+    evaluation_builder.main()
+
+    summary = json.loads(output.read_text(encoding="utf-8"))
+    assert summary["total"] > 0
+    assert "manual review summary:" in capsys.readouterr().out
+
+
+def test_manual_review_summary_explicit_input_overrides_default(monkeypatch, tmp_path):
+    review = tmp_path / "alternate-reviewed.csv"
+    with review.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=["perturbation_type", "review_status", "notes"],
+        )
+        writer.writeheader()
+        writer.writerow(
+            {
+                "perturbation_type": "symbol_insertion",
+                "review_status": "verified",
+                "notes": "explicit override",
+            }
+        )
+    output = tmp_path / "alternate-summary.json"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "build_evaluation_sets.py",
+            "--mode",
+            "manual-review-summary",
+            "--review-input",
+            str(review),
+            "--review-summary",
+            str(output),
+        ],
+    )
+
+    evaluation_builder.main()
+
+    summary = json.loads(output.read_text(encoding="utf-8"))
+    assert summary["total"] == 1
+    assert summary["verified"] == 1
+
+
+def test_manual_review_summary_missing_input_has_clear_error(monkeypatch, tmp_path):
+    missing = tmp_path / "missing-reviewed.csv"
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "build_evaluation_sets.py",
+            "--mode",
+            "manual-review-summary",
+            "--review-input",
+            str(missing),
+            "--review-summary",
+            str(tmp_path / "missing-summary.json"),
+        ],
+    )
+
+    with pytest.raises(
+        FileNotFoundError,
+        match="manual review input file does not exist",
+    ):
+        evaluation_builder.main()

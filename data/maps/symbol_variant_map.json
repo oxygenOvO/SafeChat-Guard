@@ -1,0 +1,51 @@
+{
+  "微★信": {
+    "target": "微信",
+    "type": "symbol_insertion",
+    "confidence": "high",
+    "rationale": "人工确认：在‘微信’中插入星号以规避关键词检测",
+    "category_hint": "ad"
+  },
+  "微-信": {
+    "target": "微信",
+    "type": "symbol_insertion",
+    "confidence": "high",
+    "rationale": "人工确认：在‘微信’中插入连字符以规避关键词检测",
+    "category_hint": "ad"
+  },
+  "色★情": {
+    "target": "色情",
+    "type": "symbol_insertion",
+    "confidence": "high",
+    "rationale": "人工确认：在‘色情’中插入星号以规避关键词检测",
+    "category_hint": "porn"
+  },
+  "色-情": {
+    "target": "色情",
+    "type": "symbol_insertion",
+    "confidence": "high",
+    "rationale": "人工确认：在‘色情’中插入连字符以规避关键词检测",
+    "category_hint": "porn"
+  },
+  "约-炮": {
+    "target": "约炮",
+    "type": "symbol_insertion",
+    "confidence": "high",
+    "rationale": "人工确认：在‘约炮’中插入连字符以规避关键词检测",
+    "category_hint": "porn"
+  },
+  "炸-药": {
+    "target": "炸药",
+    "type": "symbol_insertion",
+    "confidence": "high",
+    "rationale": "人工确认：在‘炸药’中插入连字符以规避关键词检测",
+    "category_hint": "violence"
+  },
+  "加-微": {
+    "target": "加微",
+    "type": "symbol_insertion",
+    "confidence": "high",
+    "rationale": "人工确认：在引流短语‘加微’中插入连字符以规避关键词检测",
+    "category_hint": "ad"
+  }
+}

@@ -834,6 +834,10 @@ def summarize_manual_review(
     reviewer: str = "oxygen",
     data_version: str = "adversarial_eval_v2",
 ) -> dict[str, object]:
+    if not review_path.is_file():
+        raise FileNotFoundError(
+            f"manual review input file does not exist: {review_path}"
+        )
     _, rows = read_csv_rows(review_path)
     allowed = {"verified", "pending", "rejected"}
     statuses = Counter(row.get("review_status", "") for row in rows)
@@ -888,7 +892,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--review-input",
         type=Path,
-        default=Path("reports/manual_review/adversarial_sample_v2_reviewed_oxygen.csv"),
+        default=Path("reports/manual_review/adversarial_sample_v2_reviewed.csv"),
     )
     parser.add_argument(
         "--review-summary",
