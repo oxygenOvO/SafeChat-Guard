@@ -1,0 +1,83 @@
+{
+  "data_version": "adversarial_v2",
+  "reviewer": "oxygen",
+  "source_file": "reports/manual_review/adversarial_sample_v2_reviewed_oxygen.csv",
+  "total": 33,
+  "verified": 0,
+  "pending": 33,
+  "rejected": 0,
+  "verified_rate": 0.0,
+  "by_perturbation_type": {
+    "abbreviation": {
+      "verified": 0,
+      "pending": 3,
+      "rejected": 0,
+      "total": 3
+    },
+    "character_split": {
+      "verified": 0,
+      "pending": 3,
+      "rejected": 0,
+      "total": 3
+    },
+    "emoji": {
+      "verified": 0,
+      "pending": 3,
+      "rejected": 0,
+      "total": 3
+    },
+    "homophone": {
+      "verified": 0,
+      "pending": 3,
+      "rejected": 0,
+      "total": 3
+    },
+    "mixed_language": {
+      "verified": 0,
+      "pending": 3,
+      "rejected": 0,
+      "total": 3
+    },
+    "pinyin": {
+      "verified": 0,
+      "pending": 3,
+      "rejected": 0,
+      "total": 3
+    },
+    "repeat_character": {
+      "verified": 0,
+      "pending": 3,
+      "rejected": 0,
+      "total": 3
+    },
+    "space_insertion": {
+      "verified": 0,
+      "pending": 3,
+      "rejected": 0,
+      "total": 3
+    },
+    "symbol_insertion": {
+      "verified": 0,
+      "pending": 3,
+      "rejected": 0,
+      "total": 3
+    },
+    "traditional_simplified": {
+      "verified": 0,
+      "pending": 3,
+      "rejected": 0,
+      "total": 3
+    },
+    "variant_character": {
+      "verified": 0,
+      "pending": 3,
+      "rejected": 0,
+      "total": 3
+    }
+  },
+  "systematic_findings": [
+    "variant_character outputs were actually symbol insertion",
+    "some homophone mappings had insufficient authenticity and stability",
+    "character_split overlapped with space_insertion"
+  ]
+}
