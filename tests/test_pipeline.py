@@ -101,6 +101,7 @@ def test_stats_exposes_semantic_classifier_status():
         "model_type",
         "classes",
         "error",
+        "thresholds",
     }
     assert status["loaded"] is False
     assert status["error"]

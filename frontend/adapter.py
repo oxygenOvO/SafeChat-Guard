@@ -20,6 +20,7 @@ class FrontendPipelineAdapter:
         baseline = self._summarize_detections(baseline_detections)
         input_result = self.pipeline._filter_text(text, stage="input")
         input_summary = self._summarize_result(input_result)
+        rewrite_result = self._rewrite_input(text, input_result, input_summary["category"])
 
         if input_result["action"] == "block":
             processed_text = "未转发给大模型"
@@ -27,7 +28,11 @@ class FrontendPipelineAdapter:
             output_result = None
             final_answer = model_response
         else:
-            processed_text = input_result.get("sanitized_text") or text
+            processed_text = (
+                rewrite_result["rewrite_text"]
+                if input_result["action"] == "sanitize"
+                else text
+            )
             model_response = (
                 output_override
                 if output_override is not None
@@ -41,6 +46,11 @@ class FrontendPipelineAdapter:
             )
 
         output_summary = self._summarize_output(output_result)
+        safe_model_response = (
+            model_response
+            if output_result is None or output_result.get("action") == "pass"
+            else "[FILTERED]"
+        )
         semantic = self._semantic_summary(input_result["detections"])
         normalization_steps = [
             f"{step.normalizer}: {step.before} -> {step.after}"
@@ -90,12 +100,12 @@ class FrontendPipelineAdapter:
             "semantic_score": semantic["score"],
             "semantic_scores": semantic["scores"],
             "semantic_note": semantic["note"],
-            "sentiment": "未评估",
-            "masked_text": input_result.get("sanitized_text") or text,
-            "rewrite_text": processed_text,
-            "rewrite_strategy": strategy,
+            "sentiment": rewrite_result.get("sentiment", "未评估"),
+            "masked_text": rewrite_result.get("masked_text", input_result.get("sanitized_text") or text),
+            "rewrite_text": rewrite_result.get("rewrite_text", processed_text),
+            "rewrite_strategy": rewrite_result.get("rewrite_strategy", strategy),
             "processed_text": processed_text,
-            "model_response": model_response,
+            "model_response": safe_model_response,
             "output_category": output_summary["category"],
             "output_risk": output_summary["risk"],
             "output_action": output_summary["action"],
@@ -147,6 +157,28 @@ class FrontendPipelineAdapter:
 
     def regex_rows(self) -> list[dict[str, Any]]:
         return list(self.pipeline.rule_filter.regex_rules)
+
+    def _rewrite_input(
+        self,
+        text: str,
+        input_result: dict[str, Any],
+        fallback_category: str,
+    ) -> dict[str, str]:
+        rewriter = getattr(self.pipeline, "rewriter", None)
+        if rewriter is None:
+            return {
+                "sentiment": "未评估",
+                "masked_text": input_result.get("sanitized_text") or text,
+                "rewrite_text": input_result.get("sanitized_text") or text,
+                "rewrite_strategy": self._processing_strategy(input_result["action"]),
+            }
+        if input_result["action"] == "sanitize":
+            return rewriter.rewrite(
+                text,
+                input_result.get("risk_category", fallback_category),
+                input_result.get("matches", []),
+            )
+        return rewriter.unchanged(text)
 
     def _summarize_result(self, result: dict[str, Any]) -> dict[str, Any]:
         detections = result.get("detections", [])
@@ -209,7 +241,7 @@ class FrontendPipelineAdapter:
         scores = {category: 0.0 for category in categories}
         if not semantic:
             note = (
-                "规则层已有命中，未运行语义层。"
+                "语义层已运行，未发现额外风险。"
                 if detections
                 else "语义层未发现风险。"
             )

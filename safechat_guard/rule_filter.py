@@ -47,11 +47,14 @@ class RuleFilter:
         for category, words in self.words.items():
             matched = [word for word in words if word in text]
             if matched:
+                high_risk = category in {"porn", "violence"} or (
+                    category == "abuse" and len(set(matched)) >= 2
+                )
                 detections.append(
                     Detection(
                         category=category,
-                        level="high" if category in {"porn", "violence"} else "medium",
-                        score=80 if category in {"porn", "violence"} else 55,
+                        level="high" if high_risk else "medium",
+                        score=80 if high_risk else 55,
                         reason=f"matched {category} keyword lexicon",
                         source="keyword",
                         matches=matched,
