@@ -11,11 +11,7 @@ from .normalization.providers import JsonMapProvider
 
 
 class TextNormalizer:
-    """Compatibility facade for the normalization subsystem.
-
-    Existing callers can keep using ``normalize(text) -> str``. Newer code can
-    call ``normalize_with_trace(text)`` to inspect every normalization step.
-    """
+    """Compatibility facade for the modular Chinese adversarial normalizer."""
 
     def __init__(self, homophone_map_path: str, emoji_map_path: str):
         self.homophone_map_path = Path(homophone_map_path)
@@ -32,11 +28,6 @@ class TextNormalizer:
                     "emoji",
                     JsonMapProvider(self.emoji_map_path),
                     category="emoji",
-                ),
-                MappingNormalizer(
-                    "symbol_insertion",
-                    JsonMapProvider(map_dir / "symbol_variant_map.json"),
-                    category="symbol_insertion",
                 ),
                 NoiseCharNormalizer(),
                 RepeatCharNormalizer(max_repeat=2),
@@ -72,3 +63,11 @@ class TextNormalizer:
 
     def normalize_with_trace(self, text: str) -> NormalizationResult:
         return self.pipeline.normalize_with_trace(text)
+
+    def normalize_with_steps(self, text: str) -> tuple[str, list[str]]:
+        result = self.normalize_with_trace(text)
+        steps = [
+            f"{step.normalizer}: {step.before} -> {step.after}"
+            for step in result.steps
+        ]
+        return result.normalized_text, steps or ["未触发中文对抗归一化"]

@@ -27,17 +27,32 @@ class EventLogger:
     def stats(self) -> dict[str, Any]:
         events = self.read_all()
         category_counter: Counter[str] = Counter()
+        detection_category_counter: Counter[str] = Counter()
         level_counter: Counter[str] = Counter()
         action_counter: Counter[str] = Counter()
+        stage_counter: Counter[str] = Counter()
+        input_action_counter: Counter[str] = Counter()
+        output_action_counter: Counter[str] = Counter()
         blocked = 0
         rewritten = 0
+        rule_hit_count = 0
+        semantic_hit_count = 0
+        joint_rule_semantic_hit_count = 0
+        input_detection_count = 0
+        output_detection_count = 0
 
         for event in events:
             for result in [event.get("input_filter"), event.get("output_filter"), event.get("result")]:
                 if not result:
                     continue
+                stage = result.get("stage") or event.get("stage") or "unknown"
+                stage_counter[stage] += 1
                 action = result.get("action", "unknown")
                 action_counter[action] += 1
+                if stage == "input":
+                    input_action_counter[action] += 1
+                elif stage == "output":
+                    output_action_counter[action] += 1
                 if action == "block" or result.get("blocked"):
                     blocked += 1
                 if action in {"sanitize", "rewrite"} or result.get("rewritten"):
@@ -52,6 +67,27 @@ class EventLogger:
                 for category in categories or ["normal"]:
                     category_counter[category] += 1
 
+                detections = result.get("detections", [])
+                has_rule = False
+                has_semantic = False
+                for detection in detections:
+                    source = str(detection.get("source", ""))
+                    category = detection.get("category")
+                    if category:
+                        detection_category_counter[category] += 1
+                    if stage == "input":
+                        input_detection_count += 1
+                    elif stage == "output":
+                        output_detection_count += 1
+                    if self._is_rule_source(source):
+                        has_rule = True
+                        rule_hit_count += 1
+                    if self._is_semantic_source(source):
+                        has_semantic = True
+                        semantic_hit_count += 1
+                if has_rule and has_semantic:
+                    joint_rule_semantic_hit_count += 1
+
         return {
             "total_events": len(events),
             "blocked": blocked,
@@ -59,6 +95,15 @@ class EventLogger:
             "category_counts": dict(category_counter),
             "risk_level_counts": dict(level_counter),
             "action_counts": dict(action_counter),
+            "rule_hit_count": rule_hit_count,
+            "semantic_hit_count": semantic_hit_count,
+            "joint_rule_semantic_hit_count": joint_rule_semantic_hit_count,
+            "category_detection_counts": dict(detection_category_counter),
+            "stage_counts": dict(stage_counter),
+            "input_detection_count": input_detection_count,
+            "output_detection_count": output_detection_count,
+            "input_action_counts": dict(input_action_counter),
+            "output_action_counts": dict(output_action_counter),
         }
 
     def _level_from_score(self, score: int) -> str:
@@ -69,3 +114,11 @@ class EventLogger:
         if score > 0:
             return "low"
         return "none"
+
+    @staticmethod
+    def _is_rule_source(source: str) -> bool:
+        return source in {"keyword", "regex"} or source.startswith("rule")
+
+    @staticmethod
+    def _is_semantic_source(source: str) -> bool:
+        return source.startswith("semantic")

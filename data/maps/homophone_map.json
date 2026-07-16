@@ -1,31 +1,176 @@
 {
-  "加薇": {"source": "加薇", "target": "加微信", "confidence": "high", "confidence_score": 0.95, "rationale": "常见微信引流谐音缩写", "type": "homophone", "category_hint": "ad"},
-  "加v": {"source": "加v", "target": "加微信", "confidence": "low", "confidence_score": 0.50, "rationale": "混合缩写而非稳定中文谐音", "type": "homophone", "category_hint": "ad"},
-  "加威": {"source": "加威", "target": "加微信", "confidence": "high", "confidence_score": 0.90, "rationale": "常见微信引流同音替换", "type": "homophone", "category_hint": "ad"},
-  "薇信": {"source": "薇信", "target": "微信", "confidence": "high", "confidence_score": 0.95, "rationale": "常见微信同音替换", "type": "homophone", "category_hint": "ad"},
-  "威信": {"source": "威信", "target": "微信", "confidence": "high", "confidence_score": 0.90, "rationale": "人工审核确认可保留的稳定同音替换", "type": "homophone", "category_hint": "ad"},
-  "微芯": {"source": "微芯", "target": "微信", "confidence": "medium", "confidence_score": 0.80, "rationale": "读音接近但真实使用频率需复核", "type": "homophone", "category_hint": "ad"},
-  "扣扣": {"source": "扣扣", "target": "QQ", "confidence": "high", "confidence_score": 0.95, "rationale": "广泛使用的QQ中文谐音", "type": "homophone", "category_hint": "ad"},
-  "企鹅号": {"source": "企鹅号", "target": "QQ", "confidence": "low", "confidence_score": 0.40, "rationale": "隐喻称呼而非同音替换", "type": "homophone", "category_hint": "ad"},
-  "转帐": {"source": "转帐", "target": "转账", "confidence": "low", "confidence_score": 0.40, "rationale": "字形或用字变体而非谐音", "type": "homophone", "category_hint": "ad"},
-  "沙币": {"source": "沙币", "target": "傻逼", "confidence": "medium", "confidence_score": 0.85, "rationale": "网络语境可识别但存在歧义", "type": "homophone", "category_hint": "porn"},
-  "傻杯": {"source": "傻杯", "target": "傻逼", "confidence": "medium", "confidence_score": 0.85, "rationale": "近音替换但稳定性需人工复核", "type": "homophone", "category_hint": "porn"},
-  "书杯": {"source": "书杯", "target": "傻逼", "confidence": "low", "confidence_score": 0.30, "rationale": "读音和语义对应均不稳定", "type": "homophone", "category_hint": "porn"},
-  "煞笔": {"source": "煞笔", "target": "傻逼", "confidence": "high", "confidence_score": 0.90, "rationale": "常见规避写法", "type": "homophone", "category_hint": "porn"},
-  "尼玛": {"source": "尼玛", "target": "你妈", "confidence": "medium", "confidence_score": 0.85, "rationale": "常见近音写法但也可作专名", "type": "homophone", "category_hint": "porn"},
-  "泥马": {"source": "泥马", "target": "你妈", "confidence": "medium", "confidence_score": 0.80, "rationale": "近音替换且存在普通词义歧义", "type": "homophone", "category_hint": "porn"},
-  "草泥马": {"source": "草泥马", "target": "操你妈", "confidence": "high", "confidence_score": 0.90, "rationale": "广泛使用的网络谐音规避", "type": "homophone", "category_hint": "porn"},
-  "涩情": {"source": "涩情", "target": "色情", "confidence": "high", "confidence_score": 0.90, "rationale": "常见色情词谐音替换", "type": "homophone", "category_hint": "porn"},
-  "瑟情": {"source": "瑟情", "target": "色情", "confidence": "medium", "confidence_score": 0.80, "rationale": "可识别近音写法但频率需复核", "type": "homophone", "category_hint": "porn"},
-  "月炮": {"source": "月炮", "target": "约炮", "confidence": "low", "confidence_score": 0.30, "rationale": "人工审核认为真实性和稳定性不足", "type": "homophone", "category_hint": "porn"},
-  "做唉": {"source": "做唉", "target": "做爱", "confidence": "medium", "confidence_score": 0.75, "rationale": "近音成立但真实攻击频率需复核", "type": "homophone", "category_hint": "porn"},
-  "看骗": {"source": "看骗", "target": "看片", "confidence": "low", "confidence_score": 0.35, "rationale": "读音映射不稳定且歧义较高", "type": "homophone", "category_hint": "porn"},
-  "黄骗": {"source": "黄骗", "target": "黄片", "confidence": "low", "confidence_score": 0.35, "rationale": "读音映射不稳定且歧义较高", "type": "homophone", "category_hint": "porn"},
-  "诚人网站": {"source": "诚人网站", "target": "成人网站", "confidence": "medium", "confidence_score": 0.80, "rationale": "语境可识别但并非常见稳定写法", "type": "homophone", "category_hint": "porn"},
-  "诚人视频": {"source": "诚人视频", "target": "成人视频", "confidence": "medium", "confidence_score": 0.80, "rationale": "语境可识别但并非常见稳定写法", "type": "homophone", "category_hint": "porn"},
-  "诚人内容": {"source": "诚人内容", "target": "成人内容", "confidence": "medium", "confidence_score": 0.80, "rationale": "语境可识别但并非常见稳定写法", "type": "homophone", "category_hint": "porn"},
-  "小姝": {"source": "小姝", "target": "小姐", "confidence": "medium", "confidence_score": 0.75, "rationale": "近音替换但可能是正常人名用字", "type": "homophone", "category_hint": "porn"},
-  "纱人": {"source": "纱人", "target": "杀人", "confidence": "medium", "confidence_score": 0.75, "rationale": "近音可识别但真实使用频率需复核", "type": "homophone", "category_hint": "violence"},
-  "诈药": {"source": "诈药", "target": "炸药", "confidence": "medium", "confidence_score": 0.75, "rationale": "近音可识别但存在语义歧义", "type": "homophone", "category_hint": "violence"},
-  "自傻": {"source": "自傻", "target": "自杀", "confidence": "low", "confidence_score": 0.20, "rationale": "人工审核认为真实性和稳定性不足", "type": "homophone", "category_hint": "sensitive"}
+  "加薇": {
+    "target": "加微信",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.95
+  },
+  "加v": {
+    "target": "加微信",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.95
+  },
+  "加威": {
+    "target": "加微信",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.9
+  },
+  "薇信": {
+    "target": "微信",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.95
+  },
+  "威信": {
+    "target": "微信",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.9
+  },
+  "微芯": {
+    "target": "微信",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "扣扣": {
+    "target": "QQ",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.95
+  },
+  "企鹅号": {
+    "target": "QQ",
+    "type": "variant",
+    "category_hint": "ad",
+    "confidence": 0.8
+  },
+  "转帐": {
+    "target": "转账",
+    "type": "homophone",
+    "category_hint": "ad",
+    "confidence": 0.85
+  },
+  "沙币": {
+    "target": "傻逼",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "傻杯": {
+    "target": "傻逼",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "书杯": {
+    "target": "傻逼",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "煞笔": {
+    "target": "傻逼",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "尼玛": {
+    "target": "你妈",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "泥马": {
+    "target": "你妈",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "草泥马": {
+    "target": "操你妈",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "涩情": {
+    "target": "色情",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "瑟情": {
+    "target": "色情",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "月炮": {
+    "target": "约炮",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "做唉": {
+    "target": "做爱",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "看骗": {
+    "target": "看片",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "黄骗": {
+    "target": "黄片",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "诚人网站": {
+    "target": "成人网站",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "诚人视频": {
+    "target": "成人视频",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "诚人内容": {
+    "target": "成人内容",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.9
+  },
+  "小姝": {
+    "target": "小姐",
+    "type": "homophone",
+    "category_hint": "porn",
+    "confidence": 0.85
+  },
+  "纱人": {
+    "target": "杀人",
+    "type": "homophone",
+    "category_hint": "violence",
+    "confidence": 0.85
+  },
+  "诈药": {
+    "target": "炸药",
+    "type": "homophone",
+    "category_hint": "violence",
+    "confidence": 0.85
+  },
+  "自傻": {
+    "target": "自杀",
+    "type": "homophone",
+    "category_hint": "violence",
+    "confidence": 0.85
+  }
 }

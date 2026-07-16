@@ -1,43 +1,39 @@
 import json
+from pathlib import Path
 
+from .config_utils import load_semantic_thresholds
 from .llm_client import LLMClientFactory
 from .logger import EventLogger
 from .normalizer import TextNormalizer
 from .output_guard import OutputGuard
+from .rewriter import EmotionPreservingRewriter
 from .rule_filter import RuleFilter
 from .sanitizer import Sanitizer
-try:
-    from .semantic_classifier import SemanticClassifier
-except ModuleNotFoundError as exc:
-    _semantic_import_error = f"semantic classifier dependency missing: {exc.name}"
-
-    class SemanticClassifier:
-        def __init__(self):
-            self._error = _semantic_import_error
-
-        def detect(self, text: str) -> list:
-            return []
-
-        def status(self) -> dict:
-            return {
-                "enabled": False,
-                "loaded": False,
-                "model_path": "models/semantic_model.pkl",
-                "model_type": None,
-                "classes": [],
-                "error": self._error,
-            }
+from .semantic_classifier import SemanticClassifier
 
 
 class SafeChatPipeline:
     def __init__(self, config: dict):
         self.config = config
-        self.normalizer = TextNormalizer("data/maps/homophone_map.json", "data/maps/emoji_map.json")
-        self.rule_filter = RuleFilter("data/lexicons", "data/rules/regex_rules.json")
-        self.semantic_classifier = SemanticClassifier()
+        self.project_root = Path(__file__).resolve().parent.parent
+        self.normalizer = TextNormalizer(
+            str(self.project_root / "data/maps/homophone_map.json"),
+            str(self.project_root / "data/maps/emoji_map.json"),
+        )
+        self.rule_filter = RuleFilter(
+            str(self.project_root / "data/lexicons"),
+            str(self.project_root / "data/rules/regex_rules.json"),
+        )
+        self.semantic_thresholds = load_semantic_thresholds(config)
+        self.semantic_classifier = SemanticClassifier(thresholds=self.semantic_thresholds)
         self.sanitizer = Sanitizer()
+        self.rewriter = EmotionPreservingRewriter()
         self.llm = LLMClientFactory.create(config.get("llm", {}))
-        self.logger = EventLogger(config.get("logging", {}).get("path", "data/logs/events.jsonl"))
+
+        log_path = Path(config.get("logging", {}).get("path", "data/logs/events.jsonl"))
+        if not log_path.is_absolute():
+            log_path = self.project_root / log_path
+        self.logger = EventLogger(str(log_path))
         self.output_guard = OutputGuard(
             block_threshold=int(config["risk"].get("block_threshold", 80)),
             sanitize_threshold=int(config["risk"].get("sanitize_threshold", 40)),
@@ -45,24 +41,48 @@ class SafeChatPipeline:
 
     @classmethod
     def from_config(cls, path: str):
-        with open(path, "r", encoding="utf-8") as f:
-            return cls(json.load(f))
+        config_path = Path(path)
+        if not config_path.is_absolute() and not config_path.exists():
+            config_path = Path(__file__).resolve().parent.parent / config_path
+        with config_path.open("r", encoding="utf-8") as file:
+            return cls(json.load(file))
 
-    def handle_chat(self, message: str) -> dict:
+    def handle_chat(
+        self,
+        message: str,
+        raw_reply_override: str | None = None,
+        persist: bool = True,
+    ) -> dict:
         input_result = self._filter_text(message, stage="input")
+        rewrite_result = self.rewriter.unchanged(message)
+
         if input_result["action"] == "block":
-            self.logger.write({"stage": "input", "input": message, "result": input_result})
+            reply = "抱歉，您的输入包含高风险不合规内容，系统已拦截且未转发给大模型。"
+            event = {"stage": "input", "input": message, "result": input_result}
+            if persist:
+                self.logger.write(event)
             return {
                 "allowed": False,
-                "reply": "Your input was blocked because it contains high-risk unsafe content.",
+                "reply": reply,
+                "safe_input": "未转发给大模型",
+                "raw_reply": "",
+                "rewrite": rewrite_result,
                 "input_filter": input_result,
                 "output_filter": None,
             }
 
-        safe_message = input_result.get("sanitized_text") or message
-        raw_reply = self.llm.chat(safe_message)
+        safe_message = message
+        if input_result["action"] == "sanitize":
+            rewrite_result = self.rewriter.rewrite(
+                message,
+                input_result["risk_category"],
+                input_result["matches"],
+            )
+            safe_message = rewrite_result["rewrite_text"]
+
+        raw_reply = raw_reply_override if raw_reply_override is not None else self.llm.chat(safe_message)
         output_result = self._filter_output(raw_reply)
-        final_reply = output_result.get("final_text") or output_result.get("sanitized_text") or raw_reply
+        final_reply = output_result.get("final_text") or raw_reply
 
         event = {
             "stage": "chat",
@@ -78,10 +98,14 @@ class SafeChatPipeline:
             "input_filter": input_result,
             "output_filter": output_result,
         }
-        self.logger.write(event)
+        if persist:
+            self.logger.write(event)
         return {
             "allowed": output_result["action"] != "block",
             "reply": final_reply,
+            "safe_input": safe_message,
+            "raw_reply": raw_reply,
+            "rewrite": rewrite_result,
             "input_filter": input_result,
             "output_filter": output_result,
         }
@@ -94,15 +118,15 @@ class SafeChatPipeline:
         return self.output_guard.process(text, normalized, detections)
 
     def _filter_text(self, text: str, stage: str) -> dict:
-        normalized = self.normalizer.normalize(text)
-        detections = self.rule_filter.detect(normalized)
-        detections.extend(self.semantic_classifier.detect(normalized))
-        detections = self._deduplicate_detections(detections)
+        normalized, normalization_steps = self.normalizer.normalize_with_steps(text)
+        rule_detections = self.rule_filter.detect(normalized)
+        semantic_scores = self.semantic_classifier.predict_scores(normalized)
+        semantic_detections = self.semantic_classifier.detect(normalized)
+        detections = self._deduplicate_detections([*rule_detections, *semantic_detections])
 
-        score = max([d.score for d in detections], default=0)
-        matches = []
-        for detection in detections:
-            matches.extend(detection.matches)
+        score = max((d.score for d in detections), default=0)
+        primary = max(detections, key=lambda item: item.score, default=None)
+        matches = [match for detection in detections for match in detection.matches]
 
         block_threshold = int(self.config["risk"].get("block_threshold", 80))
         sanitize_threshold = int(self.config["risk"].get("sanitize_threshold", 40))
@@ -118,15 +142,36 @@ class SafeChatPipeline:
             "stage": stage,
             "original_text": text,
             "normalized_text": normalized,
+            "normalization_steps": normalization_steps,
             "action": action,
             "risk_score": score,
+            "risk_level": self._risk_level(score),
+            "risk_category": primary.category if primary else "normal",
+            "risk_categories": sorted({d.category for d in detections}) or ["normal"],
+            "matches": matches,
             "sanitized_text": sanitized,
+            "semantic_scores": semantic_scores,
+            "semantic_category": max(semantic_scores, key=semantic_scores.get),
+            "semantic_score": max(semantic_scores.values()),
+            "semantic_applied": True,
             "detections": [d.__dict__ for d in detections],
         }
 
+    def _risk_level(self, score: int) -> str:
+        if score >= int(self.config["risk"].get("block_threshold", 80)):
+            return "high"
+        if score >= int(self.config["risk"].get("sanitize_threshold", 40)):
+            return "medium"
+        if score > 0:
+            return "low"
+        return "none"
+
     def stats(self) -> dict:
         stats = self.logger.stats()
-        stats["semantic_classifier"] = self.semantic_classifier.status()
+        semantic_status = self.semantic_classifier.status()
+        stats["semantic_classifier"] = semantic_status
+        stats["model_loaded"] = semantic_status.get("loaded", False)
+        stats["model_error"] = semantic_status.get("error")
         return stats
 
     @staticmethod
