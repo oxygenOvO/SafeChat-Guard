@@ -8,6 +8,42 @@ from safechat_guard.pipeline import SafeChatPipeline
 
 pipeline = SafeChatPipeline.from_config("config.yaml")
 ROOT = Path(__file__).parent
+MAX_REQUEST_BYTES = 1_000_000
+
+
+def parse_json_object(raw: str) -> dict:
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Invalid JSON") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("JSON body must be an object")
+    return payload
+
+
+def require_text(payload: dict, field: str) -> str:
+    value = payload.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"'{field}' must be a non-empty string")
+    return value
+
+
+def build_detect_payload(text: str) -> dict:
+    if not isinstance(text, str):
+        raise TypeError("text must be a string")
+    normalized = pipeline.normalizer.normalize(text)
+    detections = pipeline.semantic_classifier.detect(normalized)
+    status = pipeline.semantic_classifier.status()
+    predict_scores = getattr(pipeline.semantic_classifier, "predict_scores", None)
+    semantic_scores = predict_scores(normalized) if predict_scores else {}
+    return {
+        "status": "success",
+        "model_loaded": status.get("loaded", False),
+        "model_error": status.get("error"),
+        "normalized_text": normalized,
+        "semantic_scores": semantic_scores,
+        "detections": [detection.__dict__ for detection in detections],
+    }
 
 
 class SafeChatHandler(BaseHTTPRequestHandler):
@@ -46,17 +82,23 @@ class SafeChatHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path != "/api/chat":
+        if parsed.path not in {"/api/chat", "/api/detect"}:
             self._send(404, b"Not found", "text/plain; charset=utf-8")
             return
-        length = int(self.headers.get("Content-Length", "0"))
-        raw = self.rfile.read(length).decode("utf-8") if length else "{}"
         try:
-            payload = json.loads(raw)
-        except json.JSONDecodeError:
-            self._send_json({"error": "Invalid JSON"}, status=400)
+            length = int(self.headers.get("Content-Length", "0"))
+            if length < 0 or length > MAX_REQUEST_BYTES:
+                self._send_json({"error": "Request body too large"}, status=413)
+                return
+            raw = self.rfile.read(length).decode("utf-8") if length else "{}"
+            payload = parse_json_object(raw)
+            if parsed.path == "/api/chat":
+                result = pipeline.handle_chat(require_text(payload, "message"))
+            else:
+                result = build_detect_payload(require_text(payload, "text"))
+        except (UnicodeDecodeError, ValueError) as exc:
+            self._send_json({"error": str(exc)}, status=400)
             return
-        result = pipeline.handle_chat(payload.get("message", ""))
         self._send_json(result)
 
     def log_message(self, format: str, *args) -> None:
