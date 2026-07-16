@@ -1,0 +1,115 @@
+{
+  "by_expected_action": {
+    "block": 60,
+    "pass": 100,
+    "sanitize": 40
+  },
+  "by_label": {
+    "ad": 25,
+    "normal": 100,
+    "porn": 25,
+    "sensitive": 25,
+    "violence": 25
+  },
+  "by_label_and_action": {
+    "ad": {
+      "block": 15,
+      "sanitize": 10
+    },
+    "normal": {
+      "pass": 100
+    },
+    "porn": {
+      "block": 15,
+      "sanitize": 10
+    },
+    "sensitive": {
+      "block": 15,
+      "sanitize": 10
+    },
+    "violence": {
+      "block": 15,
+      "sanitize": 10
+    }
+  },
+  "by_scenario": {
+    "commissioned_violence": 2,
+    "controlled_sanitization": 9,
+    "coordinated_violence": 3,
+    "credible_threat": 2,
+    "daily_expression": 20,
+    "direct_fraudulent_ad": 2,
+    "drug_reference": 1,
+    "educational_sanitization": 1,
+    "evasion_service": 1,
+    "explicit_commercial": 1,
+    "explicit_distribution": 4,
+    "extremist_incitement": 1,
+    "extremist_recruitment": 1,
+    "extremist_targeting": 1,
+    "fictional_violence": 3,
+    "figurative_aggression": 1,
+    "financial_fraud": 2,
+    "gambling_solicitation": 1,
+    "harmful_instruction": 1,
+    "health_sanitization": 2,
+    "homophone_obfuscation": 2,
+    "illegal_drug_trade": 3,
+    "illegal_solicitation": 5,
+    "implicit_expression": 2,
+    "implicit_solicitation": 3,
+    "implicit_threat": 1,
+    "incitement": 1,
+    "legitimate_risk_term_reference": 20,
+    "mass_violence_threat": 2,
+    "mixed_obfuscation": 2,
+    "negation_and_deterrence": 20,
+    "news_education_research_prevention": 20,
+    "news_sanitization": 1,
+    "phishing_solicitation": 2,
+    "pinyin_obfuscation": 4,
+    "privacy_abuse": 3,
+    "privacy_sanitization": 2,
+    "pyramid_solicitation": 1,
+    "research_sanitization": 1,
+    "self_harm_encouragement": 3,
+    "self_harm_instruction": 1,
+    "self_harm_support": 2,
+    "sensitive_extortion": 1,
+    "sexual_exploitation": 4,
+    "sexual_extortion": 1,
+    "sexual_solicitation": 2,
+    "spaced_abbreviation": 1,
+    "spaced_obfuscation": 2,
+    "symbol_obfuscation": 6,
+    "symbols_english_long_ambiguous": 20,
+    "targeted_violence": 1,
+    "weapon_transaction": 2
+  },
+  "candidate_count": 200,
+  "candidate_file": "data/evaluation/semantic_independent_eval_v1_candidates.csv",
+  "duplicate_sample_id_count": 0,
+  "exact_overlap_count": 0,
+  "hard_overlap_passed": true,
+  "high_similarity_candidate_count": 0,
+  "high_similarity_threshold": 0.55,
+  "label_conflict_count": 0,
+  "nfkc_overlap_count": 0,
+  "reference_files": [
+    "data/normal_sentences.txt",
+    "data/violation_sentences/ad.txt",
+    "data/violation_sentences/porn.txt",
+    "data/violation_sentences/violence.txt",
+    "data/violation_sentences/sensitive.txt",
+    "data/evaluation/baseline_eval_v1.csv",
+    "data/evaluation/adversarial_eval_v1.csv",
+    "data/evaluation/adversarial_eval_v2.csv",
+    "data/evaluation/adversarial_eval_v3.csv"
+  ],
+  "reference_text_count": 1294,
+  "review_status": {
+    "pending": 200
+  },
+  "schema_version": 1,
+  "text_normalizer_overlap_count": 0
+}
