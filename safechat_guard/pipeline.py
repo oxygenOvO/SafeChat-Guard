@@ -1,4 +1,5 @@
 import json
+import yaml
 
 from .llm_client import LLMClientFactory
 from .logger import EventLogger
@@ -46,7 +47,7 @@ class SafeChatPipeline:
     @classmethod
     def from_config(cls, path: str):
         with open(path, "r", encoding="utf-8") as f:
-            return cls(json.load(f))
+            return cls(yaml.safe_load(f))
 
     def handle_chat(self, message: str) -> dict:
         input_result = self._filter_text(message, stage="input")
@@ -113,6 +114,12 @@ class SafeChatPipeline:
         elif score >= sanitize_threshold:
             action = "sanitize"
             sanitized = self.sanitizer.sanitize(normalized, matches)
+
+        # 🛡️ P0 安全修复：如果语义检测触发了 sanitize，强制升级为 block
+        has_semantic = any(d.source == 'semantic_ml' for d in detections)
+        if has_semantic and action == 'sanitize':
+            action = 'block'
+            sanitized = None
 
         return {
             "stage": stage,
