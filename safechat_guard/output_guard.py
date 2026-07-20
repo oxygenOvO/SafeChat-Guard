@@ -79,6 +79,8 @@ class OutputGuard:
             blocked = False
             rewritten = True
             final_text = self._sanitize_output(privacy_masked, all_detections)
+            if not final_text.strip() or final_text == raw_output:
+                final_text = "模型回复包含风险内容，系统已进行安全改写。"
         else:
             action = "pass"
             blocked = False

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from .config_utils import DEFAULT_SEMANTIC_THRESHOLDS
 from .models import Detection
 
 try:
@@ -9,8 +10,15 @@ except ImportError:
 
 
 class SemanticClassifier:
-    def __init__(self, model_path="models/semantic_model.pkl"):
+    def __init__(
+        self,
+        model_path="models/semantic_model.pkl",
+        thresholds: dict[str, float] | None = None,
+    ):
         self.model_path = model_path
+        self.thresholds = dict(DEFAULT_SEMANTIC_THRESHOLDS)
+        if thresholds:
+            self.thresholds.update(thresholds)
         self.model = None
         self._error = None
         project_root = Path(__file__).parent.parent
@@ -23,7 +31,7 @@ class SemanticClassifier:
         else:
             try:
                 self.model = joblib.load(full_path)
-            except (OSError, ValueError, TypeError) as exc:
+            except Exception as exc:
                 self._error = f"model load failed: {type(exc).__name__}"
 
         self.category_to_score = {
@@ -51,6 +59,7 @@ class SemanticClassifier:
             "classes": [
                 str(item) for item in getattr(self.model, "classes_", [])
             ] if self.model is not None else [],
+            "thresholds": dict(self.thresholds),
             "error": self._error,
         }
 
@@ -68,22 +77,20 @@ class SemanticClassifier:
             return []
 
         scores = self.predict_scores(text)
-        sorted_probs = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-        top_label, top_prob = sorted_probs[0]
-
-        if top_prob < 0.15:
+        risk_scores = {
+            str(label): float(probability)
+            for label, probability in scores.items()
+            if label != "normal"
+            and float(probability) >= self.thresholds.get(str(label), 1.0)
+        }
+        if not risk_scores:
             return []
-
-        if top_label != "normal":
-            label = top_label
-            max_prob = top_prob
-        else:
-            return []
+        label, max_prob = max(risk_scores.items(), key=lambda item: item[1])
 
         score = self.category_to_score.get(label, 50)
         if max_prob > 0.85:
             score = min(score + 10, 100)
-        elif max_prob < 0.6:
+        elif max_prob < self.thresholds.get(label, 0.65):
             score = max(score - 10, 0)
 
         return [Detection(

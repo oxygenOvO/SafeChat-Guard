@@ -5,6 +5,16 @@ from pathlib import Path
 from .models import Detection
 
 
+CONTEXTUAL_WEAK_KEYWORDS = {
+    "ad": {
+        "网络": ("网络安全", "安全防护", "攻击检测", "课程", "实验", "防御"),
+    },
+    "sensitive": {
+        "谣言": ("识别", "辨别", "核查", "治理", "辟谣", "防范", "制止"),
+    },
+}
+
+
 class RuleFilter:
     def __init__(self, lexicon_dir: str, regex_path: str):
         self.lexicon_dir = Path(lexicon_dir)
@@ -46,12 +56,16 @@ class RuleFilter:
         detections: list[Detection] = []
         for category, words in self.words.items():
             matched = [word for word in words if word in text]
+            matched = self._remove_safe_context_matches(category, matched, text)
             if matched:
+                high_risk = category in {"porn", "violence"} or (
+                    category == "abuse" and len(set(matched)) >= 2
+                )
                 detections.append(
                     Detection(
                         category=category,
-                        level="high" if category in {"porn", "violence"} else "medium",
-                        score=80 if category in {"porn", "violence"} else 55,
+                        level="high" if high_risk else "medium",
+                        score=80 if high_risk else 55,
                         reason=f"matched {category} keyword lexicon",
                         source="keyword",
                         matches=matched,
@@ -77,3 +91,19 @@ class RuleFilter:
                     )
                 )
         return detections
+
+    @staticmethod
+    def _remove_safe_context_matches(
+        category: str,
+        matches: list[str],
+        text: str,
+    ) -> list[str]:
+        weak_keywords = CONTEXTUAL_WEAK_KEYWORDS.get(category, {})
+        if not matches or any(match not in weak_keywords for match in matches):
+            return matches
+
+        for match in matches:
+            context_terms = weak_keywords[match]
+            if not any(term in text for term in context_terms):
+                return matches
+        return []

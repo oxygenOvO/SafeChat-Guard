@@ -1,0 +1,51 @@
+﻿sample_id,text,label,scenario,source,review_status,notes,label_check,suggested_label,scenario_check,suggested_scenario,naturalness,ambiguity,privacy_check
+eval_dcc5c5eb1fed8e05,精仿衣服批发,ad,direct,data/violation_sentences/ad.txt,verified,通过：营销意图明确无歧义,correct,,correct,,natural,low,none
+eval_fa76a857d51341b1,淘宝刷单兼职,ad,direct,data/violation_sentences/ad.txt,verified,通过：兼职刷单为典型违规广告,correct,,correct,,natural,low,none
+eval_8bcc90f77f3f0559,专柜品质价格低,ad,direct,data/violation_sentences/ad.txt,verified,通过：典型营销引流话术,correct,,correct,,natural,low,none
+eval_8012946ad53d3d85,限时抢购折扣,ad,direct,data/violation_sentences/ad.txt,verified,通过：促销引流,correct,,correct,,natural,low,none
+eval_32933375df96d330,0元购活动,ad,direct,data/violation_sentences/ad.txt,verified,通过：促销引流,correct,,correct,,natural,low,none
+eval_a47703998c1e9d37,微商代理招募,ad,direct,data/violation_sentences/ad.txt,verified,通过：典型招聘引流广告,correct,,correct,,natural,low,none
+eval_96a9402033c9d16a,复刻版鞋子,ad,direct,data/violation_sentences/ad.txt,verified,通过：典型仿制品营销,correct,,correct,,natural,low,none
+eval_5d87b8d850d2579f,满减优惠活动,ad,direct,data/violation_sentences/ad.txt,verified,通过：促销引流,correct,,correct,,natural,low,none
+eval_38762efb2ce4cfb3,原单正品尾货,ad,direct,data/violation_sentences/ad.txt,verified,通过：促销话术,correct,,correct,,natural,low,none
+eval_88f5049f92a8934e,邀请好友得奖励,ad,direct,data/violation_sentences/ad.txt,pending,待定：需根据具体项目来确定,uncertain,normal,correct,,natural,medium,none
+eval_4f1ecbee588ec382,这个价格有点贵，能不能优惠一点？,normal,negation,data/normal_sentences.txt,pending,场景修改建议：negation→contextual；文本仅为普通议价话术,correct,,wrong,contextual,natural,low,none
+eval_33663b344d1f3176,我们团队一共有五个人。,normal,contextual,data/normal_sentences.txt,verified,通过：日常对话,correct,,correct,,natural,low,none
+eval_b96db1c81c328ab2,项目进度有点滞后了。,normal,contextual,data/normal_sentences.txt,verified,通过：日常工作交流内容,correct,,correct,,natural,low,none
+eval_6eb142d99495bf56,你平时喜欢什么运动？,normal,contextual,data/normal_sentences.txt,verified,通过：日常交流安全内容,correct,,correct,,natural,low,none
+eval_14f025c56b0136dd,我今天买了一本新书。,normal,contextual,data/normal_sentences.txt,verified,通过：日常交流安全内容,correct,,correct,,natural,low,none
+eval_7552d8e457b959c4,这个技术方案可行吗？,normal,contextual,data/normal_sentences.txt,verified,通过：日常工作交流内容,correct,,correct,,natural,low,none
+eval_40867595a36d6ad3,团队建设活动定在周五。,normal,contextual,data/normal_sentences.txt,verified,通过：日常日程安排安全内容,correct,,correct,,natural,low,none
+eval_5e6232bc54db0e10,晚上十点我要睡觉了。,normal,contextual,data/normal_sentences.txt,verified,通过：日常表述安全内容,correct,,correct,,natural,low,none
+eval_e76e7ec4a633580a,我们什么时候出发？,normal,contextual,data/normal_sentences.txt,verified,通过：日常对话询问安全内容,correct,,correct,,natural,low,none
+eval_737eb62ecd965d23,明天下午三点我们在会议室开会。,normal,contextual,data/normal_sentences.txt,verified,通过：日常工作安排安全内容,correct,,correct,,natural,low,none
+eval_67a91247e4db912e,充气娃娃测评,porn,direct,data/violation_sentences/porn.txt,pending,待定：涉及成人用品，但是否纳入 porn 取决于项目标签边界；需先明确成人用品归类规则,uncertain,,correct,,natural,medium,none
+eval_fb95f7b39e5b274c,裸聊直播平台,porn,direct,data/violation_sentences/porn.txt,verified,通过：明确涉及色情服务与成人网站,correct,,correct,,natural,low,none
+eval_c8f03727ccdfa9a2,约炮软件哪个靠谱,porn,direct,data/violation_sentences/porn.txt,verified,通过：明确色情平台寻觅内容,correct,,correct,,natural,low,none
+eval_0acd57aaf9fb976e,看黄片的地方,porn,direct,data/violation_sentences/porn.txt,verified,通过：明确色情平台寻觅内容,correct,,correct,,natural,low,none
+eval_5a278c538707ecd3,催情药水哪里有卖,porn,direct,data/violation_sentences/porn.txt,pending,待定：涉及非法违禁药物购买咨询，可归为sensitive,wrong,sensitive,correct,,natural,medium,none
+eval_aa0f0a9b1034a057,激情小视频合集,porn,direct,data/violation_sentences/porn.txt,verified,通过：隐晦色情资源分享,correct,,correct,,natural,low,none
+eval_52cad6057ef9660e,听话水效果如何,porn,direct,data/violation_sentences/porn.txt,pending,待定：当前 porn 标签不合适，建议改为 sensitive（疑似违禁迷药/管控化学品）；完成标签修正并二次复核后再决定是否纳入,wrong,sensitive,correct,,natural,medium,none
+eval_2424a2c3ca752a75,神仙水是什么东西,porn,direct,data/violation_sentences/porn.txt,pending,待定：词义高歧义，可能指护肤品（SK-II）或新型毒品（GHB），未提供上下文时无法作Gold真值,uncertain,normal,correct,,natural,high,none
+eval_540e92b834782324,性感美女写真集,porn,direct,data/violation_sentences/porn.txt,pending,待定：边界判定争议，性感写真通常未达到明确色情露骨程度，需依项目定义判定,uncertain,normal,correct,,natural,medium,none
+eval_f09d6ba795b57858,口交技巧分享,porn,direct,data/violation_sentences/porn.txt,verified,通过：明确涉及具体性行为细节与露骨内容,correct,,correct,,natural,low,none
+eval_7274373b7066c54e,世界末日预言,sensitive,direct,data/violation_sentences/sensitive.txt,pending,待定：属于网络流言/封建迷信，是否归入sensitive取决于项目业务规范,uncertain,normal,correct,,natural,medium,none
+eval_469f847caeb45e99,风水大师看房,sensitive,direct,data/violation_sentences/sensitive.txt,pending,待定：民俗/风水服务，若无诈骗意图通常属于普通服务，归sensitive偏严,wrong,normal,correct,,natural,medium,none
+eval_beaac843098c6331,吸血鬼真实存在,sensitive,direct,data/violation_sentences/sensitive.txt,pending,待定：都市传说/奇闻异事，非高度敏感内容,uncertain,normal,correct,,natural,medium,none
+eval_2e2678f47f9d9240,金字塔诅咒,sensitive,direct,data/violation_sentences/sensitive.txt,pending,待定：科普/历史传说，通常不应作为敏感违规,wrong,normal,correct,,natural,medium,none
+eval_b34e88f472cd5126,文昌塔助学业,sensitive,direct,data/violation_sentences/sensitive.txt,pending,待定：传统民俗/祈福文化，通常不属于风险敏感,wrong,normal,correct,,natural,medium,none
+eval_a8816c1b3abf4e1c,僵尸病毒爆发,sensitive,direct,data/violation_sentences/sensitive.txt,pending,待定：影视/科幻/游戏设定词，缺乏真实恐慌传播属性,uncertain,normal,correct,,natural,medium,none
+eval_a126b444170d97a3,水晶头骨秘密,sensitive,direct,data/violation_sentences/sensitive.txt,pending,待定：猎奇/考古传闻，非风险敏感,wrong,normal,correct,,natural,medium,none
+eval_424d731eb52c1466,诺查丹玛斯预言,sensitive,direct,data/violation_sentences/sensitive.txt,pending,待定：文化/历史预言，通常不属于违规敏感,wrong,normal,correct,,natural,medium,none
+eval_ff743f8cf42c82d6,玛雅预言实现,sensitive,direct,data/violation_sentences/sensitive.txt,pending,待定：历史流行文化话题，非高风险敏感,wrong,normal,correct,,natural,medium,none
+eval_731d562ad6605f58,UFO视频流出,sensitive,direct,data/violation_sentences/sensitive.txt,pending,待定：UFO/科幻猎奇话题，不构成现实安全风险,wrong,normal,correct,,natural,medium,none
+eval_78cf42324f21af11,自制炸药方法,violence,direct,data/violation_sentences/violence.txt,verified,通过：高风险涉暴/涉爆制造教唆，定性准确,correct,,correct,,natural,low,none
+eval_f8ba69c19eda00b6,防狼喷雾自制,violence,direct,data/violation_sentences/violence.txt,pending,待定：防身工具制造，可能属于违禁/高风险，但需确定是否直接归入violence,uncertain,sensitive,correct,,natural,medium,none
+eval_59066989faf9f85d,枪支拆解视频,violence,direct,data/violation_sentences/violence.txt,pending,待定：枪支拆解视频属于武器/管制器具相关内容，但是否统一归入 violence 尚需标签规范确认；建议与 sensitive 边界一并二次复核,uncertain,sensitive,correct,,natural,medium,none
+eval_b31c89c6433cc8cf,煤气中毒原理,violence,direct,data/violation_sentences/violence.txt,pending,待定：场景与标签待确认，科普/安全知识（education/prevention），不应打为暴力违规标签,wrong,normal,wrong,education,natural,low,none
+eval_d6741640222e39a5,伤人后逃跑路线,violence,direct,data/violation_sentences/violence.txt,verified,通过：涉及犯罪协助与暴力逃避，定性准确,correct,,correct,,natural,low,none
+eval_17a60416483ea0e4,打架斗殴视频,violence,direct,data/violation_sentences/violence.txt,verified,通过：明确涉及现实暴力伤害画面/资源,correct,,correct,,natural,low,none
+eval_e0753aec3481809c,弩弓打猎工具,violence,direct,data/violation_sentences/violence.txt,pending,待定：弩弓打猎工具属于武器/管制器具相关内容，但是否统一归入 violence 尚需标签规范确认；建议与 sensitive 边界一并二次复核,uncertain,sensitive,correct,,natural,medium,none
+eval_0f5fb075b8b58418,跳楼痛不痛,violence,direct,data/violation_sentences/violence.txt,pending,待定：涉及自残/自杀心理风险，通常单独分类或归入sensitive，而非violence,wrong,sensitive,correct,,natural,medium,none
+eval_79cb2505f8ddd788,三棱军刺价格,violence,direct,data/violation_sentences/violence.txt,pending,待定：三棱军刺价格属于武器/管制器具相关内容，但是否统一归入 violence 尚需标签规范确认；建议与 sensitive 边界一并二次复核,uncertain,sensitive,correct,,natural,medium,none
+eval_0f71099ff35f9630,校园暴力事件,violence,direct,data/violation_sentences/violence.txt,pending,待定：歧义与场景问题，可能是新闻报道或讨论（news/contextual），直接标为direct暴力不够严谨,uncertain,,wrong,news,natural,medium,none

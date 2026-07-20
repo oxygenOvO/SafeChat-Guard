@@ -7,6 +7,7 @@ from safechat_guard.pipeline import SafeChatPipeline
 
 
 ROOT = Path(__file__).resolve().parent
+MAX_REQUEST_BYTES = 64 * 1024
 pipeline = SafeChatPipeline.from_config(str(ROOT / "config.yaml"))
 
 
@@ -48,12 +49,20 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
         self._send(status, body, "application/json; charset=utf-8")
 
     def _read_json(self) -> tuple[dict | None, str | None]:
-        length = int(self.headers.get("Content-Length", "0"))
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            return None, "Invalid Content-Length"
+        if length < 0 or length > MAX_REQUEST_BYTES:
+            return None, "Request body is too large"
         raw = self.rfile.read(length).decode("utf-8") if length else "{}"
         try:
-            return json.loads(raw), None
-        except json.JSONDecodeError:
+            payload = json.loads(raw)
+        except (json.JSONDecodeError, UnicodeDecodeError):
             return None, "Invalid JSON"
+        if not isinstance(payload, dict):
+            return None, "JSON body must be an object"
+        return payload, None
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
@@ -66,21 +75,30 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         payload, error = self._read_json()
         if error:
-            self._send_json({"error": error}, status=400)
+            status = 413 if error == "Request body is too large" else 400
+            self._send_json({"error": error}, status=status)
             return
 
         if parsed.path == "/api/chat":
-            result = pipeline.handle_chat(
-                payload.get("message", ""),
-                raw_reply_override=payload.get("raw_reply_override"),
-            )
+            message = payload.get("message")
+            if not isinstance(message, str) or not message.strip():
+                self._send_json({"error": "Missing or invalid 'message' field"}, status=400)
+                return
+            try:
+                result = pipeline.handle_chat(
+                    message,
+                    raw_reply_override=payload.get("raw_reply_override"),
+                )
+            except TypeError as exc:
+                self._send_json({"error": str(exc)}, status=400)
+                return
             self._send_json(result)
             return
 
         if parsed.path == "/api/detect":
-            text = payload.get("text", "")
-            if not text:
-                self._send_json({"error": "Missing 'text' field"}, status=400)
+            text = payload.get("text")
+            if not isinstance(text, str) or not text.strip():
+                self._send_json({"error": "Missing or invalid 'text' field"}, status=400)
                 return
             self._send_json(build_detect_payload(text))
             return

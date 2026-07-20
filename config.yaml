@@ -8,6 +8,12 @@
     "block_threshold": 80,
     "sanitize_threshold": 40
   },
+  "semantic_thresholds": {
+    "ad": 0.65,
+    "porn": 0.55,
+    "violence": 0.55,
+    "sensitive": 0.65
+  },
   "llm": {
     "provider": "mock",
     "api_key_env": "QWEN_API_KEY",

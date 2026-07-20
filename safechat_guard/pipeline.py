@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+from .config_utils import load_semantic_thresholds
 from .llm_client import LLMClientFactory
 from .logger import EventLogger
 from .normalizer import TextNormalizer
@@ -23,7 +24,8 @@ class SafeChatPipeline:
             str(self.project_root / "data/lexicons"),
             str(self.project_root / "data/rules/regex_rules.json"),
         )
-        self.semantic_classifier = SemanticClassifier()
+        self.semantic_thresholds = load_semantic_thresholds(config)
+        self.semantic_classifier = SemanticClassifier(thresholds=self.semantic_thresholds)
         self.sanitizer = Sanitizer()
         self.rewriter = EmotionPreservingRewriter()
         self.llm = LLMClientFactory.create(config.get("llm", {}))
@@ -51,6 +53,10 @@ class SafeChatPipeline:
         raw_reply_override: str | None = None,
         persist: bool = True,
     ) -> dict:
+        if not isinstance(message, str):
+            raise TypeError("message must be a string")
+        if raw_reply_override is not None and not isinstance(raw_reply_override, str):
+            raise TypeError("raw_reply_override must be a string or None")
         input_result = self._filter_text(message, stage="input")
         rewrite_result = self.rewriter.unchanged(message)
 
@@ -86,7 +92,7 @@ class SafeChatPipeline:
             "stage": "chat",
             "input": message,
             "safe_input": safe_message,
-            "raw_reply": raw_reply,
+            "raw_reply": raw_reply if output_result["action"] == "pass" else None,
             "final_reply": final_reply,
             "risk_categories": output_result.get("risk_categories", []),
             "risk_level": output_result.get("risk_level", "none"),
@@ -102,13 +108,15 @@ class SafeChatPipeline:
             "allowed": output_result["action"] != "block",
             "reply": final_reply,
             "safe_input": safe_message,
-            "raw_reply": raw_reply,
+            "raw_reply": raw_reply if output_result["action"] == "pass" else None,
             "rewrite": rewrite_result,
             "input_filter": input_result,
             "output_filter": output_result,
         }
 
     def _filter_output(self, text: str) -> dict:
+        if not isinstance(text, str):
+            raise TypeError("output text must be a string")
         normalized = self.normalizer.normalize(text)
         detections = self.rule_filter.detect(normalized)
         detections.extend(self.semantic_classifier.detect(normalized))
@@ -116,7 +124,14 @@ class SafeChatPipeline:
         return self.output_guard.process(text, normalized, detections)
 
     def _filter_text(self, text: str, stage: str) -> dict:
-        normalized, normalization_steps = self.normalizer.normalize_with_steps(text)
+        if not isinstance(text, str):
+            raise TypeError("text must be a string")
+        trace = self.normalizer.normalize_with_trace(text)
+        normalized = trace.normalized_text
+        normalization_steps = [
+            f"{step.normalizer}: {step.before} -> {step.after}"
+            for step in trace.steps
+        ] or ["未触发中文对抗归一化"]
         rule_detections = self.rule_filter.detect(normalized)
         semantic_scores = self.semantic_classifier.predict_scores(normalized)
         semantic_detections = self.semantic_classifier.detect(normalized)
@@ -135,6 +150,16 @@ class SafeChatPipeline:
         elif score >= sanitize_threshold:
             action = "sanitize"
             sanitized = self.sanitizer.sanitize(normalized, matches)
+            if not sanitized or sanitized == normalized:
+                rewrite = self.rewriter.rewrite(
+                    text,
+                    primary.category if primary else "unknown",
+                    matches,
+                )
+                sanitized = rewrite["rewrite_text"]
+            if not sanitized or sanitized in {text, normalized}:
+                action = "block"
+                sanitized = None
 
         return {
             "stage": stage,
@@ -166,7 +191,10 @@ class SafeChatPipeline:
 
     def stats(self) -> dict:
         stats = self.logger.stats()
-        stats["semantic_classifier"] = self.semantic_classifier.status()
+        semantic_status = self.semantic_classifier.status()
+        stats["semantic_classifier"] = semantic_status
+        stats["model_loaded"] = semantic_status.get("loaded", False)
+        stats["model_error"] = semantic_status.get("error")
         return stats
 
     @staticmethod

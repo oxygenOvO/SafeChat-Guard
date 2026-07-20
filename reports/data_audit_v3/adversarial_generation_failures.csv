@@ -1,0 +1,25 @@
+perturbation_type,label,target_count,generated_count,shortfall,reason
+homophone,ad,3,2,1,insufficient candidates satisfying v3 quality rules
+homophone,porn,3,2,1,insufficient candidates satisfying v3 quality rules
+homophone,sensitive,2,0,2,insufficient candidates satisfying v3 quality rules
+abbreviation,ad,3,2,1,insufficient candidates satisfying v3 quality rules
+abbreviation,violence,2,0,2,insufficient candidates satisfying v3 quality rules
+abbreviation,sensitive,2,0,2,insufficient candidates satisfying v3 quality rules
+variant_character,ad,3,0,3,insufficient candidates satisfying v3 quality rules
+variant_character,porn,3,0,3,insufficient candidates satisfying v3 quality rules
+variant_character,violence,2,0,2,insufficient candidates satisfying v3 quality rules
+variant_character,sensitive,2,0,2,insufficient candidates satisfying v3 quality rules
+character_split,ad,3,0,3,deprecated: awaiting reviewed Chinese radical-split mappings
+character_split,porn,3,0,3,deprecated: awaiting reviewed Chinese radical-split mappings
+character_split,violence,2,0,2,deprecated: awaiting reviewed Chinese radical-split mappings
+character_split,sensitive,2,0,2,deprecated: awaiting reviewed Chinese radical-split mappings
+emoji,sensitive,2,0,2,insufficient candidates satisfying v3 quality rules
+mixed_language,sensitive,2,0,2,insufficient candidates satisfying v3 quality rules
+url_obfuscation,ad,3,0,3,insufficient candidates satisfying v3 quality rules
+url_obfuscation,porn,3,0,3,insufficient candidates satisfying v3 quality rules
+url_obfuscation,violence,2,0,2,insufficient candidates satisfying v3 quality rules
+url_obfuscation,sensitive,2,0,2,insufficient candidates satisfying v3 quality rules
+phone_obfuscation,ad,3,0,3,insufficient candidates satisfying v3 quality rules
+phone_obfuscation,porn,3,0,3,insufficient candidates satisfying v3 quality rules
+phone_obfuscation,violence,2,0,2,insufficient candidates satisfying v3 quality rules
+phone_obfuscation,sensitive,2,0,2,insufficient candidates satisfying v3 quality rules

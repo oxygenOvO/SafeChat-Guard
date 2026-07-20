@@ -96,5 +96,6 @@ def test_stats_exposes_semantic_classifier_status():
         "model_path",
         "model_type",
         "classes",
+        "thresholds",
         "error",
     }

@@ -1,0 +1,40 @@
+{
+  "data_manifest_sha256": "e88c57f499e1ca1f9e4062a33aabbc70f468c9bd47b13fd5f857828a5cd75193",
+  "evaluation_scope": "weak_label_grouped_holdout",
+  "labels": [
+    "ad",
+    "normal",
+    "porn",
+    "sensitive",
+    "violence"
+  ],
+  "model_file": "models/semantic_model_v2.joblib",
+  "model_file_sha256": "82d1b4d188844df7f0670422721a857f6e270ce7ab682859e2e0fd47547fcd7c",
+  "model_parameters": {
+    "classifier": {
+      "class_weight": "balanced",
+      "max_iter": 2000,
+      "random_state": 42,
+      "type": "LogisticRegression"
+    },
+    "tfidf": {
+      "analyzer": "char",
+      "ngram_range": [
+        2,
+        5
+      ]
+    }
+  },
+  "official_competition_metric": false,
+  "random_seed": 42,
+  "schema_version": 2,
+  "selected_model": "char",
+  "split_manifest_sha256": "4542a463ed42ddd963e0c79caedcd777025811d108feefc3c817419b13ea37fa",
+  "training_duration_seconds": 0.1580072999931872,
+  "versions": {
+    "joblib": "1.5.3",
+    "pandas": "3.0.3",
+    "python": "3.13.12",
+    "scikit_learn": "1.9.0"
+  }
+}

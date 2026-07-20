@@ -38,7 +38,13 @@ class MappingNormalizer:
             "count": count,
             "category": self.category,
         }
-        for key in ["type", "category_hint", "confidence"]:
+        for key in [
+            "type",
+            "category_hint",
+            "confidence",
+            "confidence_score",
+            "rationale",
+        ]:
             if key in info:
                 metadata[key] = info[key]
         return metadata
