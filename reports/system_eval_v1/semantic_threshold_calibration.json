@@ -1,0 +1,263 @@
+{
+  "action_interpretation": {
+    "action_score_thresholds_tuned": false,
+    "block_routing_dependency": "block仍依赖规则命中、高危意图证据或后续严重度模型",
+    "semantic_model_capability": "五分类模型只预测类别，不能区分同一类别中的sanitize与block"
+  },
+  "calibration_sample_id_sha256": "61cf3e05d77f0fcb6f0aa39bfedb7f02a6300d6a83c874f55698f65dd4c2a75f",
+  "constraint": {
+    "metric": "normal_false_positive_rate",
+    "operator": "<=",
+    "value": 0.1
+  },
+  "default_configuration": {
+    "category_thresholds": {
+      "ad": 0.65,
+      "porn": 0.55,
+      "sensitive": 0.65,
+      "violence": 0.55
+    },
+    "metrics": {
+      "accuracy": 0.5,
+      "macro_f1": 0.13333333333333333,
+      "normal_false_positive_count": 0,
+      "normal_false_positive_rate": 0.0,
+      "per_class": {
+        "ad": {
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 10
+        },
+        "normal": {
+          "f1": 0.6666666666666666,
+          "precision": 0.5,
+          "recall": 1.0,
+          "support": 40
+        },
+        "porn": {
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 10
+        },
+        "sensitive": {
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 10
+        },
+        "violence": {
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 10
+        }
+      },
+      "predicted_label_counts": {
+        "ad": 0,
+        "normal": 80,
+        "porn": 0,
+        "sensitive": 0,
+        "violence": 0
+      },
+      "risk_recall": 0.0,
+      "sample_count": 80
+    },
+    "min_margin": 0.1
+  },
+  "evaluated_configuration_count": 87846,
+  "evaluation_scope": "single_review_independent_gold_v1_calibration",
+  "review_provenance": {
+    "human_review_status": "single_review",
+    "ai_assisted_organization": true,
+    "second_independent_review": "pending"
+  },
+  "evaluation_split": "calibration",
+  "feasible_configuration_count": 82493,
+  "gold_path": "D:\\Projects\\SafeChat-Guard\\data\\evaluation\\semantic_gold_v1.csv",
+  "model_path": "D:\\Projects\\SafeChat-Guard\\models\\semantic_model_v2.joblib",
+  "model_sha256": "82d1b4d188844df7f0670422721a857f6e270ce7ab682859e2e0fd47547fcd7c",
+  "optimization_metric": "macro_f1",
+  "removed_legacy_behavior": {
+    "description": "normal最高时回退到第二风险类别，且风险类别仅要求概率不低于0.15",
+    "metrics": {
+      "accuracy": 0.2625,
+      "macro_f1": 0.27990395517908356,
+      "normal_false_positive_count": 40,
+      "normal_false_positive_rate": 1.0,
+      "per_class": {
+        "ad": {
+          "f1": 0.3636363636363636,
+          "precision": 0.3333333333333333,
+          "recall": 0.4,
+          "support": 10
+        },
+        "normal": {
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 40
+        },
+        "porn": {
+          "f1": 0.6896551724137931,
+          "precision": 0.5263157894736842,
+          "recall": 1.0,
+          "support": 10
+        },
+        "sensitive": {
+          "f1": 0.25531914893617025,
+          "precision": 0.16216216216216217,
+          "recall": 0.6,
+          "support": 10
+        },
+        "violence": {
+          "f1": 0.0909090909090909,
+          "precision": 0.08333333333333333,
+          "recall": 0.1,
+          "support": 10
+        }
+      },
+      "predicted_label_counts": {
+        "ad": 12,
+        "normal": 0,
+        "porn": 19,
+        "sensitive": 37,
+        "violence": 12
+      },
+      "risk_recall": 0.525,
+      "sample_count": 80
+    }
+  },
+  "sample_count": 80,
+  "schema_version": 1,
+  "search_space": {
+    "category_thresholds": {
+      "ad": [
+        0.2,
+        0.25,
+        0.3,
+        0.35,
+        0.4,
+        0.45,
+        0.5,
+        0.55,
+        0.6,
+        0.65,
+        0.7
+      ],
+      "porn": [
+        0.2,
+        0.25,
+        0.3,
+        0.35,
+        0.4,
+        0.45,
+        0.5,
+        0.55,
+        0.6,
+        0.65,
+        0.7
+      ],
+      "sensitive": [
+        0.2,
+        0.25,
+        0.3,
+        0.35,
+        0.4,
+        0.45,
+        0.5,
+        0.55,
+        0.6,
+        0.65,
+        0.7
+      ],
+      "violence": [
+        0.2,
+        0.25,
+        0.3,
+        0.35,
+        0.4,
+        0.45,
+        0.5,
+        0.55,
+        0.6,
+        0.65,
+        0.7
+      ]
+    },
+    "min_margin": [
+      0.0,
+      0.05,
+      0.1,
+      0.15,
+      0.2,
+      0.25
+    ]
+  },
+  "selected_configuration": {
+    "category_thresholds": {
+      "ad": 0.25,
+      "porn": 0.25,
+      "sensitive": 0.65,
+      "violence": 0.55
+    },
+    "metrics": {
+      "accuracy": 0.55,
+      "macro_f1": 0.2989417989417989,
+      "normal_false_positive_count": 3,
+      "normal_false_positive_rate": 0.075,
+      "per_class": {
+        "ad": {
+          "f1": 0.14285714285714288,
+          "precision": 0.25,
+          "recall": 0.1,
+          "support": 10
+        },
+        "normal": {
+          "f1": 0.6851851851851851,
+          "precision": 0.5441176470588235,
+          "recall": 0.925,
+          "support": 40
+        },
+        "porn": {
+          "f1": 0.6666666666666665,
+          "precision": 0.75,
+          "recall": 0.6,
+          "support": 10
+        },
+        "sensitive": {
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 10
+        },
+        "violence": {
+          "f1": 0.0,
+          "precision": 0.0,
+          "recall": 0.0,
+          "support": 10
+        }
+      },
+      "predicted_label_counts": {
+        "ad": 4,
+        "normal": 68,
+        "porn": 8,
+        "sensitive": 0,
+        "violence": 0
+      },
+      "risk_recall": 0.175,
+      "sample_count": 80
+    },
+    "min_margin": 0.05
+  },
+  "test_split_used": false,
+  "tie_breakers": [
+    "accuracy",
+    "lower_normal_false_positive_rate",
+    "risk_recall",
+    "distance_to_default_thresholds",
+    "lower_margin",
+    "deterministic_threshold_order"
+  ]
+}

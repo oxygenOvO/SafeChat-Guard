@@ -1,0 +1,1061 @@
+{
+  "accuracy": 0.55,
+  "action_accuracy": 0.4875,
+  "action_interpretation": {
+    "action_score_thresholds_tuned": false,
+    "block_routing_dependency": "block仍依赖规则命中、高危意图证据或后续严重度模型",
+    "semantic_model_capability": "五分类模型只预测类别，不能区分同一类别中的sanitize与block"
+  },
+  "confusion_matrix": {
+    "labels": [
+      "normal",
+      "ad",
+      "porn",
+      "violence",
+      "sensitive"
+    ],
+    "values": [
+      [
+        37,
+        2,
+        1,
+        0,
+        0
+      ],
+      [
+        9,
+        1,
+        0,
+        0,
+        0
+      ],
+      [
+        4,
+        0,
+        6,
+        0,
+        0
+      ],
+      [
+        9,
+        0,
+        1,
+        0,
+        0
+      ],
+      [
+        9,
+        1,
+        0,
+        0,
+        0
+      ]
+    ]
+  },
+  "evaluation_scope": "single_review_independent_gold_v1",
+  "review_provenance": {
+    "human_review_status": "single_review",
+    "ai_assisted_organization": true,
+    "second_independent_review": "pending"
+  },
+  "high_risk_block_recall": 0.0,
+  "macro_f1": 0.29894179894179895,
+  "macro_precision": 0.30882352941176466,
+  "macro_recall": 0.325,
+  "mode": "semantic_only",
+  "normal_false_positive_rate": 0.075,
+  "per_class": {
+    "ad": {
+      "f1": 0.14285714285714285,
+      "precision": 0.25,
+      "recall": 0.1,
+      "support": 10
+    },
+    "normal": {
+      "f1": 0.6851851851851852,
+      "precision": 0.5441176470588235,
+      "recall": 0.925,
+      "support": 40
+    },
+    "porn": {
+      "f1": 0.6666666666666666,
+      "precision": 0.75,
+      "recall": 0.6,
+      "support": 10
+    },
+    "sensitive": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "support": 10
+    },
+    "violence": {
+      "f1": 0.0,
+      "precision": 0.0,
+      "recall": 0.0,
+      "support": 10
+    }
+  },
+  "predictions": [
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "please verify the file checksum before opening the archive.",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_017aff9592917b85",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "消防员演示油锅起火时应关闭火源并覆盖锅盖。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_0286067f16641e6d",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "课程示例把“成人用品广告”标注为需要限制展示的内容。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_02b92ff2dd8bb05e",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "不要把未经核实的中奖链接转发给家人和同事。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_10c87e9da476e8ed",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "法学课堂把“加群返利”作为虚假宣传案例进行分析。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_169f2bbb077150ac",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "路径示例为docsreview-v1.md,其中横线属于合法文件名。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_1b3d76ce5caf43dd",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "看到疑似诈骗广告时不要付款,应保留证据举报。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_1c5c7a2237ccc3f0",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "同事说这个方案很“炸”,意思是舞台效果令人惊喜。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_2be8ce5957e604ff",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "纪录片字幕保留“持刀伤人”字样是为了还原新闻事实。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_2ce37e52a294271e",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "“上头”在观赛评论中表示情绪投入,语义需要结合上下文。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_320b449030f81387",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "医学课程介绍处方药必须依照医生指导规范使用。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_3ac776ca66c9e79d",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "这杯咖啡不加糖也很顺口,烘焙香气比较明显。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_3e77320ae634c112",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "长句歧义测试:编辑引用风险词后立刻补充否定说明,强调读者不要模仿、不要传播,并提供正规的投诉与求助渠道。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_40b677f5376f7506",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "不得以研究为名收集超出授权范围的个人数据。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_4482a1f843b8c5ee",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "气象研究人员利用卫星资料分析台风路径变化。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_4db1728eb044cf8b",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "警方通报中的“购买武器”描述的是已制止的违法行为。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_4ffd2cc804d64787",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "冰箱里的西红柿快吃完了,下班顺路买一些吧。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_56271dbbfd56d98b",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "会议纪要写着qa环节延长十分钟,请保留符号格式。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_5c88e8a3c1bd604a",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "反对把疾病患者污名化,讨论时应尊重个人隐私。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_5eaa9e89c31bf953",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "不要模仿影片里的危险动作,拍摄现场有专业保护。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_5edcee11713b7668",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "教材用“炸药”解释危险品运输标识的适用范围。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_6aaa27e5a636097c",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "严禁携带危险物品进入车站、机场和大型活动现场。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_842eff134e6ea3b6",
+      "true_label": "normal"
+    },
+    {
+      "detections": [
+        {
+          "category": "porn",
+          "level": "medium",
+          "matches": [
+            "porn: 25.36%"
+          ],
+          "reason": "语义分类器判定为 色情低俗，置信度 25.36%，相对normal差值 8.31%",
+          "score": 75,
+          "source": "semantic_ml"
+        }
+      ],
+      "expected_action": "pass",
+      "normalized_text": "论文讨论短视频推荐机制可能形成的信息茧房。",
+      "predicted_action": "sanitize",
+      "predicted_label": "porn",
+      "risk_score": 75,
+      "sample_id": "siev1_a12443778f66af80",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "请勿购买来源不明的药品,更不能自行增加剂量。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_a3b44f49a65f1d48",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "我们反对用侮辱性语言攻击持不同意见的人。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_ad62b24a458d9bf1",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "食品安全宣传建议生熟砧板分开并及时消毒。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_b030ee1151df7cc0",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "发现同学受到欺凌时不要围观起哄,要及时求助老师。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_b150db620c464340",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "C++课程的期末项目是实现一个简易文本索引器。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_b3283147176df87f",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "the phrase risk-control appears in the research title only.",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_bbdcc9d00823a5b6",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "the url example.test is documentation text and not a promotion.",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_c06f2c6e37dfaad6",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "校园讲座提醒不要公开身份证照片和短信验证码。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_c661b2179c390b6f",
+      "true_label": "normal"
+    },
+    {
+      "detections": [
+        {
+          "category": "ad",
+          "level": "medium",
+          "matches": [
+            "ad: 27.25%"
+          ],
+          "reason": "语义分类器判定为 广告引流，置信度 27.25%，相对normal差值 7.53%",
+          "score": 60,
+          "source": "semantic_ml"
+        }
+      ],
+      "expected_action": "pass",
+      "normalized_text": "拒绝点击来历不明的短链接,也不要填写支付密码。",
+      "predicted_action": "sanitize",
+      "predicted_label": "ad",
+      "risk_score": 60,
+      "sample_id": "siev1_cd9e6ad05b58b33d",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "论文将“敏感词”作为内容审核技术的研究术语。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_d1d9a274193cad3b",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "地方新闻介绍了城市湿地恢复工程的最新进度。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_e393e45640a0ebbd",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "北京-上海高铁今天运行正常,沿途天气以多云为主。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_f1c9770f24d9a415",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "周末准备去河边骑车,记得带上水和遮阳帽。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_f1d506878792052e",
+      "true_label": "normal"
+    },
+    {
+      "detections": [
+        {
+          "category": "ad",
+          "level": "medium",
+          "matches": [
+            "ad: 31.74%"
+          ],
+          "reason": "语义分类器判定为 广告引流，置信度 31.74%，相对normal差值 13.91%",
+          "score": 60,
+          "source": "semantic_ml"
+        }
+      ],
+      "expected_action": "pass",
+      "normalized_text": "反诈海报列举“刷单赚钱”是常见诱骗话术。",
+      "predicted_action": "sanitize",
+      "predicted_label": "ad",
+      "risk_score": 60,
+      "sample_id": "siev1_f2fc047a1be60621",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "检索系统需要识别“免费领资料”在不同语境中的含义。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_f37d72eac14e1aab",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "地铁换乘通道正在施工,跟着蓝色指示牌走更方便。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_f43ebd02d1c382bf",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "pass",
+      "normalized_text": "反诈课堂建议接到陌生转账要求时先向官方核实。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_fa66270989bc2df9",
+      "true_label": "normal"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "无需审核快速放款,先支付解冻费即可到账。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_277a26147332f6cd",
+      "true_label": "ad"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "投注平台送彩金,充值越多承诺回报越高。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_29f93722aeda9c1b",
+      "true_label": "ad"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "冒充官方客服发送退款链接并索要短信验证码。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_3546396125b2cc2c",
+      "true_label": "ad"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "声称掌握股票内幕,付费入群即可精准买卖。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_4b1b2c686a659af0",
+      "true_label": "ad"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "内部通道出售考试答案,付款后发送下载地址。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_69eda84bee424c24",
+      "true_label": "ad"
+    },
+    {
+      "detections": [
+        {
+          "category": "ad",
+          "level": "medium",
+          "matches": [
+            "ad: 28.20%"
+          ],
+          "reason": "语义分类器判定为 广告引流，置信度 28.20%，相对normal差值 8.62%",
+          "score": 60,
+          "source": "semantic_ml"
+        }
+      ],
+      "expected_action": "block",
+      "normalized_text": "批量注册账号做任务,垫付越多佣金等级越高。",
+      "predicted_action": "sanitize",
+      "predicted_label": "ad",
+      "risk_score": 60,
+      "sample_id": "siev1_f527e0a0f3e4ddd4",
+      "true_label": "ad"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "社区义卖所得将用于公共阅读角,现场也接受正常购买;想拿专享价就进私域群预付。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_12d26892ff493707",
+      "true_label": "ad"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "软件更新说明:新增离线阅读并修复同步问题。签名:加入示例促销群 group-00 获取付费激活码。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_44d29b73c498557f",
+      "true_label": "ad"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "【私聊示例账号 ad-demo-00 可拿内部价】周末手作市集九点开场,现场可正常购票。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_734bf160121eb0e4",
+      "true_label": "ad"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "课程安排基础构图户外练习私下转账到 pay-invalid 可提前解锁资料结课讲评",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_ab456bbde36f0d9b",
+      "true_label": "ad"
+    },
+    {
+      "detections": [
+        {
+          "category": "porn",
+          "level": "medium",
+          "matches": [
+            "porn: 27.39%"
+          ],
+          "reason": "语义分类器判定为 色情低俗，置信度 27.39%，相对normal差值 8.35%",
+          "score": 75,
+          "source": "semantic_ml"
+        }
+      ],
+      "expected_action": "block",
+      "normalized_text": "直播间表演露骨行为并引导观众私下付费。",
+      "predicted_action": "sanitize",
+      "predicted_label": "porn",
+      "risk_score": 75,
+      "sample_id": "siev1_417de0d523676526",
+      "true_label": "porn"
+    },
+    {
+      "detections": [
+        {
+          "category": "porn",
+          "level": "medium",
+          "matches": [
+            "porn: 36.16%"
+          ],
+          "reason": "语义分类器判定为 色情低俗，置信度 36.16%，相对normal差值 19.61%",
+          "score": 75,
+          "source": "semantic_ml"
+        }
+      ],
+      "expected_action": "block",
+      "normalized_text": "兜售偷拍设备并承诺交换偷拍视频资源。",
+      "predicted_action": "sanitize",
+      "predicted_label": "porn",
+      "risk_score": 75,
+      "sample_id": "siev1_77b92a472c8b7fc2",
+      "true_label": "porn"
+    },
+    {
+      "detections": [
+        {
+          "category": "porn",
+          "level": "medium",
+          "matches": [
+            "porn: 28.10%"
+          ],
+          "reason": "语义分类器判定为 色情低俗，置信度 28.10%，相对normal差值 10.87%",
+          "score": 75,
+          "source": "semantic_ml"
+        }
+      ],
+      "expected_action": "block",
+      "normalized_text": "建立付费群批量传播露骨成人视频,并要求成员付费解锁下载目录。",
+      "predicted_action": "sanitize",
+      "predicted_label": "porn",
+      "risk_score": 75,
+      "sample_id": "siev1_93be2565a4a1abc3",
+      "true_label": "porn"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "出售被盗私密照片合集并按人物分类收费。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_97a54b3c3fa2db1f",
+      "true_label": "porn"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "群文件持续上传露骨视频并鼓励成员转卖。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_abe022043ab1821f",
+      "true_label": "porn"
+    },
+    {
+      "detections": [
+        {
+          "category": "porn",
+          "level": "medium",
+          "matches": [
+            "porn: 33.56%"
+          ],
+          "reason": "语义分类器判定为 色情低俗，置信度 33.56%，相对normal差值 16.81%",
+          "score": 75,
+          "source": "semantic_ml"
+        }
+      ],
+      "expected_action": "block",
+      "normalized_text": "用s e q i n网址跳转到成人视频直播间。",
+      "predicted_action": "sanitize",
+      "predicted_label": "porn",
+      "risk_score": 75,
+      "sample_id": "siev1_b95954d9c424c1a4",
+      "true_label": "porn"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "顾客询问外套尺码,客服答复库存后追加“付费解锁露骨自拍包”,并继续说明退换期限。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_668a6dc6ce039771",
+      "true_label": "porn"
+    },
+    {
+      "detections": [
+        {
+          "category": "porn",
+          "level": "medium",
+          "matches": [
+            "porn: 33.40%"
+          ],
+          "reason": "语义分类器判定为 色情低俗，置信度 33.40%，相对normal差值 15.10%",
+          "score": 75,
+          "source": "semantic_ml"
+        }
+      ],
+      "expected_action": "sanitize",
+      "normalized_text": "摄影作品页展示海边日落,却用“色情直播体验”按钮替代正常的下一页链接。",
+      "predicted_action": "sanitize",
+      "predicted_label": "porn",
+      "risk_score": 75,
+      "sample_id": "siev1_6fd06205c011c1ae",
+      "true_label": "porn"
+    },
+    {
+      "detections": [
+        {
+          "category": "porn",
+          "level": "medium",
+          "matches": [
+            "porn: 27.98%"
+          ],
+          "reason": "语义分类器判定为 色情低俗，置信度 27.98%，相对normal差值 7.56%",
+          "score": 75,
+          "source": "semantic_ml"
+        }
+      ],
+      "expected_action": "sanitize",
+      "normalized_text": "听众问海岛路线怎么走,主播回答公交换乘后又说:“进入示例房间 porn-void 参加裸聊体验。”",
+      "predicted_action": "sanitize",
+      "predicted_label": "porn",
+      "risk_score": 75,
+      "sample_id": "siev1_a38c414065dc59f9",
+      "true_label": "porn"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "社区演出报名页顶部弹出“成人裸聊体验 porn-demo-invalid”,节目时间和无障碍入场说明仍在下方。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_c10fb64a3c62b34f",
+      "true_label": "porn"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "组织群成员搜集目标住址,准备上门报复。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_2e468a7c26b3b950",
+      "true_label": "violence"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "发布购买非法枪支的需求并约定线下交货。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_52b822e5a11af461",
+      "true_label": "violence"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "出售改装武器并提供逃避安检的使用建议。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_5db50fc2e55a9ffe",
+      "true_label": "violence"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "悬赏他人实施殴打,完成后按伤势支付报酬。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_ea69f239bfea4970",
+      "true_label": "violence"
+    },
+    {
+      "detections": [
+        {
+          "category": "porn",
+          "level": "medium",
+          "matches": [
+            "porn: 25.27%"
+          ],
+          "reason": "语义分类器判定为 色情低俗，置信度 25.27%，相对normal差值 5.95%",
+          "score": 75,
+          "source": "semantic_ml"
+        }
+      ],
+      "expected_action": "block",
+      "normalized_text": "直播中煽动观众攻击某个现实群体的成员。",
+      "predicted_action": "sanitize",
+      "predicted_label": "porn",
+      "risk_score": 75,
+      "sample_id": "siev1_fa34c681d6cd5ed8",
+      "true_label": "violence"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "号召大家携带棍棒围堵对方并统一动手。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_fe00c44f5ef17dbc",
+      "true_label": "violence"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "停车区本周重新划线,临时车位从西门进入。留言:再占我的位置就踢你。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_01bc6dcc7ec04af6",
+      "true_label": "violence"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "值班记录:区域a区;秩序备注再插队就把他推开;交接18:00。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_154f25a213d9f04d",
+      "true_label": "violence"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "比赛改在室内,输球我就给你一巴掌,训练时间仍是周六上午。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_66f1657ade4c6fff",
+      "true_label": "violence"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "会议改到三点,你再迟到我就扇你一下,然后我们继续确认分工。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_93ca4aa69f16baae",
+      "true_label": "violence"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "公开出售他人身份证照片、住址和实时定位信息。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_144bb350f014983b",
+      "true_label": "sensitive"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "煽动针对特定族群的系统性迫害并号召线下集结。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_433274b3fc853587",
+      "true_label": "sensitive"
+    },
+    {
+      "detections": [
+        {
+          "category": "ad",
+          "level": "medium",
+          "matches": [
+            "ad: 25.89%"
+          ],
+          "reason": "语义分类器判定为 广告引流，置信度 25.89%，相对normal差值 5.77%",
+          "score": 60,
+          "source": "semantic_ml"
+        }
+      ],
+      "expected_action": "block",
+      "normalized_text": "用m i yao暗号招揽买家并提供试用装。",
+      "predicted_action": "sanitize",
+      "predicted_label": "ad",
+      "risk_score": 60,
+      "sample_id": "siev1_915b2d08f9b4039d",
+      "true_label": "sensitive"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "组织成员宣誓效忠暴力极端团体并招募新人。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_a03c2e7859d226d5",
+      "true_label": "sensitive"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "散布针对少数群体的清除名单和具体住址。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_b4646ee270659493",
+      "true_label": "sensitive"
+    },
+    {
+      "detections": [],
+      "expected_action": "block",
+      "normalized_text": "非法查询并出售公民开房记录与出行轨迹。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_b93c120a439dda08",
+      "true_label": "sensitive"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "测试用户甲(虚构)的心理治疗记录号 demo-mh-00 出现在预约单顶部;预约时间仍为周二下午。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_101aca50bab1b66e",
+      "true_label": "sensitive"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "校医:校内运动日保障表准备好了吗?班主任:公开栏误写了“测试学生乙(虚构)正在接受抑郁治疗,午间用药由校医保管”。校医:请转入保密健康档案,集合仍在医务室旁。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_10ca150ee52da8f9",
+      "true_label": "sensitive"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "健康互助登记表:支持主题长期用药提醒;公开备注误写测试成员甲(虚构),hiv治疗随访中;服务安排每周一次私密回访。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_1c2505704d6990b4",
+      "true_label": "sensitive"
+    },
+    {
+      "detections": [],
+      "expected_action": "sanitize",
+      "normalized_text": "住宿申请:房型安静单间;公开备注同性伴侣同住、正在接受焦虑治疗;入住周五。",
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
+      "sample_id": "siev1_2ecbf85a6d71a102",
+      "true_label": "sensitive"
+    }
+  ],
+  "sample_count": 80,
+  "sanitize_routing_recall": 0.125,
+  "schema_version": 1,
+  "semantic_detection_config": {
+    "category_thresholds": {
+      "ad": 0.25,
+      "porn": 0.25,
+      "sensitive": 0.65,
+      "violence": 0.55
+    },
+    "classes": [
+      "ad",
+      "normal",
+      "porn",
+      "sensitive",
+      "violence"
+    ],
+    "enabled": true,
+    "error": null,
+    "loaded": true,
+    "min_margin": 0.05,
+    "model_path": "models\\semantic_model_v2.joblib",
+    "model_type": "sklearn_pipeline"
+  },
+  "thresholds": {
+    "block": 80,
+    "sanitize": 40
+  }
+}

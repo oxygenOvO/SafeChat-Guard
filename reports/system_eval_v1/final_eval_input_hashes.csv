@@ -1,0 +1,4 @@
+﻿"Path","Algorithm","Hash"
+"D:\Projects\SafeChat-Guard\data\evaluation\semantic_gold_v1.csv","SHA256","D9A16EE4873BF7BEA0A356AEA7D254C7162375EF0C83AC24862E0D82D2BF3B00"
+"D:\Projects\SafeChat-Guard\models\semantic_model_v2.joblib","SHA256","82D1B4D188844DF7F0670422721A857F6E270CE7AB682859E2E0FD47547FCD7C"
+"D:\Projects\SafeChat-Guard\reports\system_eval_v1\semantic_threshold_calibration.json","SHA256","2CE763E78875CB26C7F9644E08BEC23428F2F9ECA0AD6F2DB2D899DA0B949628"

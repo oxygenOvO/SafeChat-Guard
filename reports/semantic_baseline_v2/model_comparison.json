@@ -22,8 +22,8 @@
   },
   "test_metrics_used_for_selection": false,
   "training_duration_seconds": {
-    "char": 0.1580072999931872,
-    "word": 0.08865979999973206
+    "char": 0.049195200000212935,
+    "word": 0.03114079999977548
   },
   "validation": {
     "char": {
