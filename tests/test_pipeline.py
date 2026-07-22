@@ -94,13 +94,29 @@ def test_stats_exposes_semantic_classifier_status():
         "semantic_classifier"
     ]
 
-    assert set(status) == {
+    assert {
         "enabled",
         "loaded",
         "model_path",
         "model_type",
         "classes",
         "error",
+        "category_thresholds",
+        "min_margin",
+        "model_sha256_expected",
+        "model_sha256_actual",
+        "model_sha256_verified",
+        "required",
+        "config_path",
+    } <= set(status)
+    assert status["model_path"].endswith("semantic_model_v2.joblib")
+    assert status["model_sha256_verified"] is True
+    assert isinstance(status["loaded"], bool)
+    if not status["loaded"]:
+        assert status["error"]
+    assert set(status["category_thresholds"]) == {
+        "ad",
+        "porn",
+        "violence",
+        "sensitive",
     }
-    assert status["loaded"] is False
-    assert status["error"]

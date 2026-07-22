@@ -9,6 +9,10 @@
     "sanitize_threshold": 40
   },
   "llm": {
+  "semantic": {
+    "config_path": "config/semantic_thresholds_v1.json",
+    "required": false
+  },
     "provider": "mock",
     "api_key_env": "QWEN_API_KEY",
     "base_url": "",
