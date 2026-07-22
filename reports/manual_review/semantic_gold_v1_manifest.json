@@ -1,0 +1,101 @@
+{
+  "dataset_name": "semantic_gold_v1_single_review",
+  "generated_date": "2026-07-21",
+  "gold": {
+    "calibration_ratio": 0.4,
+    "filename": "semantic_gold_v1_single_review.csv",
+    "random_seed": 42,
+    "row_count": 200,
+    "sha256": "69e3b1abfd0b508730977faf679140cd93966655a29289a1c512201a584d64cf",
+    "split_counts": {
+      "calibration": 80,
+      "test": 120
+    },
+    "split_label_action_counts": {
+      "calibration/ad/block": 6,
+      "calibration/ad/sanitize": 4,
+      "calibration/normal/pass": 40,
+      "calibration/porn/block": 6,
+      "calibration/porn/sanitize": 4,
+      "calibration/sensitive/block": 6,
+      "calibration/sensitive/sanitize": 4,
+      "calibration/violence/block": 6,
+      "calibration/violence/sanitize": 4,
+      "test/ad/block": 9,
+      "test/ad/sanitize": 6,
+      "test/normal/pass": 60,
+      "test/porn/block": 9,
+      "test/porn/sanitize": 6,
+      "test/sensitive/block": 9,
+      "test/sensitive/sanitize": 6,
+      "test/violence/block": 9,
+      "test/violence/sanitize": 6
+    }
+  },
+  "input": {
+    "filename": "semantic_independent_eval_v1_final_review_completed.csv",
+    "row_count": 200,
+    "sha256": "139d02ca67a2e9cd1fb473358c5cbbf3c24962695972a6d5fec2094910b99ddc"
+  },
+  "limitations": [
+    "All 200 rows were verified by reviewer_1 only.",
+    "The set contains synthetic and repaired synthetic candidates; real-world external validity remains to be tested.",
+    "This Gold set must not be used for model training or feature engineering.",
+    "Final test rows should be evaluated only after calibration decisions are frozen."
+  ],
+  "schema_version": 1,
+  "second_review": {
+    "blind_fields": "review_status reset to pending; reviewer and notes cleared; first-review notes omitted",
+    "filename": "semantic_independent_eval_v1_second_review_blind.csv",
+    "label_action_counts": {
+      "ad/block": 3,
+      "ad/sanitize": 2,
+      "normal/pass": 20,
+      "porn/block": 3,
+      "porn/sanitize": 2,
+      "sensitive/block": 3,
+      "sensitive/sanitize": 2,
+      "violence/block": 3,
+      "violence/sanitize": 2
+    },
+    "row_count": 40,
+    "sampling": "deterministic stratified 20% by label/action",
+    "sha256": "c55a4b6dfc286b5d4b1746abdbe693361c85919a257e66f0a9c23660c19fd8f1"
+  },
+  "status": "provisional_single_review_gold",
+  "validation": {
+    "action_counts": {
+      "block": 60,
+      "pass": 100,
+      "sanitize": 40
+    },
+    "all_review_status_verified": true,
+    "blank_notes_count": 0,
+    "blank_reviewer_count": 0,
+    "exact_duplicate_text_count": 0,
+    "label_action_counts": {
+      "ad/block": 15,
+      "ad/sanitize": 10,
+      "normal/pass": 100,
+      "porn/block": 15,
+      "porn/sanitize": 10,
+      "sensitive/block": 15,
+      "sensitive/sanitize": 10,
+      "violence/block": 15,
+      "violence/sanitize": 10
+    },
+    "label_counts": {
+      "ad": 25,
+      "normal": 100,
+      "porn": 25,
+      "sensitive": 25,
+      "violence": 25
+    },
+    "normalized_duplicate_group_count": 0,
+    "reviewers": {
+      "reviewer_1": 200
+    },
+    "stable_sample_ids": true,
+    "unique_sample_ids": true
+  }
+}
