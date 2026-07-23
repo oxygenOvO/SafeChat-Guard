@@ -4,6 +4,11 @@
     "host": "127.0.0.1",
     "port": 8000
   },
+  "api": {
+    "max_request_bytes": 65536,
+    "max_text_chars": 4096,
+    "request_timeout_seconds": 10
+  },
   "risk": {
     "block_threshold": 80,
     "sanitize_threshold": 40
@@ -16,9 +21,13 @@
     "provider": "mock",
     "api_key_env": "QWEN_API_KEY",
     "base_url": "",
-    "model": "qwen-tiny"
+    "model": "qwen-tiny",
+    "timeout_seconds": 30
   },
   "logging": {
-    "path": "data/logs/events.jsonl"
+    "path": "data/logs/events.jsonl",
+    "max_bytes": 5242880,
+    "backup_count": 5,
+    "retention_days": 7
   }
 }

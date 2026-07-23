@@ -70,7 +70,9 @@ def test_rule_and_semantic_results_are_both_preserved(
     )
     sources = {item["source"] for item in filtered["detections"]}
 
-    assert calls == [filtered["normalized_text"]]
+    assert calls[0] == filtered["normalized_text"]
+    assert len(calls) == 2
+    assert filtered["action"] == "block"
     assert {"regex", "semantic_ml"} <= sources
 
 

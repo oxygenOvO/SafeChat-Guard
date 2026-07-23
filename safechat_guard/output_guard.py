@@ -10,6 +10,7 @@ CATEGORY_LABELS = {
     "violence": "暴力威胁",
     "ad": "广告引流",
     "sensitive": "敏感话术",
+    "abuse": "低俗辱骂",
     "illegal": "违法违规",
     "self_harm": "自伤自杀",
     "privacy": "隐私泄露",
@@ -22,6 +23,7 @@ STANDARD_RESPONSES = {
     "violence": "抱歉，该回复包含暴力威胁或伤害性内容，已被系统拦截。建议以理性、非暴力方式沟通。",
     "ad": "抱歉，该回复包含广告引流或诱导联系内容，已被系统处理。请避免发布推广、拉群、返利或私聊引导信息。",
     "sensitive": "抱歉，该回复包含敏感或规避监管的话术，已被系统拦截。请围绕合法合规、安全可控的内容进行交流。",
+    "abuse": "抱歉，该回复包含辱骂或人身攻击内容，已被系统处理。请使用理性、尊重的表达方式。",
     "illegal": "抱歉，该回复涉及违法违规风险，已被系统拦截。请遵守法律法规和平台安全规范。",
     "self_harm": "抱歉，该回复涉及自伤风险，已被系统拦截。如你或他人正处于危机中，请尽快联系身边可信任的人或当地紧急援助渠道。",
     "mixed": "抱歉，该回复包含多类不合规风险，已被系统拦截。请使用安全、合法、尊重他人的表达方式。",
@@ -79,6 +81,8 @@ class OutputGuard:
             blocked = False
             rewritten = True
             final_text = self._sanitize_output(privacy_masked, all_detections)
+            if not final_text.strip() or final_text == raw_output:
+                final_text = "模型回复包含风险内容，系统已进行安全改写。"
         else:
             action = "pass"
             blocked = False
@@ -110,7 +114,13 @@ class OutputGuard:
             if pattern.search(masked):
                 matches.append(name)
                 masked = pattern.sub(replacement, masked)
-        address_pattern = re.compile(r"[\u4e00-\u9fa5]{2,}(?:省|市|区|县|镇|街道|路|小区|楼|单元|室)\d*号?")
+        address_pattern = re.compile(
+            r"(?:"
+            r"(?:(?:[\u4e00-\u9fff]{2,}(?:\u7701|\u81ea\u6cbb\u533a|\u5e02|\u81ea\u6cbb\u5dde|\u53bf|\u533a)){1,3}[\u4e00-\u9fffA-Za-z0-9]{0,20}(?:\u8def|\u8857|\u5df7|\u8857\u9053|\u5c0f\u533a|\u697c|\u5355\u5143)?\d+(?:\u53f7|\u5ba4)?)"
+            r"|(?:[\u4e00-\u9fff]{2,}(?:\u8def|\u8857|\u5df7|\u8857\u9053)\d+(?:\u53f7|\u5f04)?)"
+            r"|(?:[\u4e00-\u9fff]{2,}\u5c0f\u533a(?:\d+\u53f7?)?(?:\d+\u680b)?(?:\d+\u5355\u5143)?(?:\d+\u5ba4)?)"
+            r")"
+        )
         if address_pattern.search(masked):
             matches.append("address")
             masked = address_pattern.sub("[地址]", masked)
