@@ -259,6 +259,8 @@ def test_evaluation_modes_return_required_structure(mode, monkeypatch):
         "confusion_matrix",
     } <= metrics.keys()
     assert set(metrics["per_class"]) == set(LABELS)
+    assert metrics["action_interpretation"]["action_score_thresholds_tuned"] is False
+    assert "不能区分" in metrics["action_interpretation"]["semantic_model_capability"]
 
 
 def test_evaluator_never_falls_back_when_gold_is_missing(tmp_path):

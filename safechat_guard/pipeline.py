@@ -1,4 +1,6 @@
 import json
+from pathlib import Path
+import warnings
 
 from .llm_client import LLMClientFactory
 from .logger import EventLogger
@@ -6,35 +8,40 @@ from .normalizer import TextNormalizer
 from .output_guard import OutputGuard
 from .rule_filter import RuleFilter
 from .sanitizer import Sanitizer
-try:
-    from .semantic_classifier import SemanticClassifier
-except ModuleNotFoundError as exc:
-    _semantic_import_error = f"semantic classifier dependency missing: {exc.name}"
-
-    class SemanticClassifier:
-        def __init__(self):
-            self._error = _semantic_import_error
-
-        def detect(self, text: str) -> list:
-            return []
-
-        def status(self) -> dict:
-            return {
-                "enabled": False,
-                "loaded": False,
-                "model_path": "models/semantic_model.pkl",
-                "model_type": None,
-                "classes": [],
-                "error": self._error,
-            }
+from .semantic_config import (
+    DEFAULT_PRODUCTION_CONFIG_PATH,
+    build_semantic_classifier,
+    load_semantic_runtime_configuration,
+)
 
 
 class SafeChatPipeline:
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, *, project_root: str | Path | None = None):
         self.config = config
+        self.project_root = Path(project_root or Path.cwd()).resolve()
         self.normalizer = TextNormalizer("data/maps/homophone_map.json", "data/maps/emoji_map.json")
         self.rule_filter = RuleFilter("data/lexicons", "data/rules/regex_rules.json")
-        self.semantic_classifier = SemanticClassifier()
+        semantic_options = config.get("semantic", {})
+        semantic_config_path = semantic_options.get(
+            "config_path", str(DEFAULT_PRODUCTION_CONFIG_PATH)
+        )
+        self.semantic_required = bool(semantic_options.get("required", False))
+        runtime_configuration = load_semantic_runtime_configuration(
+            self.project_root,
+            semantic_config_path,
+        )
+        self.semantic_classifier = build_semantic_classifier(runtime_configuration)
+        self.semantic_config_path = str(runtime_configuration.config_path)
+        semantic_status = self.semantic_classifier.status()
+        if not semantic_status["loaded"]:
+            message = (
+                "semantic classifier unavailable: "
+                f"{semantic_status['error']} "
+                f"(model={semantic_status['model_path']})"
+            )
+            if self.semantic_required:
+                raise RuntimeError(message)
+            warnings.warn(message, RuntimeWarning, stacklevel=2)
         self.sanitizer = Sanitizer()
         self.llm = LLMClientFactory.create(config.get("llm", {}))
         self.logger = EventLogger(config.get("logging", {}).get("path", "data/logs/events.jsonl"))
@@ -45,8 +52,9 @@ class SafeChatPipeline:
 
     @classmethod
     def from_config(cls, path: str):
-        with open(path, "r", encoding="utf-8") as f:
-            return cls(json.load(f))
+        config_path = Path(path).resolve()
+        with config_path.open("r", encoding="utf-8") as f:
+            return cls(json.load(f), project_root=config_path.parent)
 
     def handle_chat(self, message: str) -> dict:
         input_result = self._filter_text(message, stage="input")
@@ -127,6 +135,8 @@ class SafeChatPipeline:
     def stats(self) -> dict:
         stats = self.logger.stats()
         stats["semantic_classifier"] = self.semantic_classifier.status()
+        stats["semantic_classifier"]["required"] = self.semantic_required
+        stats["semantic_classifier"]["config_path"] = self.semantic_config_path
         return stats
 
     @staticmethod

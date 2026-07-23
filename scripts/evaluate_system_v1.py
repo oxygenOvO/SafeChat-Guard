@@ -28,8 +28,30 @@ except ModuleNotFoundError:
         write_json,
     )
 
+try:
+    from safechat_guard.semantic_config import (
+        DEFAULT_PRODUCTION_CONFIG_PATH,
+        build_semantic_classifier,
+        load_semantic_runtime_configuration,
+    )
+except ModuleNotFoundError:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from safechat_guard.semantic_config import (
+        DEFAULT_PRODUCTION_CONFIG_PATH,
+        build_semantic_classifier,
+        load_semantic_runtime_configuration,
+    )
 
 MODES = ("rule_only", "semantic_only", "combined")
+ACTION_INTERPRETATION = {
+    "semantic_model_capability": (
+        "五分类模型只预测类别，不能区分同一类别中的sanitize与block"
+    ),
+    "block_routing_dependency": (
+        "block仍依赖规则命中、高危意图证据或后续严重度模型"
+    ),
+    "action_score_thresholds_tuned": False,
+}
 
 
 def load_gold(path: Path, evaluation_split: str = "test") -> list[dict[str, str]]:
@@ -51,6 +73,7 @@ def _default_detectors(
     project_root: Path,
     mode: str,
     model_path: Path | None,
+    semantic_threshold_config_path: Path | None,
 ):
     rule_detector = None
     semantic_detector = None
@@ -62,11 +85,25 @@ def _default_detectors(
             str(project_root / "data/rules/regex_rules.json"),
         )
     if mode in {"semantic_only", "combined"}:
-        from safechat_guard.semantic_classifier import SemanticClassifier
-
-        semantic_detector = SemanticClassifier(
-            model_path=str(model_path or project_root / "models/semantic_model_v2.joblib")
+        config_path = semantic_threshold_config_path or (
+            project_root / DEFAULT_PRODUCTION_CONFIG_PATH
         )
+        runtime_configuration = load_semantic_runtime_configuration(
+            project_root,
+            config_path,
+        )
+        if model_path is not None:
+            resolved_override = (
+                model_path.resolve()
+                if model_path.is_absolute()
+                else (project_root / model_path).resolve()
+            )
+            if resolved_override != runtime_configuration.resolved_model_path:
+                raise ValueError(
+                    "--model-path must match the frozen production semantic config: "
+                    f"{runtime_configuration.resolved_model_path}"
+                )
+        semantic_detector = build_semantic_classifier(runtime_configuration)
         if not semantic_detector.status()["loaded"]:
             raise RuntimeError(
                 "semantic model is unavailable: "
@@ -114,6 +151,7 @@ def evaluate_rows(
     model_path: Path | None = None,
     rule_detector=None,
     semantic_detector=None,
+    semantic_threshold_config_path: Path | None = None,
     sanitize_threshold: int = 40,
     block_threshold: int = 80,
 ) -> dict[str, Any]:
@@ -122,7 +160,12 @@ def evaluate_rows(
     project_root = project_root.resolve()
     normalizer = make_normalizer(project_root)
     if rule_detector is None and semantic_detector is None:
-        rule_detector, semantic_detector = _default_detectors(project_root, mode, model_path)
+        rule_detector, semantic_detector = _default_detectors(
+            project_root,
+            mode,
+            model_path,
+            semantic_threshold_config_path,
+        )
     if mode in {"rule_only", "combined"} and rule_detector is None:
         raise ValueError(f"{mode} requires a rule detector")
     if mode in {"semantic_only", "combined"} and semantic_detector is None:
@@ -175,7 +218,12 @@ def evaluate_rows(
     )
     return {
         "schema_version": 1,
-        "evaluation_scope": "independent_human_reviewed_gold_v1",
+        "evaluation_scope": "single_review_independent_gold_v1",
+        "review_provenance": {
+            "human_review_status": "single_review",
+            "ai_assisted_organization": True,
+            "second_independent_review": "pending",
+        },
         "mode": mode,
         "sample_count": len(rows),
         "accuracy": float(accuracy_score(true_labels, predicted_labels)),
@@ -207,6 +255,13 @@ def evaluate_rows(
             "sanitize": sanitize_threshold,
             "block": block_threshold,
         },
+        "semantic_detection_config": (
+            semantic_detector.status()
+            if mode in {"semantic_only", "combined"}
+            and hasattr(semantic_detector, "status")
+            else None
+        ),
+        "action_interpretation": dict(ACTION_INTERPRETATION),
         "predictions": [
             {
                 "sample_id": row["sample_id"],
@@ -232,6 +287,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--evaluation-split", choices=("calibration", "test"), default="test")
     parser.add_argument("--model-path", type=Path)
     parser.add_argument(
+        "--semantic-threshold-config",
+        type=Path,
+        default=None,
+        help=(
+            "Frozen production semantic config JSON. When omitted, the evaluator "
+            "uses config/semantic_thresholds_v1.json; model path, hash, thresholds, "
+            "and margin must match that configuration."
+        ),
+    )
+    parser.add_argument(
         "--output",
         type=Path,
         default=None,
@@ -243,7 +308,13 @@ def main() -> int:
     args = parse_args()
     try:
         rows = load_gold(args.gold, args.evaluation_split)
-        metrics = evaluate_rows(rows, args.mode, args.project_root, args.model_path)
+        metrics = evaluate_rows(
+            rows,
+            args.mode,
+            args.project_root,
+            args.model_path,
+            semantic_threshold_config_path=args.semantic_threshold_config,
+        )
     except (FileNotFoundError, RuntimeError, ValueError) as exc:
         print(str(exc), file=sys.stderr)
         return 2

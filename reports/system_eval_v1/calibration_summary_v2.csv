@@ -1,0 +1,4 @@
+﻿"Mode","Samples","Accuracy","MacroF1","NormalFalsePositiveRate","BlockRecall","SanitizeRecall","ActionAccuracy"
+"rule_only","80","0.5","0.1678","0.025","0.0","0.0625","0.5"
+"semantic_only","80","0.2625","0.2799","1.0","0.0","1.0","0.2"
+"combined","80","0.25","0.2677","1.0","0.0","0.9375","0.1875"

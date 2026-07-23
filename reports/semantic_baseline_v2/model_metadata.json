@@ -30,7 +30,7 @@
   "schema_version": 2,
   "selected_model": "char",
   "split_manifest_sha256": "4542a463ed42ddd963e0c79caedcd777025811d108feefc3c817419b13ea37fa",
-  "training_duration_seconds": 0.1580072999931872,
+  "training_duration_seconds": 0.049195200000212935,
   "versions": {
     "joblib": "1.5.3",
     "pandas": "3.0.3",

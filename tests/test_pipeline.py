@@ -2,8 +2,8 @@ from safechat_guard.pipeline import SafeChatPipeline
 from safechat_guard.models import Detection
 
 
-def test_normal_message_passes():
-    pipeline = SafeChatPipeline.from_config("config.yaml")
+def test_normal_message_passes(production_config_without_model):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
     result = pipeline.handle_chat("请介绍一下人工智能安全竞赛的基本流程。")
 
     assert result["allowed"] is True
@@ -14,8 +14,8 @@ def test_normal_message_passes():
     assert {"reply", "input_filter", "output_filter"} <= result.keys()
 
 
-def test_ad_message_sanitized():
-    pipeline = SafeChatPipeline.from_config("config.yaml")
+def test_ad_message_sanitized(production_config_without_model):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
     result = pipeline.handle_chat("加vx领取内部资料。")
     filtered = result["input_filter"]
 
@@ -29,8 +29,8 @@ def test_ad_message_sanitized():
         assert filtered["sanitized_text"]
 
 
-def test_phone_regex_records_and_sanitizes_real_match():
-    pipeline = SafeChatPipeline.from_config("config.yaml")
+def test_phone_regex_records_and_sanitizes_real_match(production_config_without_model):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
     filtered = pipeline.handle_chat(
         "请联系我 13812345678 获取资料。"
     )["input_filter"]
@@ -44,8 +44,10 @@ def test_phone_regex_records_and_sanitizes_real_match():
     assert "13812345678" not in filtered["sanitized_text"]
 
 
-def test_rule_and_semantic_results_are_both_preserved(monkeypatch):
-    pipeline = SafeChatPipeline.from_config("config.yaml")
+def test_rule_and_semantic_results_are_both_preserved(
+    monkeypatch, production_config_without_model
+):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
     calls = []
 
     def fake_detect(text):
@@ -72,8 +74,10 @@ def test_rule_and_semantic_results_are_both_preserved(monkeypatch):
     assert {"regex", "semantic_ml"} <= sources
 
 
-def test_output_filter_runs_rule_and_semantic_layers(monkeypatch):
-    pipeline = SafeChatPipeline.from_config("config.yaml")
+def test_output_filter_runs_rule_and_semantic_layers(
+    monkeypatch, production_config_without_model
+):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
     monkeypatch.setattr(
         pipeline.semantic_classifier,
         "detect",
@@ -89,18 +93,35 @@ def test_output_filter_runs_rule_and_semantic_layers(monkeypatch):
     }
 
 
-def test_stats_exposes_semantic_classifier_status():
-    status = SafeChatPipeline.from_config("config.yaml").stats()[
+def test_stats_exposes_semantic_classifier_status(production_config_without_model):
+    status = SafeChatPipeline.from_config(str(production_config_without_model)).stats()[
         "semantic_classifier"
     ]
 
-    assert set(status) == {
+    assert {
         "enabled",
         "loaded",
         "model_path",
         "model_type",
         "classes",
         "error",
-    }
+        "category_thresholds",
+        "min_margin",
+        "model_sha256_expected",
+        "model_sha256_actual",
+        "model_sha256_verified",
+        "required",
+        "config_path",
+    } <= set(status)
+    assert status["model_path"].endswith("semantic_model_v2.joblib")
+    assert status["required"] is False
     assert status["loaded"] is False
-    assert status["error"]
+    assert status["enabled"] is False
+    assert status["error"] == "model file not found"
+    assert status["model_sha256_verified"] is False
+    assert set(status["category_thresholds"]) == {
+        "ad",
+        "porn",
+        "violence",
+        "sensitive",
+    }
