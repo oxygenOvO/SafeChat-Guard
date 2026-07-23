@@ -1,7 +1,6 @@
 import json
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from copy import deepcopy
 from http.server import ThreadingHTTPServer
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
@@ -25,10 +24,10 @@ def request_json(base_url: str, path: str, payload=None, content_type="applicati
 
 
 @pytest.fixture
-def api_runtime(tmp_path, monkeypatch):
-    config = deepcopy(api_server.pipeline.config)
-    config["logging"]["path"] = str(tmp_path / "events.jsonl")
-    test_pipeline = SafeChatPipeline(config)
+def api_runtime(production_config_without_model, monkeypatch):
+    test_pipeline = SafeChatPipeline.from_config(
+        str(production_config_without_model)
+    )
     monkeypatch.setattr(api_server, "pipeline", test_pipeline)
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), api_server.SafeChatApiHandler)
@@ -54,8 +53,12 @@ def test_health_ready_and_error_contracts(api_runtime):
     status, ready = request_json(base_url, "/ready")
     assert status == 200
     assert ready["ready"] is True
-    assert ready["semantic_classifier"]["model_sha256_verified"] is True
-    assert "min_margin" in ready["semantic_classifier"]
+    semantic = ready["semantic_classifier"]
+    assert semantic["required"] is False
+    assert semantic["loaded"] is False
+    assert semantic["error"] == "model file not found"
+    assert semantic["model_sha256_verified"] is False
+    assert "min_margin" in semantic
 
     status, error = request_json(base_url, "/api/chat", {"message": 123})
     assert status == 422

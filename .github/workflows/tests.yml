@@ -10,7 +10,12 @@ permissions:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
 
     env:
@@ -36,10 +41,14 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install -r requirements-dev.txt
 
+      - name: Scan committed delivery
+        run: python scripts/security_scan.py
+
       - name: Run pytest
-        run: |
-          python -m pytest -q --basetemp=.test_tmp
+        run: python -m pytest -q --basetemp=.test_tmp
+
+      - name: Verify runtime
+        run: python scripts/verify_runtime.py --iterations 20
 
       - name: Compile Python files
-        run: |
-          python -m compileall app.py safechat_guard scripts tests
+        run: python -m compileall app.py api_server.py safechat_guard scripts tests
