@@ -70,6 +70,17 @@ def primary_category(result: dict[str, Any] | None) -> str:
     return result.get("risk_category") or "normal"
 
 
+def effective_action(
+    input_filter: dict[str, Any],
+    output_filter: dict[str, Any],
+) -> str:
+    rank = {"pass": 0, "sanitize": 1, "rewrite": 1, "block": 2}
+    actions = [input_filter.get("action", "pass")]
+    if output_filter:
+        actions.append(output_filter.get("action", "pass"))
+    return max(actions, key=lambda action: rank.get(action, -1))
+
+
 def is_correct(
     predicted_category: str,
     final_action: str,
@@ -95,6 +106,8 @@ def evaluate(args: argparse.Namespace) -> tuple[list[dict[str, Any]], dict[str, 
     rows = read_cases(input_path)
     output_rows: list[dict[str, Any]] = []
     action_counter: Counter[str] = Counter()
+    input_action_counter: Counter[str] = Counter()
+    output_action_counter: Counter[str] = Counter()
     label_counter: Counter[str] = Counter()
     prediction_counter: Counter[str] = Counter()
     correct_count = 0
@@ -112,21 +125,19 @@ def evaluate(args: argparse.Namespace) -> tuple[list[dict[str, Any]], dict[str, 
         input_rule, input_semantic = split_detections(input_filter)
         output_rule, output_semantic = split_detections(output_filter)
         predicted_category = primary_category(input_filter)
-        if predicted_category == "normal":
-            predicted_category = primary_category(output_filter)
-        final_action = (
-            output_filter.get("action")
-            if output_filter
-            else input_filter.get("action", "pass")
-        )
+        input_action = input_filter.get("action", "pass")
+        output_action = output_filter.get("action", "not_run")
+        final_action = effective_action(input_filter, output_filter)
         correct = is_correct(
             predicted_category,
-            final_action,
+            input_action,
             expected_category,
             expected_action,
         )
 
         action_counter[final_action] += 1
+        input_action_counter[input_action] += 1
+        output_action_counter[output_action] += 1
         if expected_category:
             label_counter[expected_category] += 1
         prediction_counter[predicted_category] += 1
@@ -141,6 +152,8 @@ def evaluate(args: argparse.Namespace) -> tuple[list[dict[str, Any]], dict[str, 
                 "expected_category": expected_category,
                 "predicted_category": predicted_category,
                 "expected_action": expected_action,
+                "input_action": input_action,
+                "output_action": output_action,
                 "final_action": final_action,
                 "risk_score": input_filter.get("risk_score", 0),
                 "risk_level": input_filter.get("risk_level", "none"),
@@ -170,8 +183,13 @@ def evaluate(args: argparse.Namespace) -> tuple[list[dict[str, Any]], dict[str, 
         "correct": correct_count,
         "accuracy": accuracy,
         "action_counts": dict(action_counter),
+        "input_action_counts": dict(input_action_counter),
+        "output_action_counts": dict(output_action_counter),
         "label_counts": dict(label_counter),
         "prediction_counts": dict(prediction_counter),
+        "model_version": pipeline.semantic_model_version,
+        "model_sha256": pipeline.semantic_model_sha256,
+        "config_version": pipeline.config.get("app", {}).get("config_version", "unknown"),
         "semantic_classifier": pipeline.semantic_classifier.status(),
     }
     return output_rows, summary
@@ -188,6 +206,8 @@ def write_outputs(rows: list[dict[str, Any]], summary: dict[str, Any], args: arg
         "expected_category",
         "predicted_category",
         "expected_action",
+        "input_action",
+        "output_action",
         "final_action",
         "risk_score",
         "risk_level",

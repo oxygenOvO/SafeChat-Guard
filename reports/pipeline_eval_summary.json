@@ -1,11 +1,22 @@
 {
-  "input": "D:\\大二下\\codex dachuang\\main11_C_done\\data\\test_cases\\frontend_cases.csv",
+  "input": "D:\\大二下\\codex dachuang\\SafeChat-Guard-competition-ready\\data\\test_cases\\frontend_cases.csv",
   "total": 12,
   "scored": 12,
-  "correct": 2,
-  "accuracy": 0.16666666666666666,
+  "correct": 12,
+  "accuracy": 1.0,
   "action_counts": {
-    "pass": 11,
+    "pass": 5,
+    "sanitize": 5,
+    "block": 2
+  },
+  "input_action_counts": {
+    "pass": 6,
+    "sanitize": 5,
+    "block": 1
+  },
+  "output_action_counts": {
+    "pass": 10,
+    "not_run": 1,
     "block": 1
   },
   "label_counts": {
@@ -15,23 +26,44 @@
     "sensitive": 1
   },
   "prediction_counts": {
-    "normal": 3,
-    "ad": 6,
-    "abuse": 1,
-    "sensitive": 2
+    "normal": 6,
+    "ad": 3,
+    "abuse": 2,
+    "sensitive": 1
   },
+  "model_version": "semantic_model_v2_char_weaklabel",
+  "model_sha256": "0ce92d510692ed3ba5f55f0d1ac1a2cebd98b62c11139f22ee3ae5f11ed6f2e3",
+  "config_version": "competition-ready-v1",
   "semantic_classifier": {
-    "enabled": false,
-    "loaded": false,
-    "model_path": "models/semantic_model.pkl",
-    "model_type": null,
-    "classes": [],
+    "enabled": true,
+    "loaded": true,
+    "model_path": "models/semantic_model_v2.joblib",
+    "model_type": "sklearn_pipeline",
+    "expected_sha256": "0ce92d510692ed3ba5f55f0d1ac1a2cebd98b62c11139f22ee3ae5f11ed6f2e3",
+    "actual_sha256": "0ce92d510692ed3ba5f55f0d1ac1a2cebd98b62c11139f22ee3ae5f11ed6f2e3",
+    "integrity_verified": true,
+    "model_size_bytes": 360276,
+    "classes": [
+      "ad",
+      "normal",
+      "porn",
+      "sensitive",
+      "violence"
+    ],
+    "expected_classes": [
+      "ad",
+      "normal",
+      "porn",
+      "sensitive",
+      "violence"
+    ],
+    "classes_valid": true,
     "thresholds": {
       "ad": 0.65,
       "porn": 0.55,
       "violence": 0.55,
       "sensitive": 0.65
     },
-    "error": "model dependency missing: joblib"
+    "error": null
   }
 }

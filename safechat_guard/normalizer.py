@@ -29,6 +29,11 @@ class TextNormalizer:
                     JsonMapProvider(self.emoji_map_path),
                     category="emoji",
                 ),
+                MappingNormalizer(
+                    "symbol_insertion",
+                    JsonMapProvider(map_dir / "symbol_variant_map.json"),
+                    category="symbol_insertion",
+                ),
                 NoiseCharNormalizer(),
                 RepeatCharNormalizer(max_repeat=2),
                 MappingNormalizer(

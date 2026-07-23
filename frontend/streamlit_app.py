@@ -61,7 +61,7 @@ DEMO_CASES = {
     "正常放行": ("今天图书馆几点关门？", False),
     "基线漏检": ("加 V-X 领取优 惠 券，名额有限", False),
     "中风险脱敏": ("想领取课程资料可以加微信私聊。", False),
-    "高风险拦截": ("你再这样我就打死你。", False),
+    "高风险拦截": ("我要杀了你", False),
     "易误判放行": ("这个 bug 会导致程序崩溃，需要做网络安全防护。", False),
     "输出违规拦截": ("普通输入，但模拟模型输出违规", True),
 }
@@ -184,6 +184,301 @@ def configure_page() -> None:
             line-height: 1.55;
             white-space: pre-wrap;
         }
+
+        /* Competition UI polish: restrained motion and a security-console visual system. */
+        :root {
+            --sg-blue: #2563eb;
+            --sg-cyan: #0e7490;
+            --sg-green: #15803d;
+            --sg-orange: #d97706;
+            --sg-red: #dc2626;
+            --sg-ink: #172033;
+            --sg-muted: #64748b;
+            --sg-border: #dce3ec;
+            --sg-panel: #ffffff;
+            --sg-bg: #f4f6f9;
+            --sg-shadow: 0 8px 22px rgba(23, 32, 51, 0.06);
+            --sg-shadow-hover: 0 12px 28px rgba(23, 32, 51, 0.10);
+            --sg-ease: cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .stApp { background: var(--sg-bg); color: var(--sg-ink); }
+        .main .block-container {
+            padding-top: 1.15rem;
+            padding-bottom: 2.4rem;
+            max-width: 1440px;
+            animation: sg-page-enter 280ms var(--sg-ease) both;
+        }
+        [data-testid="stHeader"] { background: rgba(244, 246, 249, 0.88); }
+        [data-testid="stSidebar"] { background: #111827; border-right: 1px solid #263244; }
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] { gap: 3px; }
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
+            position: relative;
+            min-height: 40px;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            padding: 8px 10px;
+            transition: background-color 180ms ease, border-color 180ms ease, transform 180ms ease;
+        }
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {
+            background: #1e293b;
+            border-color: #334155;
+            transform: translateX(2px);
+        }
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:has(input:checked) {
+            background: #1f314c;
+            border-color: #315178;
+        }
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:has(input:checked)::before {
+            content: "";
+            position: absolute;
+            inset: 7px auto 7px -1px;
+            width: 3px;
+            border-radius: 2px;
+            background: #38bdf8;
+            animation: sg-indicator 220ms var(--sg-ease) both;
+        }
+        div[data-testid="stMetric"], .panel, .panel-muted, .step {
+            border-radius: 8px;
+            border-color: var(--sg-border);
+            box-shadow: var(--sg-shadow);
+            transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+        }
+        div[data-testid="stMetric"] {
+            min-height: 116px;
+            padding: 14px 16px;
+            animation: sg-rise 260ms var(--sg-ease) both;
+        }
+        div[data-testid="stMetric"]:hover, .panel:hover, .panel-muted:hover, .step:hover {
+            transform: translateY(-2px);
+            border-color: #bdc9d8;
+            box-shadow: var(--sg-shadow-hover);
+        }
+        .hero {
+            position: relative;
+            overflow: hidden;
+            background: #172033;
+            border: 1px solid #27364f;
+            border-radius: 8px;
+            padding: 20px 22px;
+            box-shadow: 0 10px 26px rgba(23, 32, 51, 0.14);
+            animation: sg-hero-enter 300ms var(--sg-ease) both;
+        }
+        .hero::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 4px;
+            background: #22c55e;
+        }
+        .hero h2 { font-size: 24px; line-height: 1.25; }
+        .hero p { color: #d7e1ef; }
+        .section-title { font-size: 17px; margin: 14px 0 10px; animation: sg-rise 220ms var(--sg-ease) both; }
+        .section-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-title::before {
+            content: "";
+            width: 3px;
+            height: 17px;
+            border-radius: 2px;
+            background: var(--sg-cyan);
+            box-shadow: 0 0 0 3px rgba(14, 116, 144, 0.10);
+        }
+        div[data-testid="stMetric"] {
+            position: relative;
+            overflow: hidden;
+        }
+        div[data-testid="stHorizontalBlock"] > div:nth-child(5n + 1) div[data-testid="stMetric"] { border-top: 3px solid #2878d0; }
+        div[data-testid="stHorizontalBlock"] > div:nth-child(5n + 2) div[data-testid="stMetric"] { border-top: 3px solid #16869b; }
+        div[data-testid="stHorizontalBlock"] > div:nth-child(5n + 3) div[data-testid="stMetric"] { border-top: 3px solid #d9485f; }
+        div[data-testid="stHorizontalBlock"] > div:nth-child(5n + 4) div[data-testid="stMetric"] { border-top: 3px solid #e08a1e; }
+        div[data-testid="stHorizontalBlock"] > div:nth-child(5n + 5) div[data-testid="stMetric"] { border-top: 3px solid #159f74; }
+        [data-testid="stPlotlyChart"] {
+            overflow: hidden;
+            background: #ffffff;
+            border: 1px solid var(--sg-border);
+            border-radius: 8px;
+            box-shadow: var(--sg-shadow);
+            animation: sg-chart-enter 320ms var(--sg-ease) both;
+            transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+        }
+        [data-testid="stPlotlyChart"]:hover {
+            transform: translateY(-2px);
+            border-color: #bdc9d8;
+            box-shadow: var(--sg-shadow-hover);
+        }
+        [data-testid="stPlotlyChart"] .pielayer {
+            transform-box: fill-box;
+            transform-origin: center;
+            animation: sg-donut-spin-in 720ms var(--sg-ease) both;
+        }
+        [data-testid="stPlotlyChart"] .legend {
+            animation: sg-legend-enter 420ms ease 260ms both;
+        }
+        [data-testid="stPlotlyChart"] .modebar {
+            opacity: 0.25;
+            transition: opacity 160ms ease;
+        }
+        [data-testid="stPlotlyChart"]:hover .modebar { opacity: 0.78; }
+        div[data-baseweb="input"], div[data-baseweb="textarea"], div[data-baseweb="select"] > div {
+            background: #ffffff;
+            border-color: var(--sg-border);
+            transition: border-color 160ms ease, box-shadow 160ms ease;
+        }
+        div[data-baseweb="input"]:focus-within, div[data-baseweb="textarea"]:focus-within,
+        div[data-baseweb="select"] > div:focus-within {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.10);
+        }
+        [data-testid="stDataFrame"] { background: #ffffff; }
+        .hero {
+            padding: 16px 20px;
+            margin-bottom: 12px;
+        }
+        .hero h2 { font-size: 22px; margin-bottom: 6px; }
+        .hero p { font-size: 14px; }
+        button[data-testid="stBaseButton-primary"],
+        .stButton > button[kind="primary"] {
+            background: #2563eb !important;
+            border-color: #2563eb !important;
+            color: #ffffff !important;
+        }
+        button[data-testid="stBaseButton-primary"]:hover,
+        .stButton > button[kind="primary"]:hover {
+            background: #1d4ed8 !important;
+            border-color: #1d4ed8 !important;
+        }
+        .result-panel {
+            min-height: 168px;
+            padding: 17px 18px;
+            background: #ffffff;
+            border: 1px solid var(--sg-border);
+            border-left: 4px solid #94a3b8;
+            border-radius: 8px;
+            box-shadow: var(--sg-shadow);
+            animation: sg-result-enter 240ms var(--sg-ease) both;
+        }
+        .result-low { border-left-color: var(--sg-green); }
+        .result-medium { border-left-color: var(--sg-orange); }
+        .result-high { border-left-color: var(--sg-red); }
+        .result-eyebrow {
+            color: var(--sg-muted);
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        .result-verdict {
+            color: var(--sg-ink);
+            font-size: 24px;
+            font-weight: 750;
+            line-height: 1.25;
+            margin-bottom: 12px;
+        }
+        .result-meta {
+            color: #334155;
+            font-size: 14px;
+            line-height: 1.7;
+        }
+        .result-empty {
+            min-height: 168px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 18px;
+            background: #f8fafc;
+            border: 1px dashed #b8c4d3;
+            border-radius: 8px;
+            color: var(--sg-muted);
+        }
+        .result-empty b {
+            color: var(--sg-ink);
+            font-size: 17px;
+            margin-bottom: 6px;
+        }
+        .step {
+            min-height: 122px;
+            text-align: left;
+            padding: 13px 14px;
+            margin-bottom: 12px;
+        }
+        .step-index {
+            color: var(--sg-cyan);
+            font-size: 11px;
+            font-weight: 800;
+            margin-bottom: 5px;
+        }
+        .step-title { font-size: 15px; }
+        .step-desc {
+            overflow-wrap: anywhere;
+            line-height: 1.55;
+        }
+        .pill { transition: filter 160ms ease, transform 160ms ease; }
+        .pill:hover { filter: saturate(1.08); transform: translateY(-1px); }
+        .step { animation: sg-rise 260ms var(--sg-ease) both; }
+        .step:nth-child(2) { animation-delay: 35ms; }
+        .step:nth-child(3) { animation-delay: 70ms; }
+        .step:nth-child(4) { animation-delay: 105ms; }
+        .step:nth-child(5) { animation-delay: 140ms; }
+        div[data-baseweb="tab-list"] { gap: 4px; border-bottom: 1px solid var(--sg-border); }
+        button[data-baseweb="tab"] { transition: color 180ms ease, background-color 180ms ease; }
+        button[data-baseweb="tab"]:hover { background: #eaf0f7; }
+        div[data-baseweb="tab-panel"] { animation: sg-tab-enter 240ms var(--sg-ease) both; }
+        .stButton > button, .stDownloadButton > button {
+            min-height: 40px;
+            border-radius: 6px;
+            transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+        }
+        .stButton > button:hover, .stDownloadButton > button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(37, 99, 235, 0.14);
+        }
+        .stButton > button:active, .stDownloadButton > button:active { transform: translateY(1px); box-shadow: none; }
+        [data-testid="stDataFrame"], [data-testid="stTable"] {
+            border: 1px solid var(--sg-border);
+            border-radius: 8px;
+            overflow: hidden;
+            animation: sg-rise 250ms var(--sg-ease) both;
+        }
+        [data-testid="stAlert"] { border-radius: 8px; animation: sg-rise 220ms var(--sg-ease) both; }
+        input:focus, textarea:focus { transition: box-shadow 160ms ease, border-color 160ms ease; }
+        @keyframes sg-page-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes sg-hero-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes sg-rise { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes sg-tab-enter { from { opacity: 0; transform: translateX(4px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes sg-indicator { from { opacity: 0; transform: scaleY(0.45); } to { opacity: 1; transform: scaleY(1); } }
+        @keyframes sg-chart-enter {
+            from { opacity: 0; transform: translateY(7px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes sg-donut-spin-in {
+            from { opacity: 0; transform: rotate(-72deg) scale(0.94); }
+            to { opacity: 1; transform: rotate(0deg) scale(1); }
+        }
+        @keyframes sg-legend-enter {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes sg-result-enter {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @media (max-width: 768px) {
+            .main .block-container { padding: 0.8rem 0.85rem 1.8rem; }
+            .hero { padding: 17px 16px; }
+            .hero h2 { font-size: 21px; }
+            div[data-testid="stMetric"] { min-height: 104px; }
+            div[data-testid="stMetric"]:hover, .panel:hover, .panel-muted:hover, .step:hover { transform: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -196,6 +491,9 @@ def init_state() -> None:
     if "last_result" not in st.session_state:
         text, flag = DEMO_CASES[st.session_state.selected_demo]
         st.session_state.last_result = run_pipeline(text, flag)
+    if "last_run_signature" not in st.session_state:
+        text, flag = DEMO_CASES[st.session_state.selected_demo]
+        st.session_state.last_run_signature = (text.strip(), bool(flag))
 
 
 
@@ -273,8 +571,102 @@ def plot_donut(df: pd.DataFrame, column: str, title: str, label_map: dict[str, s
         data.columns = ["label", "count"]
         if label_map:
             data["label"] = data["label"].map(label_map).fillna(data["label"])
-    fig = px.pie(data, names="label", values="count", hole=0.58, title=title)
-    fig.update_layout(margin=dict(l=10, r=10, t=48, b=10), height=320, legend_title_text="")
+    semantic_colors = {
+        "正常": "#159f74",
+        "无风险": "#159f74",
+        "放行": "#159f74",
+        "广告": "#2878d0",
+        "中低风险": "#e08a1e",
+        "脱敏处理": "#16869b",
+        "低俗辱骂": "#d9485f",
+        "高风险": "#d9485f",
+        "拦截": "#d9485f",
+        "敏感话术": "#7c6acf",
+        "未知": "#94a3b8",
+        "暂无数据": "#cbd5e1",
+    }
+    fallback_colors = ["#2878d0", "#159f74", "#e08a1e", "#d9485f", "#7c6acf", "#16869b"]
+    colors = [semantic_colors.get(str(label), fallback_colors[index % len(fallback_colors)]) for index, label in enumerate(data["label"])]
+    total = 0 if df.empty or column not in df else int(data["count"].sum())
+    center_text = f"<b>{total}</b><br><span style='font-size:11px;color:#64748b'>条记录</span>"
+    fig = go.Figure(
+        go.Pie(
+            labels=data["label"],
+            values=data["count"],
+            hole=0.62,
+            sort=False,
+            direction="clockwise",
+            marker=dict(colors=colors, line=dict(color="#ffffff", width=2)),
+            textinfo="percent",
+            textposition="inside",
+            textfont=dict(size=12, color="#ffffff"),
+            insidetextorientation="horizontal",
+            hovertemplate="<b>%{label}</b><br>数量：%{value}<br>占比：%{percent}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        title=dict(text=title, x=0.04, y=0.95, font=dict(size=17, color="#172033")),
+        margin=dict(l=14, r=14, t=54, b=50),
+        height=330,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Microsoft YaHei, Arial, sans-serif", color="#334155"),
+        legend=dict(
+            orientation="h",
+            x=0.5,
+            xanchor="center",
+            y=-0.08,
+            yanchor="bottom",
+            font=dict(size=10),
+            bgcolor="rgba(0,0,0,0)",
+        ),
+        annotations=[dict(text=center_text, x=0.5, y=0.5, showarrow=False, font=dict(size=22, color="#172033"))],
+        uniformtext_minsize=10,
+        uniformtext_mode="hide",
+        hoverlabel=dict(bgcolor="#172033", bordercolor="#172033", font=dict(color="#ffffff")),
+    )
+    return fig
+
+
+def plot_baseline_comparison(df: pd.DataFrame) -> go.Figure:
+    total = len(df)
+    enhanced = int((df["action"] != "pass").sum()) if total else 0
+    recovered = int(df.get("baseline_missed", pd.Series(dtype=bool)).sum()) if total else 0
+    baseline = max(enhanced - recovered, 0)
+    labels = ["未归一化基线", "中文归一化增强版"]
+    values = [baseline, enhanced]
+    fig = go.Figure(
+        go.Bar(
+            x=labels,
+            y=values,
+            marker_color=["#94a3b8", "#2878d0"],
+            text=values,
+            textposition="outside",
+            cliponaxis=False,
+            hovertemplate="<b>%{x}</b><br>识别风险内容：%{y} 条<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        title=dict(text="基线与增强版识别能力", x=0.04, y=0.95, font=dict(size=17, color="#172033")),
+        margin=dict(l=28, r=18, t=58, b=38),
+        height=330,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font=dict(family="Microsoft YaHei, Arial, sans-serif", color="#334155"),
+        yaxis=dict(title="", showgrid=True, gridcolor="#e8edf3", rangemode="tozero"),
+        xaxis=dict(title="", showgrid=False),
+        showlegend=False,
+        hoverlabel=dict(bgcolor="#172033", bordercolor="#172033", font=dict(color="#ffffff")),
+    )
+    if recovered:
+        fig.add_annotation(
+            x="中文归一化增强版",
+            y=enhanced,
+            text=f"修复 {recovered} 条基线漏检",
+            showarrow=False,
+            yshift=24,
+            font=dict(size=11, color="#159f74"),
+        )
     return fig
 
 
@@ -342,14 +734,13 @@ def render_metric_row(df: pd.DataFrame) -> None:
     blocked = int((df["action"] == "block").sum()) if total else 0
     output_block = int((df["output_action"] == "block").sum()) if "output_action" in df and total else 0
     baseline_missed = int(df.get("baseline_missed", pd.Series(dtype=bool)).sum()) if total else 0
-    passed = int((df["action"] == "pass").sum()) if total else 0
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("请求总量", total)
     c2.metric("风险处理数", handled)
     c3.metric("高风险拦截", blocked)
     c4.metric("输出侧拦截", output_block)
-    c5.metric("正常放行", passed)
-    st.caption(f"基线漏检样例数：{baseline_missed}。无真实日志时，总览使用内置测试集现场运行结果。")
+    c5.metric("基线漏检修复", baseline_missed)
+    st.caption("无真实日志时，总览使用内置测试集现场运行结果；指标用于演示系统链路，不代表正式评测成绩。")
 
 
 def render_overview_page() -> None:
@@ -358,9 +749,9 @@ def render_overview_page() -> None:
     render_metric_row(df)
 
     chart1, chart2, chart3 = st.columns(3)
-    chart1.plotly_chart(plot_donut(df, "category", "违规类别分布", CATEGORY_LABELS), use_container_width=True)
-    chart2.plotly_chart(plot_donut(df, "risk", "风险等级分布", RISK_LABELS), use_container_width=True)
-    chart3.plotly_chart(plot_donut(df, "action", "处理方式分布", ACTION_LABELS), use_container_width=True)
+    chart1.plotly_chart(plot_baseline_comparison(df), width="stretch")
+    chart2.plotly_chart(plot_donut(df, "risk", "风险等级分布", RISK_LABELS), width="stretch")
+    chart3.plotly_chart(plot_donut(df, "action", "处理方式分布", ACTION_LABELS), width="stretch")
 
     st.markdown('<div class="section-title">系统模块状态</div>', unsafe_allow_html=True)
     status_rows = [
@@ -371,33 +762,33 @@ def render_overview_page() -> None:
         ["日志审计", "真实模块", "统一读取 JSONL 审计日志"],
         ["批量评测", "真实模块", "全部样例调用 SafeChatPipeline"],
     ]
-    st.dataframe(pd.DataFrame(status_rows, columns=["模块", "状态", "说明"]), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(status_rows, columns=["模块", "状态", "说明"]), width="stretch", hide_index=True)
 
 
 def render_steps(result: dict[str, Any]) -> None:
     step_data = [
         ("输入归一化", "info", "中文变体清洗", result["normalized_text"]),
-        ("规则检测", "warn" if result["hits"] else "ok", "关键词/正则命中", format_hits(result["hits"])),
+        ("规则检测", "warn" if result["hits"] else "ok", "关键词/正则命中", format_hits(result["hits"]).replace("<br>", "；")),
         ("语义判定", "info", CATEGORY_LABELS.get(result["semantic_category"], result["semantic_category"]), f'{result["semantic_score"]:.2f}'),
         ("分级处理", "stop" if result["action"] == "block" else "warn" if result["action"] == "sanitize" else "ok", ACTION_LABELS[result["action"]], RISK_LABELS[result["risk"]]),
-        ("模型输出", "info", "当前模型响应", result["model_response"][:38] + ("..." if len(result["model_response"]) > 38 else "")),
+        ("模型输出", "info", "当前模型响应", "高风险输入未转发" if result["action"] == "block" else "已生成，详见输出校验"),
         ("输出校验", "stop" if result["output_action"] == "block" else "ok", ACTION_LABELS[result["output_action"]], CATEGORY_LABELS.get(result["output_category"], result["output_category"])),
     ]
-    cols = st.columns(len(step_data))
-    for col, (title, state, subtitle, desc) in zip(cols, step_data):
-        safe_title = escape(str(title))
-        safe_subtitle = escape(str(subtitle))
-        safe_desc = escape(str(desc))
-        col.markdown(
-            f"""
-            <div class="step step-{state}">
-                <div class="step-title">{safe_title}</div>
-                <div class="step-desc">{safe_subtitle}</div>
-                <div class="step-desc">{safe_desc}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+    for row_start in range(0, len(step_data), 3):
+        row = step_data[row_start:row_start + 3]
+        cols = st.columns(len(row))
+        for offset, (col, (title, state, subtitle, desc)) in enumerate(zip(cols, row), start=row_start + 1):
+            col.markdown(
+                f"""
+                <div class="step step-{state}">
+                    <div class="step-index">STEP {offset:02d}</div>
+                    <div class="step-title">{escape(str(title))}</div>
+                    <div class="step-desc">{escape(str(subtitle))}</div>
+                    <div class="step-desc">{escape(str(desc))}</div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
 
 
 def render_detection_workspace() -> None:
@@ -412,35 +803,54 @@ def render_detection_workspace() -> None:
         text = st.text_area("用户输入", value=default_text, height=135)
         simulate_output_violation = st.checkbox("模拟大模型输出违规内容", value=default_flag)
         c1, c2 = st.columns([1, 1])
-        run_clicked = c1.button("运行检测", type="primary", use_container_width=True)
-        if c2.button("记录到日志", use_container_width=True):
+        run_clicked = c1.button("运行检测", type="primary", width="stretch")
+        if c2.button("记录到日志", width="stretch"):
             result = run_pipeline(text.strip(), simulate_output_violation)
             append_log(result)
             st.session_state.last_result = result
+            st.session_state.last_run_signature = (text.strip(), bool(simulate_output_violation))
             st.success("已记录到日志。")
         if run_clicked and text.strip():
-            result = run_pipeline(text.strip(), simulate_output_violation)
-            st.session_state.last_result = result
+            with st.spinner("正在执行输入归一化、双层检测与输出校验..."):
+                result = run_pipeline(text.strip(), simulate_output_violation)
+                st.session_state.last_result = result
+                st.session_state.last_run_signature = (text.strip(), bool(simulate_output_violation))
     result = st.session_state.last_result
+    result_is_stale = st.session_state.last_run_signature != (text.strip(), bool(simulate_output_violation))
     with right:
-        st.markdown(
-            risk_pill(result["risk"])
-            + action_pill(result["action"])
-            + label_pill(CATEGORY_LABELS.get(result["category"], result["category"]), "blue"),
-            unsafe_allow_html=True,
-        )
-        st.markdown(
-            f"""
-            <div class="panel">
-            <b>最终结论</b><br>
-            类别：{CATEGORY_LABELS.get(result["category"], result["category"])}<br>
-            风险：{RISK_LABELS[result["risk"]]}，风险分：{result["risk_score"]}/100<br>
-            动作：{ACTION_LABELS[result["action"]]}<br>
-            说明：{result["comparison_note"]}
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        if result_is_stale:
+            st.markdown(
+                """
+                <div class="result-empty">
+                    <b>输入已更新，等待检测</b>
+                    <span>当前结果已隐藏。点击“运行检测”后展示新的风险结论和完整处理链路。</span>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                risk_pill(result["risk"])
+                + action_pill(result["action"])
+                + label_pill(CATEGORY_LABELS.get(result["category"], result["category"]), "blue"),
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f"""
+                <div class="result-panel result-{escape(str(result["risk"]))}">
+                    <div class="result-eyebrow">FINAL DECISION · 最终结论</div>
+                    <div class="result-verdict">{escape(ACTION_LABELS[result["action"]])}</div>
+                    <div class="result-meta">
+                        风险：{escape(RISK_LABELS[result["risk"]])} · {result["risk_score"]}/100<br>
+                        类别：{escape(CATEGORY_LABELS.get(result["category"], result["category"]))}<br>
+                        说明：{escape(str(result["comparison_note"]))}
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+    if result_is_stale:
+        return
     st.markdown('<div class="section-title">检测链路</div>', unsafe_allow_html=True)
     render_steps(result)
 
@@ -493,7 +903,7 @@ def render_semantic_block(result: dict[str, Any]) -> None:
     c1.info(result["semantic_note"])
     fig = px.bar(scores, x="分数", y="类别", orientation="h", text="分数", color="分数", color_continuous_scale="Blues")
     fig.update_layout(height=340, margin=dict(l=8, r=8, t=8, b=8), coloraxis_showscale=False)
-    c2.plotly_chart(fig, use_container_width=True)
+    c2.plotly_chart(fig, width="stretch")
 
 
 def render_rewrite_block(result: dict[str, Any]) -> None:
@@ -546,7 +956,7 @@ def render_compare_page() -> None:
             ],
             columns=["项目", "未归一化基线", "中文归一化增强版"],
         ),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -569,7 +979,7 @@ def render_rewrite_page() -> None:
             ],
             columns=["项目", "内容"],
         ),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -581,7 +991,7 @@ def render_rules_page() -> None:
         {"类别": CATEGORY_LABELS.get(item["category"], item["category"]), "词条": item["word"]}
         for item in get_adapter().lexicon_rows()
     ]
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
     st.markdown('<div class="section-title">正则规则</div>', unsafe_allow_html=True)
     regex_rows = get_adapter().regex_rows()
     st.dataframe(
@@ -595,7 +1005,7 @@ def render_rules_page() -> None:
                 for rule in regex_rows
             ]
         ),
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -605,16 +1015,16 @@ def render_batch_page() -> None:
     st.caption("用于生成报告中的拦截率、误判率、基线漏检数、输出校验成功率和测试截图。")
     uploaded = st.file_uploader("上传 CSV 测试用例表", type=["csv"])
     cases = pd.read_csv(uploaded) if uploaded else sample_test_cases()
-    st.dataframe(cases, use_container_width=True, hide_index=True)
+    st.dataframe(cases, width="stretch", hide_index=True)
     col1, col2 = st.columns([1, 1])
     col1.download_button(
         "下载样例测试用例 CSV",
         data=sample_test_cases().to_csv(index=False, encoding="utf-8-sig"),
         file_name="test_cases_sample.csv",
         mime="text/csv",
-        use_container_width=True,
+        width="stretch",
     )
-    if col2.button("运行批量评测", type="primary", use_container_width=True):
+    if col2.button("运行批量评测", type="primary", width="stretch"):
         st.session_state.batch_results = build_case_results(cases)
 
     result_df = st.session_state.get("batch_results")
@@ -639,13 +1049,13 @@ def render_batch_page() -> None:
     st.caption(f"基线漏检数：{baseline_missed}。比赛报告里建议重点展示这个指标。")
 
     chart_col, matrix_col = st.columns(2)
-    chart_col.plotly_chart(plot_donut(result_df, "actual_action", "批量评测处理方式", ACTION_LABELS), use_container_width=True)
+    chart_col.plotly_chart(plot_donut(result_df, "actual_action", "批量评测处理方式", ACTION_LABELS), width="stretch")
     matrix = pd.crosstab(result_df["expected_category"], result_df["actual_category"])
     fig = px.imshow(matrix, text_auto=True, color_continuous_scale="Blues", title="类别混淆矩阵")
     fig.update_layout(height=360, margin=dict(l=8, r=8, t=48, b=8))
-    matrix_col.plotly_chart(fig, use_container_width=True)
+    matrix_col.plotly_chart(fig, width="stretch")
 
-    st.dataframe(result_df, use_container_width=True, hide_index=True)
+    st.dataframe(result_df, width="stretch", hide_index=True)
     st.download_button(
         "导出批量评测结果",
         data=result_df.to_csv(index=False, encoding="utf-8-sig"),
@@ -673,13 +1083,13 @@ def render_logs_page() -> None:
         filtered = filtered[filtered["action"].isin(action_filter)]
     render_metric_row(filtered)
     c1, c2 = st.columns(2)
-    c1.plotly_chart(plot_donut(filtered, "category", "日志类别分布", CATEGORY_LABELS), use_container_width=True)
-    c2.plotly_chart(plot_donut(filtered, "action", "日志处理分布", ACTION_LABELS), use_container_width=True)
+    c1.plotly_chart(plot_donut(filtered, "category", "日志类别分布", CATEGORY_LABELS), width="stretch")
+    c2.plotly_chart(plot_donut(filtered, "action", "日志处理分布", ACTION_LABELS), width="stretch")
     display = filtered.copy()
     for col, labels in [("category", CATEGORY_LABELS), ("risk", RISK_LABELS), ("action", ACTION_LABELS), ("output_action", ACTION_LABELS)]:
         if col in display:
             display[col] = display[col].map(labels).fillna(display[col])
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(display, width="stretch", hide_index=True)
     st.download_button(
         "导出日志 CSV",
         data=filtered.to_csv(index=False, encoding="utf-8-sig"),
@@ -700,7 +1110,7 @@ def render_report_page() -> None:
         ["批量评测", "拦截率、误判率、基线漏检数、混淆矩阵"],
         ["日志审计", "请求记录、筛选、导出"],
     ]
-    st.dataframe(pd.DataFrame(checklist, columns=["截图位置", "报告用途"]), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(checklist, columns=["截图位置", "报告用途"]), width="stretch", hide_index=True)
     st.markdown(
         """
         <div class="codebox">推荐答辩演示顺序：

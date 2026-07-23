@@ -28,7 +28,21 @@ def test_evaluate_pipeline_writes_expected_fields(tmp_path):
     write_outputs(rows, summary, args)
 
     assert len(rows) == 2
-    assert {"rule_result", "semantic_result", "final_action", "risk_score", "correct"} <= set(rows[0])
+    assert {
+        "rule_result",
+        "semantic_result",
+        "input_action",
+        "output_action",
+        "final_action",
+        "risk_score",
+        "correct",
+    } <= set(rows[0])
     assert output_path.exists()
     assert summary_path.exists()
     assert summary["total"] == 2
+    assert "model_version" in summary
+    assert "model_sha256" in summary
+    assert "config_version" in summary
+    assert rows[1]["input_action"] == "sanitize"
+    assert rows[1]["final_action"] == "sanitize"
+    assert summary["correct"] == 2

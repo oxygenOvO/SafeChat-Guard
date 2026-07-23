@@ -17,18 +17,6 @@
     "category_hint": "ad",
     "confidence": 0.8
   },
-  "微-信": {
-    "target": "微信",
-    "type": "symbol_variant",
-    "category_hint": "ad",
-    "confidence": 0.8
-  },
-  "微★信": {
-    "target": "微信",
-    "type": "symbol_variant",
-    "category_hint": "ad",
-    "confidence": 0.8
-  },
   "微☆信": {
     "target": "微信",
     "type": "symbol_variant",
@@ -65,25 +53,7 @@
     "category_hint": "porn",
     "confidence": 0.85
   },
-  "色-情": {
-    "target": "色情",
-    "type": "symbol_variant",
-    "category_hint": "porn",
-    "confidence": 0.85
-  },
-  "色★情": {
-    "target": "色情",
-    "type": "symbol_variant",
-    "category_hint": "porn",
-    "confidence": 0.85
-  },
   "约.炮": {
-    "target": "约炮",
-    "type": "symbol_variant",
-    "category_hint": "porn",
-    "confidence": 0.85
-  },
-  "约-炮": {
     "target": "约炮",
     "type": "symbol_variant",
     "category_hint": "porn",
@@ -107,19 +77,7 @@
     "category_hint": "violence",
     "confidence": 0.85
   },
-  "炸-药": {
-    "target": "炸药",
-    "type": "symbol_variant",
-    "category_hint": "violence",
-    "confidence": 0.85
-  },
   "加.微": {
-    "target": "加微",
-    "type": "symbol_variant",
-    "category_hint": "ad",
-    "confidence": 0.8
-  },
-  "加-微": {
     "target": "加微",
     "type": "symbol_variant",
     "category_hint": "ad",

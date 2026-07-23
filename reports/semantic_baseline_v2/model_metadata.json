@@ -1,5 +1,5 @@
 {
-  "data_manifest_sha256": "e88c57f499e1ca1f9e4062a33aabbc70f468c9bd47b13fd5f857828a5cd75193",
+  "data_manifest_sha256": "198f18ec76ffac242be3a859245b908dc758f0bcd0f5b6165b77a4f01411a165",
   "evaluation_scope": "weak_label_grouped_holdout",
   "labels": [
     "ad",
@@ -9,7 +9,7 @@
     "violence"
   ],
   "model_file": "models/semantic_model_v2.joblib",
-  "model_file_sha256": "82d1b4d188844df7f0670422721a857f6e270ce7ab682859e2e0fd47547fcd7c",
+  "model_file_sha256": "0ce92d510692ed3ba5f55f0d1ac1a2cebd98b62c11139f22ee3ae5f11ed6f2e3",
   "model_parameters": {
     "classifier": {
       "class_weight": "balanced",
@@ -29,12 +29,12 @@
   "random_seed": 42,
   "schema_version": 2,
   "selected_model": "char",
-  "split_manifest_sha256": "4542a463ed42ddd963e0c79caedcd777025811d108feefc3c817419b13ea37fa",
-  "training_duration_seconds": 0.1580072999931872,
+  "split_manifest_sha256": "c417c8cced7a06be8eb71016f744fbd47f5c3715328905ec9a4cd9d12c3b5015",
+  "training_duration_seconds": 0.028071900000213645,
   "versions": {
     "joblib": "1.5.3",
     "pandas": "3.0.3",
-    "python": "3.13.12",
+    "python": "3.14.3",
     "scikit_learn": "1.9.0"
   }
 }

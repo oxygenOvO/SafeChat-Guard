@@ -1,31 +1,99 @@
 import json
+import threading
+import time
 from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 
+SENSITIVE_FIELDS = {
+    "input",
+    "input_text",
+    "safe_input",
+    "raw_reply",
+    "final_reply",
+    "reply",
+    "original_text",
+    "normalized_text",
+    "sanitized_text",
+    "final_text",
+    "sanitized_raw_output",
+    "masked_text",
+    "rewrite_text",
+    "normalization_steps",
+    "matches",
+    "match",
+    "matched_rules",
+}
+
+
 class EventLogger:
-    def __init__(self, path: str):
+    def __init__(
+        self,
+        path: str,
+        max_bytes: int = 5 * 1024 * 1024,
+        backup_count: int = 5,
+        retention_days: int = 7,
+    ):
         self.path = Path(path)
+        self.max_bytes = max(0, int(max_bytes))
+        self.backup_count = max(0, int(backup_count))
+        self.retention_days = max(0, int(retention_days))
+        self._lock = threading.RLock()
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def write(self, event: dict[str, Any]) -> None:
-        event = {"time": datetime.now(timezone.utc).isoformat(), **event}
-        with self.path.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(event, ensure_ascii=False) + "\n")
+        safe_event = self._redact_event(event)
+        safe_event = {"time": datetime.now(timezone.utc).isoformat(), **safe_event}
+        line = json.dumps(safe_event, ensure_ascii=False) + "\n"
+        with self._lock:
+            self._rotate_if_needed(len(line.encode("utf-8")))
+            with self.path.open("a", encoding="utf-8") as file:
+                file.write(line)
+                file.flush()
 
-    def read_all(self) -> list[dict[str, Any]]:
-        if not self.path.exists():
-            return []
+    @classmethod
+    def _redact_event(cls, value: Any, field: str | None = None) -> Any:
+        if field in SENSITIVE_FIELDS:
+            if value is None:
+                return None
+            if isinstance(value, list):
+                return ["[REDACTED]"] if value else []
+            return "[REDACTED]"
+        if isinstance(value, dict):
+            return {key: cls._redact_event(item, key) for key, item in value.items()}
+        if isinstance(value, list):
+            return [cls._redact_event(item) for item in value]
+        return value
+
+    def read_all(self, since: datetime | None = None) -> list[dict[str, Any]]:
         events = []
-        for line in self.path.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                events.append(json.loads(line))
+        with self._lock:
+            for path in self._retained_log_paths():
+                if not path.exists():
+                    continue
+                for line in path.read_text(encoding="utf-8").splitlines():
+                    if not line.strip():
+                        continue
+                    try:
+                        event = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if since is not None:
+                        try:
+                            event_time = datetime.fromisoformat(event["time"])
+                        except (KeyError, TypeError, ValueError):
+                            continue
+                        if event_time.tzinfo is None:
+                            event_time = event_time.replace(tzinfo=timezone.utc)
+                        if event_time < since:
+                            continue
+                    events.append(event)
         return events
 
-    def stats(self) -> dict[str, Any]:
-        events = self.read_all()
+    def stats(self, since: datetime | None = None) -> dict[str, Any]:
+        events = self.read_all(since=since)
         category_counter: Counter[str] = Counter()
         detection_category_counter: Counter[str] = Counter()
         level_counter: Counter[str] = Counter()
@@ -42,7 +110,12 @@ class EventLogger:
         output_detection_count = 0
 
         for event in events:
-            for result in [event.get("input_filter"), event.get("output_filter"), event.get("result")]:
+            results = [
+                event.get("input_filter"),
+                event.get("output_filter"),
+                event.get("result"),
+            ]
+            for result in results:
                 if not result:
                     continue
                 stage = result.get("stage") or event.get("stage") or "unknown"
@@ -58,12 +131,19 @@ class EventLogger:
                 if action in {"sanitize", "rewrite"} or result.get("rewritten"):
                     rewritten += 1
 
-                level = result.get("risk_level", self._level_from_score(result.get("risk_score", 0)))
+                level = result.get(
+                    "risk_level",
+                    self._level_from_score(result.get("risk_score", 0)),
+                )
                 level_counter[level] += 1
 
                 categories = result.get("risk_categories")
                 if not categories:
-                    categories = [d.get("category") for d in result.get("detections", []) if d.get("category")]
+                    categories = [
+                        detection.get("category")
+                        for detection in result.get("detections", [])
+                        if detection.get("category")
+                    ]
                 for category in categories or ["normal"]:
                     category_counter[category] += 1
 
@@ -90,6 +170,8 @@ class EventLogger:
 
         return {
             "total_events": len(events),
+            "window_start": since.isoformat() if since is not None else None,
+            "window_end": datetime.now(timezone.utc).isoformat(),
             "blocked": blocked,
             "rewritten": rewritten,
             "category_counts": dict(category_counter),
@@ -106,7 +188,45 @@ class EventLogger:
             "output_action_counts": dict(output_action_counter),
         }
 
-    def _level_from_score(self, score: int) -> str:
+    def _rotate_if_needed(self, incoming_bytes: int) -> None:
+        if not self.max_bytes or not self.path.exists():
+            return
+        if self.path.stat().st_size + incoming_bytes <= self.max_bytes:
+            return
+
+        self._prune_expired()
+        if self.backup_count == 0:
+            self.path.unlink(missing_ok=True)
+            return
+
+        oldest = self._backup_path(self.backup_count)
+        oldest.unlink(missing_ok=True)
+        for index in range(self.backup_count - 1, 0, -1):
+            source = self._backup_path(index)
+            if source.exists():
+                source.replace(self._backup_path(index + 1))
+        self.path.replace(self._backup_path(1))
+
+    def _prune_expired(self) -> None:
+        if not self.retention_days:
+            return
+        cutoff = time.time() - self.retention_days * 86400
+        for path in self._retained_log_paths(include_current=False):
+            if path.exists() and path.stat().st_mtime < cutoff:
+                path.unlink(missing_ok=True)
+
+    def _backup_path(self, index: int) -> Path:
+        return self.path.with_name(f"{self.path.name}.{index}")
+
+    def _retained_log_paths(self, include_current: bool = True) -> list[Path]:
+        backups = [
+            self._backup_path(index)
+            for index in range(self.backup_count, 0, -1)
+        ]
+        return [*backups, self.path] if include_current else backups
+
+    @staticmethod
+    def _level_from_score(score: int) -> str:
         if score >= 80:
             return "high"
         if score >= 40:

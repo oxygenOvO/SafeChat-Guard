@@ -1,8 +1,14 @@
 {
   "app": {
     "name": "SafeChat-Guard",
+    "config_version": "competition-ready-v1",
     "host": "127.0.0.1",
     "port": 8000
+  },
+  "api": {
+    "max_request_bytes": 65536,
+    "max_text_chars": 4096,
+    "request_timeout_seconds": 10
   },
   "risk": {
     "block_threshold": 80,
@@ -18,9 +24,25 @@
     "provider": "mock",
     "api_key_env": "QWEN_API_KEY",
     "base_url": "",
-    "model": "qwen-tiny"
+    "model": "qwen-tiny",
+    "timeout_seconds": 30
+  },
+  "semantic_model": {
+    "version": "semantic_model_v2_char_weaklabel",
+    "path": "models/semantic_model_v2.joblib",
+    "sha256": "0ce92d510692ed3ba5f55f0d1ac1a2cebd98b62c11139f22ee3ae5f11ed6f2e3",
+    "classes": [
+      "ad",
+      "normal",
+      "porn",
+      "sensitive",
+      "violence"
+    ]
   },
   "logging": {
-    "path": "data/logs/events.jsonl"
+    "path": "data/logs/events.jsonl",
+    "max_bytes": 5242880,
+    "backup_count": 5,
+    "retention_days": 7
   }
 }

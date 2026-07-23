@@ -118,5 +118,23 @@
     "type": "abbreviation",
     "category_hint": "ad",
     "confidence": 0.7
+  },
+  "e 心": {
+    "target": "恶心",
+    "type": "mixed_language",
+    "category_hint": "abuse",
+    "confidence": 0.9
+  },
+  "e心": {
+    "target": "恶心",
+    "type": "mixed_language",
+    "category_hint": "abuse",
+    "confidence": 0.9
+  },
+  "gun": {
+    "target": "滚",
+    "type": "pinyin",
+    "category_hint": "abuse",
+    "confidence": 0.9
   }
 }

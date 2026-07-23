@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "passed": true,
+  "checks": {
+    "model_loaded": true,
+    "model_integrity": true,
+    "model_classes": true,
+    "model_error_clear": true,
+    "normal_pass": true,
+    "medium_sanitize": true,
+    "high_risk_block": true,
+    "output_guard": true
+  },
+  "model": {
+    "enabled": true,
+    "loaded": true,
+    "model_path": "models/semantic_model_v2.joblib",
+    "model_type": "sklearn_pipeline",
+    "expected_sha256": "0ce92d510692ed3ba5f55f0d1ac1a2cebd98b62c11139f22ee3ae5f11ed6f2e3",
+    "actual_sha256": "0ce92d510692ed3ba5f55f0d1ac1a2cebd98b62c11139f22ee3ae5f11ed6f2e3",
+    "integrity_verified": true,
+    "model_size_bytes": 360276,
+    "classes": [
+      "ad",
+      "normal",
+      "porn",
+      "sensitive",
+      "violence"
+    ],
+    "expected_classes": [
+      "ad",
+      "normal",
+      "porn",
+      "sensitive",
+      "violence"
+    ],
+    "classes_valid": true,
+    "thresholds": {
+      "ad": 0.65,
+      "porn": 0.55,
+      "violence": 0.55,
+      "sensitive": 0.65
+    },
+    "error": null
+  },
+  "config_version": "competition-ready-v1",
+  "runtime": {
+    "python": "3.14.3",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "scikit_learn": "1.9.0",
+    "joblib": "1.5.3"
+  },
+  "performance": {
+    "iterations": 200,
+    "mean_ms": 1.6481769998608797,
+    "p95_ms": 1.8812999987858348,
+    "max_ms": 2.346200002648402
+  }
+}

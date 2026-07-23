@@ -95,7 +95,15 @@ def test_stats_exposes_semantic_classifier_status():
         "loaded",
         "model_path",
         "model_type",
+        "expected_sha256",
+        "actual_sha256",
+        "integrity_verified",
+        "model_size_bytes",
         "classes",
+        "expected_classes",
+        "classes_valid",
         "thresholds",
+        "version",
         "error",
     }
+    assert SafeChatPipeline.from_config("config.yaml").stats()["llm"]["ready"] is True

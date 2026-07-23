@@ -1,8 +1,9 @@
 import json
+from datetime import datetime
 from pathlib import Path
 
 from .config_utils import load_semantic_thresholds
-from .llm_client import LLMClientFactory
+from .llm_client import LLMClientError, LLMClientFactory
 from .logger import EventLogger
 from .normalizer import TextNormalizer
 from .output_guard import OutputGuard
@@ -25,7 +26,15 @@ class SafeChatPipeline:
             str(self.project_root / "data/rules/regex_rules.json"),
         )
         self.semantic_thresholds = load_semantic_thresholds(config)
-        self.semantic_classifier = SemanticClassifier(thresholds=self.semantic_thresholds)
+        semantic_model_config = config.get("semantic_model", {})
+        self.semantic_model_version = semantic_model_config.get("version", "unknown")
+        self.semantic_model_sha256 = semantic_model_config.get("sha256")
+        self.semantic_classifier = SemanticClassifier(
+            model_path=semantic_model_config.get("path", "models/semantic_model.pkl"),
+            thresholds=self.semantic_thresholds,
+            expected_sha256=semantic_model_config.get("sha256"),
+            expected_classes=semantic_model_config.get("classes"),
+        )
         self.sanitizer = Sanitizer()
         self.rewriter = EmotionPreservingRewriter()
         self.llm = LLMClientFactory.create(config.get("llm", {}))
@@ -33,7 +42,13 @@ class SafeChatPipeline:
         log_path = Path(config.get("logging", {}).get("path", "data/logs/events.jsonl"))
         if not log_path.is_absolute():
             log_path = self.project_root / log_path
-        self.logger = EventLogger(str(log_path))
+        logging_config = config.get("logging", {})
+        self.logger = EventLogger(
+            str(log_path),
+            max_bytes=int(logging_config.get("max_bytes", 5 * 1024 * 1024)),
+            backup_count=int(logging_config.get("backup_count", 5)),
+            retention_days=int(logging_config.get("retention_days", 7)),
+        )
         self.output_guard = OutputGuard(
             block_threshold=int(config["risk"].get("block_threshold", 80)),
             sanitize_threshold=int(config["risk"].get("sanitize_threshold", 40)),
@@ -53,6 +68,10 @@ class SafeChatPipeline:
         raw_reply_override: str | None = None,
         persist: bool = True,
     ) -> dict:
+        if not isinstance(message, str):
+            raise TypeError("message must be a string")
+        if raw_reply_override is not None and not isinstance(raw_reply_override, str):
+            raise TypeError("raw_reply_override must be a string or None")
         input_result = self._filter_text(message, stage="input")
         rewrite_result = self.rewriter.unchanged(message)
 
@@ -65,7 +84,7 @@ class SafeChatPipeline:
                 "allowed": False,
                 "reply": reply,
                 "safe_input": "未转发给大模型",
-                "raw_reply": "",
+                "raw_reply": None,
                 "rewrite": rewrite_result,
                 "input_filter": input_result,
                 "output_filter": None,
@@ -80,7 +99,29 @@ class SafeChatPipeline:
             )
             safe_message = rewrite_result["rewrite_text"]
 
-        raw_reply = raw_reply_override if raw_reply_override is not None else self.llm.chat(safe_message)
+        try:
+            raw_reply = raw_reply_override if raw_reply_override is not None else self.llm.chat(safe_message)
+        except LLMClientError:
+            event = {
+                "stage": "chat",
+                "input": message,
+                "safe_input": safe_message,
+                "service_error": "llm_unavailable",
+                "input_filter": input_result,
+                "output_filter": None,
+            }
+            if persist:
+                self.logger.write(event)
+            return {
+                "allowed": False,
+                "reply": "模型服务暂时不可用，请稍后重试。",
+                "safe_input": safe_message,
+                "raw_reply": None,
+                "rewrite": rewrite_result,
+                "input_filter": input_result,
+                "output_filter": None,
+                "service_error": "llm_unavailable",
+            }
         output_result = self._filter_output(raw_reply)
         final_reply = output_result.get("final_text") or raw_reply
 
@@ -88,7 +129,7 @@ class SafeChatPipeline:
             "stage": "chat",
             "input": message,
             "safe_input": safe_message,
-            "raw_reply": raw_reply,
+            "raw_reply": raw_reply if output_result["action"] == "pass" else None,
             "final_reply": final_reply,
             "risk_categories": output_result.get("risk_categories", []),
             "risk_level": output_result.get("risk_level", "none"),
@@ -104,13 +145,15 @@ class SafeChatPipeline:
             "allowed": output_result["action"] != "block",
             "reply": final_reply,
             "safe_input": safe_message,
-            "raw_reply": raw_reply,
+            "raw_reply": raw_reply if output_result["action"] == "pass" else None,
             "rewrite": rewrite_result,
             "input_filter": input_result,
             "output_filter": output_result,
         }
 
     def _filter_output(self, text: str) -> dict:
+        if not isinstance(text, str):
+            raise TypeError("output text must be a string")
         normalized = self.normalizer.normalize(text)
         detections = self.rule_filter.detect(normalized)
         detections.extend(self.semantic_classifier.detect(normalized))
@@ -118,7 +161,14 @@ class SafeChatPipeline:
         return self.output_guard.process(text, normalized, detections)
 
     def _filter_text(self, text: str, stage: str) -> dict:
-        normalized, normalization_steps = self.normalizer.normalize_with_steps(text)
+        if not isinstance(text, str):
+            raise TypeError("text must be a string")
+        trace = self.normalizer.normalize_with_trace(text)
+        normalized = trace.normalized_text
+        normalization_steps = [
+            f"{step.normalizer}: {step.before} -> {step.after}"
+            for step in trace.steps
+        ] or ["未触发中文对抗归一化"]
         rule_detections = self.rule_filter.detect(normalized)
         semantic_scores = self.semantic_classifier.predict_scores(normalized)
         semantic_detections = self.semantic_classifier.detect(normalized)
@@ -137,6 +187,16 @@ class SafeChatPipeline:
         elif score >= sanitize_threshold:
             action = "sanitize"
             sanitized = self.sanitizer.sanitize(normalized, matches)
+            if not sanitized or sanitized == normalized:
+                rewrite = self.rewriter.rewrite(
+                    text,
+                    primary.category if primary else "unknown",
+                    matches,
+                )
+                sanitized = rewrite["rewrite_text"]
+            if not sanitized or sanitized in {text, normalized}:
+                action = "block"
+                sanitized = None
 
         return {
             "stage": stage,
@@ -166,12 +226,17 @@ class SafeChatPipeline:
             return "low"
         return "none"
 
-    def stats(self) -> dict:
-        stats = self.logger.stats()
+    def stats(self, since: datetime | None = None) -> dict:
+        stats = self.logger.stats(since=since)
         semantic_status = self.semantic_classifier.status()
+        semantic_status["version"] = self.semantic_model_version
         stats["semantic_classifier"] = semantic_status
         stats["model_loaded"] = semantic_status.get("loaded", False)
         stats["model_error"] = semantic_status.get("error")
+        stats["model_version"] = self.semantic_model_version
+        stats["model_sha256"] = self.semantic_model_sha256
+        stats["config_version"] = self.config.get("app", {}).get("config_version", "unknown")
+        stats["llm"] = self.llm.status()
         return stats
 
     @staticmethod

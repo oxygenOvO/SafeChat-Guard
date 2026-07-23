@@ -3,10 +3,16 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .test_tmp/
+.integration_*/
 .env
 outputs/*.csv
 outputs/*.log
-data/logs/*.jsonl
+data/logs/*.jsonl*
+data/training_data/*_clean_*.csv
+models/*.joblib
+models/*.pkl
 .streamlit/secrets.toml
+streamlit-ui.*.log
+audit/
 .DS_Store
 Thumbs.db

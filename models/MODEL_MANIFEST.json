@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "model_version": "semantic_model_v2_char_weaklabel",
+  "artifact": "models/semantic_model_v2.joblib",
+  "sha256": "0ce92d510692ed3ba5f55f0d1ac1a2cebd98b62c11139f22ee3ae5f11ed6f2e3",
+  "size_bytes": 360276,
+  "classes": [
+    "ad",
+    "normal",
+    "porn",
+    "sensitive",
+    "violence"
+  ],
+  "training_data_manifest_sha256": "198f18ec76ffac242be3a859245b908dc758f0bcd0f5b6165b77a4f01411a165",
+  "split_manifest_sha256": "c417c8cced7a06be8eb71016f744fbd47f5c3715328905ec9a4cd9d12c3b5015",
+  "training_script": "scripts/train_semantic_baseline_v2.py",
+  "evaluation_script": "scripts/evaluate_semantic_baseline_v2.py",
+  "evaluation_scope": "weak_label_grouped_holdout",
+  "official_competition_metric": false,
+  "selected_model": "char",
+  "model_parameters": {
+    "tfidf": {
+      "analyzer": "char",
+      "ngram_range": [2, 5]
+    },
+    "classifier": {
+      "type": "LogisticRegression",
+      "class_weight": "balanced",
+      "max_iter": 2000,
+      "random_state": 42
+    }
+  },
+  "build_runtime": {
+    "python": "3.14.3",
+    "scikit_learn": "1.9.0",
+    "joblib": "1.5.3",
+    "pandas": "3.0.3"
+  },
+  "security_note": "Verify SHA-256 before joblib deserialization. Only load artifacts from the trusted competition package."
+}

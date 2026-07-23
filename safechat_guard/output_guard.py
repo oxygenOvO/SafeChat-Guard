@@ -10,6 +10,7 @@ CATEGORY_LABELS = {
     "violence": "暴力威胁",
     "ad": "广告引流",
     "sensitive": "敏感话术",
+    "abuse": "低俗辱骂",
     "illegal": "违法违规",
     "self_harm": "自伤自杀",
     "privacy": "隐私泄露",
@@ -22,6 +23,7 @@ STANDARD_RESPONSES = {
     "violence": "抱歉，该回复包含暴力威胁或伤害性内容，已被系统拦截。建议以理性、非暴力方式沟通。",
     "ad": "抱歉，该回复包含广告引流或诱导联系内容，已被系统处理。请避免发布推广、拉群、返利或私聊引导信息。",
     "sensitive": "抱歉，该回复包含敏感或规避监管的话术，已被系统拦截。请围绕合法合规、安全可控的内容进行交流。",
+    "abuse": "抱歉，该回复包含辱骂或人身攻击内容，已被系统处理。请使用理性、尊重的表达方式。",
     "illegal": "抱歉，该回复涉及违法违规风险，已被系统拦截。请遵守法律法规和平台安全规范。",
     "self_harm": "抱歉，该回复涉及自伤风险，已被系统拦截。如你或他人正处于危机中，请尽快联系身边可信任的人或当地紧急援助渠道。",
     "mixed": "抱歉，该回复包含多类不合规风险，已被系统拦截。请使用安全、合法、尊重他人的表达方式。",
@@ -79,6 +81,8 @@ class OutputGuard:
             blocked = False
             rewritten = True
             final_text = self._sanitize_output(privacy_masked, all_detections)
+            if not final_text.strip() or final_text == raw_output:
+                final_text = "模型回复包含风险内容，系统已进行安全改写。"
         else:
             action = "pass"
             blocked = False

@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
+from safechat_guard.llm_client import LLMClientError
 from safechat_guard.pipeline import SafeChatPipeline
 
 
@@ -33,15 +34,19 @@ class FrontendPipelineAdapter:
                 if input_result["action"] == "sanitize"
                 else text
             )
-            model_response = (
-                output_override
-                if output_override is not None
-                else self.pipeline.llm.chat(processed_text)
-            )
-            output_result = self.pipeline._filter_output(model_response)
+            try:
+                model_response = (
+                    output_override
+                    if output_override is not None
+                    else self.pipeline.llm.chat(processed_text)
+                )
+                output_result = self.pipeline._filter_output(model_response)
+            except LLMClientError:
+                model_response = "模型服务暂时不可用，请稍后重试。"
+                output_result = None
             final_answer = (
-                output_result.get("final_text")
-                or output_result.get("sanitized_text")
+                (output_result or {}).get("final_text")
+                or (output_result or {}).get("sanitized_text")
                 or model_response
             )
 
