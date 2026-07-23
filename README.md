@@ -11,7 +11,7 @@
 - 分级处理：高风险拦截，中低风险脱敏/改写，正常内容放行。
 - 输出侧二次校验：对大模型回复再次检测，命中违规内容时拦截或脱敏改写。
 - 日志统计：记录每次请求的检测结果、处理动作、风险类别、风险等级和命中规则。
-- Web Demo：提供基础网页界面与 `/api/chat`、`/api/stats` 接口。
+- Web Demo：提供 Streamlit 安全控制台，以及 `/api/chat`、`/api/detect`、`/api/stats` 接口。
 
 ## 成员 C 交付内容
 
@@ -34,17 +34,7 @@ tests/test_output_guard.py
 - 自伤自杀
 - 隐私泄露
 
-日志字段包括：
-
-- 时间
-- 用户输入
-- 原始模型输出
-- 风险类别
-- 风险等级
-- 是否拦截
-- 是否改写
-- 最终输出
-- 命中规则
+日志采用输入、输出、最终动作分阶段记录；用户输入、模型原始输出和最终文本统一脱敏，仅保留安全审计所需的时间、阶段、类别、风险、动作与命中统计。
 
 日志默认保存到：
 
@@ -52,6 +42,17 @@ tests/test_output_guard.py
 data/logs/events.jsonl
 ```
 
+## D 组前端安全集成
+
+比赛控制台位于 `frontend/streamlit_app.py`，展示归一化、规则与语义联合检测、分级动作、输出复检、聚合审计和批量评测。适配层以 `SafeChatPipeline.handle_chat` 的公开结果作为唯一最终安全结论：高风险输入不会调用 LLM，服务不可用时显示安全降级状态，风险模型输出不会进入前端视图模型或导出日志。
+
+演示集使用 `data/test_cases/frontend_demo_cases_v2.csv`，正式指标只统计 `normal`、`ad`、`porn`、`violence`、`sensitive` 类别；标为 `demo_only=true` 的扩展示例仅展示、不计分。
+
+启动控制台：
+
+```powershell
+streamlit run frontend/streamlit_app.py
+```
 ## 快速运行
 
 ```powershell

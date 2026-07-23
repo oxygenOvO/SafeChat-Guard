@@ -7,6 +7,8 @@ from safechat_guard.pipeline import SafeChatPipeline
 
 
 class FrontendPipelineAdapter:
+    """Convert public pipeline results into presentation-only view models."""
+
     def __init__(self, pipeline: SafeChatPipeline):
         self.pipeline = pipeline
 
@@ -14,55 +16,51 @@ class FrontendPipelineAdapter:
         self,
         text: str,
         output_override: str | None = None,
+        *,
+        persist: bool = True,
     ) -> dict[str, Any]:
+        # The public chat entry is the only authority for the final safety action.
+        chat_result = self.pipeline.handle_chat(
+            text,
+            raw_reply_override=output_override,
+            persist=persist,
+        )
+        input_result = chat_result["input_filter"]
+        output_result = chat_result.get("output_filter")
+        input_summary = self._summarize_result(input_result)
+        output_summary = self._summarize_output(output_result)
+
+        # Baseline data is diagnostic only and never influences the safety action.
         trace = self.pipeline.normalizer.normalize_with_trace(text)
         baseline_detections = self.pipeline.rule_filter.detect(text.lower())
         baseline = self._summarize_detections(baseline_detections)
-        input_result = self.pipeline._filter_text(text, stage="input")
-        input_summary = self._summarize_result(input_result)
-
-        if input_result["action"] == "block":
-            processed_text = "未转发给大模型"
-            model_response = "输入内容风险较高，系统已拒绝转发给大模型。"
-            output_result = None
-            final_answer = model_response
-        else:
-            processed_text = input_result.get("sanitized_text") or text
-            model_response = (
-                output_override
-                if output_override is not None
-                else self.pipeline.llm.chat(processed_text)
-            )
-            output_result = self.pipeline._filter_output(model_response)
-            final_answer = (
-                output_result.get("final_text")
-                or output_result.get("sanitized_text")
-                or model_response
-            )
-
-        output_summary = self._summarize_output(output_result)
-        semantic = self._semantic_summary(input_result["detections"])
+        semantic = self._semantic_summary(input_result.get("detections", []))
         normalization_steps = [
             f"{step.normalizer}: {step.before} -> {step.after}"
             for step in trace.steps
         ] or ["文本无需归一化"]
-        comparison_note = self._comparison_note(
-            baseline["action"],
+
+        processed_text = chat_result.get("safe_input") or "未转发给大模型"
+        service_error = chat_result.get("service_error")
+        model_status = self._model_status(chat_result, output_summary["action"])
+        status = self.pipeline.stats(portable_paths=True)
+        final_answer = chat_result["reply"]
+        strategy = self._processing_strategy(
             input_result["action"],
+            input_result.get("rewrite_recheck"),
         )
-        strategy = self._processing_strategy(input_result["action"])
 
         record = {
             "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "input_text": text,
-            "normalized_text": input_result["normalized_text"],
+            "input_text": "[REDACTED]",
+            "normalized_text": "[REDACTED]",
             "category": input_summary["category"],
             "risk": input_summary["risk"],
             "risk_score": input_result["risk_score"],
             "action": input_result["action"],
             "output_category": output_summary["category"],
             "output_action": output_summary["action"],
-            "final_answer": final_answer,
+            "final_answer": "[REDACTED]",
             "baseline_missed": (
                 baseline["action"] == "pass"
                 and input_result["action"] != "pass"
@@ -85,7 +83,10 @@ class FrontendPipelineAdapter:
             "risk": input_summary["risk"],
             "risk_score": input_result["risk_score"],
             "action": input_result["action"],
-            "comparison_note": comparison_note,
+            "comparison_note": self._comparison_note(
+                baseline["action"],
+                input_result["action"],
+            ),
             "semantic_category": semantic["category"],
             "semantic_score": semantic["score"],
             "semantic_scores": semantic["scores"],
@@ -94,48 +95,54 @@ class FrontendPipelineAdapter:
             "masked_text": input_result.get("sanitized_text") or text,
             "rewrite_text": processed_text,
             "rewrite_strategy": strategy,
+            "rewrite_recheck": input_result.get("rewrite_recheck"),
             "processed_text": processed_text,
-            "model_response": model_response,
+            # Never place model raw text in a frontend view model.
+            "model_response": model_status,
+            "model_output_hidden": True,
             "output_category": output_summary["category"],
             "output_risk": output_summary["risk"],
             "output_action": output_summary["action"],
             "output_hits": output_summary["hits"],
+            "output_recheck": (
+                output_result.get("rewrite_recheck") if output_result else None
+            ),
             "final_answer": final_answer,
+            "allowed": chat_result["allowed"],
+            "service_error": service_error,
+            "model_loaded": bool(status.get("model_loaded")),
+            "model_degradation": (
+                None
+                if status.get("model_loaded")
+                else "语义模型不可用，规则层继续运行"
+            ),
             "record": record,
-            "_input_filter": input_result,
-            "_output_filter": output_result,
         }
 
     def record(self, result: dict[str, Any]) -> None:
-        event = {
-            "stage": "frontend",
-            "input": result["original_text"],
-            "safe_input": result["processed_text"],
-            "raw_reply": result["model_response"],
-            "final_reply": result["final_answer"],
-            "input_filter": result["_input_filter"],
-            "output_filter": result["_output_filter"],
-        }
-        self.pipeline.logger.write(event)
+        """Compatibility no-op: handle_chat already writes redacted stage events."""
+
+    def stats(self) -> dict[str, Any]:
+        return self.pipeline.stats(portable_paths=True)
 
     def log_rows(self) -> list[dict[str, Any]]:
-        rows = []
-        for event in self.pipeline.logger.read_all():
-            input_result = event.get("input_filter") or event.get("result") or {}
-            output_result = event.get("output_filter") or {}
-            input_summary = self._summarize_result(input_result)
-            output_summary = self._summarize_output(output_result or None)
-            rows.append(
-                {
-                    "time": event.get("time", ""),
-                    "input_text": event.get("input", ""),
-                    "category": input_summary["category"],
-                    "risk": input_summary["risk"],
-                    "action": input_result.get("action", "pass"),
-                    "output_action": output_summary["action"],
-                    "final_answer": event.get("final_reply", ""),
-                }
-            )
+        """Return aggregate, non-sensitive audit rows from the public stats API."""
+        stats = self.stats()
+        rows: list[dict[str, Any]] = []
+        for dimension, counts in (
+            ("类别", stats.get("category_counts", {})),
+            ("风险", stats.get("risk_level_counts", {})),
+            ("动作", stats.get("action_counts", {})),
+            ("阶段", stats.get("stage_counts", {})),
+        ):
+            for name, count in sorted(counts.items()):
+                rows.append(
+                    {
+                        "dimension": dimension,
+                        "name": name,
+                        "count": int(count),
+                    }
+                )
         return rows
 
     def lexicon_rows(self) -> list[dict[str, str]]:
@@ -153,7 +160,10 @@ class FrontendPipelineAdapter:
         primary = self._primary_detection(detections)
         return {
             "category": primary.get("category", "normal"),
-            "risk": self._risk_from_score(result.get("risk_score", 0)),
+            "risk": result.get(
+                "risk_level",
+                self._risk_from_score(result.get("risk_score", 0)),
+            ),
             "hits": self._detection_hits(detections),
         }
 
@@ -208,17 +218,12 @@ class FrontendPipelineAdapter:
         categories = {"normal", "porn", "violence", "ad", "sensitive"}
         scores = {category: 0.0 for category in categories}
         if not semantic:
-            note = (
-                "规则层已有命中，未运行语义层。"
-                if detections
-                else "语义层未发现风险。"
-            )
             scores["normal"] = 1.0
             return {
                 "category": "normal",
                 "score": 1.0,
                 "scores": scores,
-                "note": note,
+                "note": "语义层未发现额外风险。",
             }
 
         primary = self._primary_detection(semantic)
@@ -276,7 +281,7 @@ class FrontendPipelineAdapter:
     @staticmethod
     def _comparison_note(baseline_action: str, action: str) -> str:
         if baseline_action == "pass" and action != "pass":
-            return "归一化增强版识别到原始规则层漏检的内容。"
+            return "归一化与联合检测识别到原始规则层漏检的内容。"
         if baseline_action != "pass" and action == "pass":
             return "增强流程降低了原始规则层的误判风险。"
         if baseline_action != action:
@@ -284,9 +289,26 @@ class FrontendPipelineAdapter:
         return "原始规则层与增强流程结论一致。"
 
     @staticmethod
-    def _processing_strategy(action: str) -> str:
+    def _processing_strategy(
+        action: str,
+        rewrite_recheck: dict[str, Any] | None,
+    ) -> str:
+        if action == "block" and rewrite_recheck:
+            return "改写后已重新归一化并复检；仍有风险，因此拦截。"
         if action == "block":
             return "高风险内容被拦截，未转发给大模型。"
         if action == "sanitize":
-            return "依据真实命中规则完成脱敏后再转发。"
+            return "脱敏后重新归一化并通过规则、语义复检，再转发给模型。"
         return "无需处理，原文正常放行。"
+
+    @staticmethod
+    def _model_status(chat_result: dict[str, Any], output_action: str) -> str:
+        if chat_result["input_filter"]["action"] == "block":
+            return "输入已拦截，未调用模型"
+        if chat_result.get("service_error"):
+            return "模型服务不可用，未生成输出"
+        if output_action == "not_run":
+            return "模型输出未执行"
+        if output_action != "pass":
+            return "风险原始输出已隐藏，仅展示安全处理结果"
+        return "模型输出已通过安全复检（原文不在前端展示）"
