@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from safechat_guard.output_guard import OutputGuard
 from safechat_guard.pipeline import SafeChatPipeline
 
@@ -21,15 +19,10 @@ def test_output_guard_rewrites_privacy_only():
     assert "[邮箱]" in result["final_text"]
 
 
-def test_pipeline_logs_member_c_fields():
-    log_path = Path(".test_tmp/member_c_events.jsonl")
-    log_path.parent.mkdir(exist_ok=True)
-    config = {
-        "risk": {"block_threshold": 80, "sanitize_threshold": 40},
-        "llm": {"provider": "mock"},
-        "logging": {"path": str(log_path)},
-    }
-    pipeline = SafeChatPipeline(config)
+def test_pipeline_logs_member_c_fields(production_config_without_model):
+    pipeline = SafeChatPipeline.from_config(
+        str(production_config_without_model)
+    )
     result = pipeline.handle_chat("请测试")
     assert "output_filter" in result
     event = pipeline.logger.read_all()[-1]

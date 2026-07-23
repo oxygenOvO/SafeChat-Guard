@@ -21,6 +21,9 @@ FROZEN_THRESHOLDS = {
     "sensitive": 0.65,
 }
 
+FROZEN_MODEL_SHA256 = (
+    "82d1b4d188844df7f0670422721a857f6e270ce7ab682859e2e0fd47547fcd7c"
+)
 
 class FixedProbabilityModel:
     classes_ = ("normal", "ad", "porn", "violence", "sensitive")
@@ -75,6 +78,7 @@ def test_frozen_production_configuration_matches_calibration_contract():
     assert configuration.resolved_model_path == (
         PROJECT_ROOT / "models/semantic_model_v2.joblib"
     ).resolve()
+    assert configuration.model_sha256 == FROZEN_MODEL_SHA256
     assert configuration.category_thresholds == FROZEN_THRESHOLDS
     assert configuration.min_margin == 0.05
     assert configuration.calibration_report_path == (
@@ -82,16 +86,33 @@ def test_frozen_production_configuration_matches_calibration_contract():
     )
 
 
-def test_production_pipeline_loads_v2_model_and_frozen_thresholds():
-    pipeline = SafeChatPipeline.from_config(str(PROJECT_ROOT / "config.yaml"))
+def test_default_production_pipeline_starts_without_ignored_model(
+    production_config_without_model,
+):
+    production_config = json.loads(
+        (PROJECT_ROOT / "config.yaml").read_text(encoding="utf-8")
+    )
+    assert production_config["semantic"] == {
+        "config_path": "config/semantic_thresholds_v1.json",
+        "required": False,
+    }
+    assert "semantic" not in production_config["llm"]
+
+    with pytest.warns(RuntimeWarning, match="model file not found"):
+        pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
     status = pipeline.stats()["semantic_classifier"]
 
     assert Path(status["model_path"]) == (
-        PROJECT_ROOT / "models/semantic_model_v2.joblib"
+        production_config_without_model.parent / "models/semantic_model_v2.joblib"
     ).resolve()
+    assert status["required"] is False
+    assert status["loaded"] is False
+    assert status["enabled"] is False
+    assert status["error"] == "model file not found"
+    assert status["model_sha256_expected"] == FROZEN_MODEL_SHA256
     assert status["category_thresholds"] == FROZEN_THRESHOLDS
     assert status["min_margin"] == 0.05
-    assert status["model_sha256_verified"] is True
+    assert status["model_sha256_verified"] is False
 
 
 def test_pipeline_and_evaluator_use_identical_semantic_gate(tmp_path):
@@ -112,6 +133,12 @@ def test_pipeline_and_evaluator_use_identical_semantic_gate(tmp_path):
 
     pipeline_status = pipeline.semantic_classifier.status()
     evaluator_status = evaluator_detector.status()
+    assert pipeline_status["loaded"] is evaluator_status["loaded"] is True
+    assert (
+        pipeline_status["model_sha256_verified"]
+        is evaluator_status["model_sha256_verified"]
+        is True
+    )
     assert pipeline_status["category_thresholds"] == evaluator_status[
         "category_thresholds"
     ] == FROZEN_THRESHOLDS
