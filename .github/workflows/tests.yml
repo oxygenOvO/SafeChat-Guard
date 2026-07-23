@@ -40,6 +40,10 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install -r requirements-dev.txt
 
+      - name: Scan delivery contents
+        run: |
+          python scripts/security_scan.py
+
       - name: Run pytest
         run: |
           python -m pytest -q --basetemp=.test_tmp
@@ -47,11 +51,6 @@ jobs:
       - name: Verify model and runtime
         run: |
           python scripts/verify_runtime.py --iterations 20
-
-      - name: Scan delivery contents
-        run: |
-          python scripts/security_scan.py
-
       - name: Compile Python files
         run: |
           python -m compileall app.py safechat_guard scripts tests
