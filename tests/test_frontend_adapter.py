@@ -152,7 +152,7 @@ def test_frontend_demo_cases_load():
     assert not cases.empty
     assert set(cases["expected_category"]) <= FORMAL_CATEGORIES
     assert set(cases["expected_action"]) <= {"pass", "sanitize", "block"}
-    assert cases["demo_only"].astype(str).str.lower().isin({"true", "false"}).all()
+    assert cases["demo_only"].astype(str).str.lower().eq("true").all()
 
 
 def test_adapter_uses_real_pipeline_for_obfuscated_ad(make_adapter):

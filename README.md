@@ -46,7 +46,7 @@ data/logs/events.jsonl
 
 比赛控制台位于 `frontend/streamlit_app.py`，展示归一化、规则与语义联合检测、分级动作、输出复检、聚合审计和批量评测。适配层以 `SafeChatPipeline.handle_chat` 的公开结果作为唯一最终安全结论：高风险输入不会调用 LLM，服务不可用时显示安全降级状态，风险模型输出不会进入前端视图模型或导出日志。
 
-演示集使用 `data/test_cases/frontend_demo_cases_v2.csv`，正式指标只统计 `normal`、`ad`、`porn`、`violence`、`sensitive` 类别；标为 `demo_only=true` 的扩展示例仅展示、不计分。
+`data/test_cases/frontend_demo_cases_v2.csv` 的 8 条内置样例全部属于功能 Demo，仅用于页面回归统计，不代表正式独立评估结果。正式指标仍以冻结的 `single_review_independent_gold_v1` 记录为准。
 
 启动控制台：
 

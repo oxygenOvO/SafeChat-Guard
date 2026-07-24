@@ -17,6 +17,14 @@ from safechat_guard.pipeline import SafeChatPipeline
 APP_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = APP_DIR.parent
 FRONTEND_CASES = PROJECT_ROOT / "data" / "test_cases" / "frontend_demo_cases_v2.csv"
+SAFE_DEMO_REPLY = "这是用于前端演示的安全模型回复。"
+RISKY_DEMO_REPLY = "模拟模型原始输出：可以加微信领取优惠券，名额有限。"
+REQUIRED_CASE_COLUMNS = {
+    "input_text",
+    "expected_category",
+    "expected_action",
+    "expected_output_action",
+}
 
 CATEGORY_LABELS = {
     "normal": "正常",
@@ -223,25 +231,20 @@ def init_state() -> None:
     if "selected_demo" not in st.session_state:
         st.session_state.selected_demo = "基线漏检"
     if "last_result" not in st.session_state:
-        text, flag = DEMO_CASES[st.session_state.selected_demo]
-        st.session_state.last_result = run_pipeline(text, flag, persist=False)
+        st.session_state.last_result = None
     if "last_run_signature" not in st.session_state:
-        text, flag = DEMO_CASES[st.session_state.selected_demo]
-        st.session_state.last_run_signature = (text.strip(), bool(flag))
+        st.session_state.last_run_signature = None
 
 
 def run_pipeline(
     text: str,
-    simulate_output_violation: bool = False,
     *,
+    raw_reply_override: str | None,
     persist: bool = False,
 ) -> dict[str, Any]:
-    output_override = None
-    if simulate_output_violation:
-        output_override = "模拟模型原始输出：可以加微信领取优惠券，名额有限。"
     return get_adapter().analyze(
         text,
-        output_override=output_override,
+        output_override=raw_reply_override,
         persist=persist,
     )
 
@@ -250,8 +253,36 @@ def sample_test_cases() -> pd.DataFrame:
     return pd.read_csv(FRONTEND_CASES, dtype={"id": str}, encoding="utf-8-sig")
 
 
-def append_log(result: dict[str, Any]) -> None:
-    get_adapter().record(result)
+def validate_case_dataframe(cases: pd.DataFrame) -> list[str]:
+    return sorted(REQUIRED_CASE_COLUMNS - set(cases.columns))
+
+
+def parse_demo_only(value: Any) -> bool:
+    if pd.isna(value):
+        return True
+    if isinstance(value, bool):
+        return value
+    normalized = str(value).strip().lower()
+    if normalized in {"false", "0", "no", "n", "否"}:
+        return False
+    if normalized in {"true", "1", "yes", "y", "是"}:
+        return True
+    return True
+
+
+def prepare_case_dataframe(cases: pd.DataFrame) -> pd.DataFrame:
+    missing = validate_case_dataframe(cases)
+    if missing:
+        raise ValueError(f"CSV 缺少必需列：{', '.join(missing)}")
+    prepared = cases.copy()
+    if "mock_model_output" not in prepared:
+        prepared["mock_model_output"] = ""
+    if "demo_only" not in prepared:
+        prepared["demo_only"] = True
+    else:
+        prepared["demo_only"] = prepared["demo_only"].map(parse_demo_only)
+    return prepared
+
 
 def format_hits(hits: list[dict[str, str]]) -> str:
     if not hits:
@@ -347,11 +378,20 @@ def plot_baseline_comparison(df: pd.DataFrame) -> go.Figure:
     return fig
 
 def build_case_results(cases: pd.DataFrame) -> pd.DataFrame:
+    prepared = prepare_case_dataframe(cases)
     results = []
-    for _, row in cases.iterrows():
+    for _, row in prepared.iterrows():
         mock_output = row.get("mock_model_output", "")
-        simulate_output = pd.notna(mock_output) and bool(str(mock_output).strip())
-        result = run_pipeline(str(row["input_text"]), simulate_output)
+        raw_reply_override = (
+            SAFE_DEMO_REPLY
+            if pd.isna(mock_output) or not str(mock_output).strip()
+            else str(mock_output)
+        )
+        result = run_pipeline(
+            str(row["input_text"]),
+            raw_reply_override=raw_reply_override,
+            persist=False,
+        )
         results.append(
             {
                 **row.to_dict(),
@@ -372,6 +412,16 @@ def build_case_results(cases: pd.DataFrame) -> pd.DataFrame:
         )
     return pd.DataFrame(results)
 
+
+def select_metric_results(result_df: pd.DataFrame) -> tuple[pd.DataFrame, str]:
+    demo_mask = result_df.get(
+        "demo_only",
+        pd.Series(True, index=result_df.index),
+    ).map(parse_demo_only)
+    non_demo = result_df.loc[~demo_mask]
+    if non_demo.empty:
+        return result_df, "演示"
+    return non_demo, "上传样本"
 
 def dashboard_df() -> pd.DataFrame:
     if "batch_results" in st.session_state:
@@ -413,7 +463,7 @@ def render_metric_row(df: pd.DataFrame) -> None:
     c3.metric("高风险拦截", blocked)
     c4.metric("输出侧拦截", output_block)
     c5.metric("基线漏检修复", baseline_missed)
-    st.caption("总览使用正式类别演示集或本次批量结果，不把 demo-only 样例计入正式指标。")
+    st.caption("内置样例仅用于功能演示，不代表正式独立评估结果。正式指标以冻结的 single_review_independent_gold_v1 记录为准。")
 
 
 def render_overview_page() -> None:
@@ -433,7 +483,7 @@ def render_overview_page() -> None:
         ["分级处理", "真实模块", "高风险拦截、中风险脱敏、正常放行"],
         ["输出侧校验", "真实模块", "输出违规检测、隐私脱敏与安全回复"],
         ["日志审计", "真实模块", "统一读取 JSONL 审计日志"],
-        ["批量评测", "真实模块", "全部样例调用 SafeChatPipeline"],
+        ["批量页面回归", "真实模块", "确定性 override 经 SafeChatPipeline 输出复检"],
     ]
     st.dataframe(pd.DataFrame(status_rows, columns=["模块", "状态", "说明"]), use_container_width=True, hide_index=True)
 
@@ -476,11 +526,18 @@ def render_detection_workspace() -> None:
         simulate_output_violation = st.checkbox("模拟大模型输出违规内容", value=default_flag)
         if st.button("运行检测并写入安全审计", type="primary", use_container_width=True) and text.strip():
             with st.spinner("正在执行输入归一化、联合检测与输出复检..."):
-                result = run_pipeline(text.strip(), simulate_output_violation, persist=True)
+                result = run_pipeline(
+                    text.strip(),
+                    raw_reply_override=RISKY_DEMO_REPLY if simulate_output_violation else None,
+                    persist=True,
+                )
                 st.session_state.last_result = result
                 st.session_state.last_run_signature = (text.strip(), bool(simulate_output_violation))
     result = st.session_state.last_result
-    result_is_stale = st.session_state.last_run_signature != (text.strip(), bool(simulate_output_violation))
+    result_is_stale = (
+        result is None
+        or st.session_state.last_run_signature != (text.strip(), bool(simulate_output_violation))
+    )
     with right:
         if result_is_stale:
             st.markdown(
@@ -600,7 +657,7 @@ def render_compare_page() -> None:
     st.subheader("基线对比中心")
     st.caption("用于展示方案第一条：未归一化基线 vs 中文对抗归一化增强版。")
     text = st.text_input("对抗样例", value="加 V-X 领取优 惠 券，名额有限")
-    result = run_pipeline(text)
+    result = run_pipeline(text, raw_reply_override=SAFE_DEMO_REPLY)
     render_compare_block(result)
     st.markdown('<div class="section-title">对比摘要</div>', unsafe_allow_html=True)
     st.dataframe(
@@ -623,7 +680,7 @@ def render_rewrite_page() -> None:
     st.subheader("分级处理结果")
     st.caption("展示真实后端对正常、中风险和高风险文本采取的放行、脱敏或拦截动作。")
     text = st.text_area("待处理文本", value="想领取课程资料可以加微信私聊。", height=120)
-    result = run_pipeline(text)
+    result = run_pipeline(text, raw_reply_override=SAFE_DEMO_REPLY)
     render_rewrite_block(result)
     st.markdown('<div class="section-title">改写前后对照</div>', unsafe_allow_html=True)
     st.dataframe(
@@ -669,60 +726,69 @@ def render_rules_page() -> None:
 
 
 def render_batch_page() -> None:
-    st.subheader("批量评测中心")
-    st.caption("用于生成报告中的拦截率、误判率、基线漏检数、输出校验成功率和测试截图。")
+    st.subheader("批量页面回归")
+    st.caption("内置样例仅用于功能演示，不代表正式独立评估结果。批量运行始终使用确定性输出 override，不请求远程 LLM。")
     uploaded = st.file_uploader("上传 CSV 测试用例表", type=["csv"])
-    cases = pd.read_csv(uploaded) if uploaded else sample_test_cases()
+    try:
+        raw_cases = pd.read_csv(uploaded) if uploaded else sample_test_cases()
+    except Exception as exc:
+        st.error(f"CSV 读取失败：{type(exc).__name__}")
+        return
+
+    missing = validate_case_dataframe(raw_cases)
+    if missing:
+        st.error(f"CSV 缺少必需列：{', '.join(missing)}")
+        return
+    cases = prepare_case_dataframe(raw_cases)
     st.dataframe(cases, use_container_width=True, hide_index=True)
     col1, col2 = st.columns([1, 1])
     col1.download_button(
-        "下载样例测试用例 CSV",
+        "下载演示样例 CSV",
         data=sample_test_cases().to_csv(index=False, encoding="utf-8-sig"),
-        file_name="test_cases_sample.csv",
+        file_name="frontend_demo_cases_v2.csv",
         mime="text/csv",
         use_container_width=True,
     )
-    if col2.button("运行批量评测", type="primary", use_container_width=True):
+    if col2.button("运行页面回归", type="primary", use_container_width=True):
         st.session_state.batch_results = build_case_results(cases)
 
     result_df = st.session_state.get("batch_results")
     if result_df is None:
         return
 
-    demo_mask = result_df.get("demo_only", pd.Series(False, index=result_df.index)).astype(str).str.lower().eq("true")
-    metric_results = result_df.loc[~demo_mask]
+    metric_results, scope = select_metric_results(result_df)
     total = len(metric_results)
-    normal = metric_results[metric_results["expected_action"] == "pass"]
     target = metric_results[metric_results["expected_action"] != "pass"]
     action_acc = metric_results["action_match"].mean() if total else 0
     output_acc = metric_results["output_action_match"].mean() if total else 0
+    target_match = target["action_match"].mean() if len(target) else 0
     baseline_missed = int(metric_results["baseline_missed"].sum()) if total else 0
-    false_positive_rate = (normal["actual_action"] != "pass").mean() if len(normal) else 0
-    interception_rate = (target["actual_action"] != "pass").mean() if len(target) else 0
 
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("样本数", total)
-    m2.metric("处理匹配率", f"{action_acc:.1%}")
-    m3.metric("输出校验匹配率", f"{output_acc:.1%}")
-    m4.metric("违规处理率", f"{interception_rate:.1%}")
-    m5.metric("误判率", f"{false_positive_rate:.1%}")
-    st.caption(f"基线漏检修复数：{baseline_missed}。demo-only 行仅展示，不计入上述正式指标。")
+    m1.metric(f"{scope}样例数", total)
+    m2.metric(f"{scope}动作匹配率", f"{action_acc:.1%}")
+    m3.metric(f"{scope}输出匹配率", f"{output_acc:.1%}")
+    m4.metric(f"{scope}风险样例匹配率", f"{target_match:.1%}")
+    m5.metric("基线漏检修复", baseline_missed)
+    if scope == "演示":
+        st.info("当前未加载正式评测样本。正式指标仍以冻结的 single_review_independent_gold_v1 记录为准。")
+    else:
+        st.info("当前显示上传样本的页面回归统计，不替代冻结独立 Gold 评估结果。")
 
     chart_col, matrix_col = st.columns(2)
-    chart_col.plotly_chart(plot_donut(result_df, "actual_action", "批量评测处理方式", ACTION_LABELS), use_container_width=True)
-    matrix = pd.crosstab(result_df["expected_category"], result_df["actual_category"])
-    fig = px.imshow(matrix, text_auto=True, color_continuous_scale="Blues", title="类别混淆矩阵")
+    chart_col.plotly_chart(plot_donut(metric_results, "actual_action", f"{scope}处理方式", ACTION_LABELS), use_container_width=True)
+    matrix = pd.crosstab(metric_results["expected_category"], metric_results["actual_category"])
+    fig = px.imshow(matrix, text_auto=True, color_continuous_scale="Blues", title=f"{scope}类别对照矩阵")
     fig.update_layout(height=360, margin=dict(l=8, r=8, t=48, b=8))
     matrix_col.plotly_chart(fig, use_container_width=True)
 
     st.dataframe(result_df, use_container_width=True, hide_index=True)
     st.download_button(
-        "导出批量评测结果",
+        "导出页面回归结果",
         data=result_df.to_csv(index=False, encoding="utf-8-sig"),
-        file_name="batch_test_results.csv",
+        file_name="frontend_regression_results.csv",
         mime="text/csv",
     )
-
 
 def render_logs_page() -> None:
     st.subheader("日志审计")
@@ -748,25 +814,25 @@ def render_logs_page() -> None:
 def render_report_page() -> None:
     st.subheader("报告素材与答辩截图")
     checklist = [
-        ["安全总览", "核心指标、类别分布、风险分布、系统模块状态"],
+        ["安全总览", "演示统计、类别分布、风险分布、系统模块状态"],
         ["实时检测工作台", "完整链路步骤条，展示输入到输出的闭环"],
         ["基线对比", "未归一化基线漏检，中文归一化增强版识别成功"],
         ["语义二次判定", "真实规则分类器或轻量模型结果"],
         ["分级处理", "正常放行、中风险脱敏和高风险拦截"],
         ["输出侧校验", "模型输出状态提示风险，最终仅展示合规话术"],
-        ["批量评测", "拦截率、误判率、基线漏检数、混淆矩阵"],
+        ["批量页面回归", "演示动作匹配、输出复检匹配、基线漏检修复和类别对照矩阵"],
         ["日志审计", "请求记录、筛选、导出"],
     ]
     st.dataframe(pd.DataFrame(checklist, columns=["截图位置", "报告用途"]), use_container_width=True, hide_index=True)
     st.markdown(
         """
         <div class="codebox">推荐答辩演示顺序：
-1. 安全总览：说明系统完整性和指标。
+1. 安全总览：说明系统完整性和演示统计。
 2. 实时检测工作台：跑“基线漏检”样例。
 3. 基线对比：证明中文对抗归一化有效。
 4. 分级处理：展示放行、脱敏和拦截三种动作。
 5. 输出侧校验：勾选模拟输出违规，展示二次拦截。
-6. 批量评测：展示拦截率、误判率和混淆矩阵。
+6. 批量页面回归：展示演示动作匹配和类别对照矩阵。
 7. 日志审计：展示可追溯、可导出的工程能力。</div>
         """,
         unsafe_allow_html=True,
@@ -780,7 +846,7 @@ def main() -> None:
     st.sidebar.caption("大模型内容安全风控控制台")
     page = st.sidebar.radio(
         "导航",
-        ["安全总览", "实时检测工作台", "基线对比", "分级处理", "批量评测", "日志审计", "规则配置", "报告素材"],
+        ["安全总览", "实时检测工作台", "基线对比", "分级处理", "批量页面回归", "日志审计", "规则配置", "报告素材"],
     )
     st.sidebar.markdown("---")
     st.sidebar.caption("当前页面已接入整体项目真实检测、输出保护和日志模块。")
@@ -793,7 +859,7 @@ def main() -> None:
         render_compare_page()
     elif page == "分级处理":
         render_rewrite_page()
-    elif page == "批量评测":
+    elif page == "批量页面回归":
         render_batch_page()
     elif page == "日志审计":
         render_logs_page()
