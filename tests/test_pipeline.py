@@ -72,8 +72,13 @@ def test_rule_and_semantic_results_are_both_preserved(
 
     assert calls[0] == filtered["normalized_text"]
     assert len(calls) == 2
-    assert filtered["action"] == "block"
+    assert filtered["action"] == "sanitize"
     assert {"regex", "semantic_ml"} <= sources
+    assert filtered["rewrite_recheck"]["detections"]
+    assert {
+        detection["source"]
+        for detection in filtered["rewrite_recheck"]["detections"]
+    } == {"semantic_ml"}
 
 
 def test_output_filter_runs_rule_and_semantic_layers(
@@ -127,3 +132,161 @@ def test_stats_exposes_semantic_classifier_status(production_config_without_mode
         "violence",
         "sensitive",
     }
+
+
+def _semantic_detection(category="ad"):
+    return Detection(
+        category=category,
+        level="medium",
+        score=60,
+        reason=f"semantic {category} result",
+        source="semantic_ml",
+        matches=[f"{category}: 29.78%"],
+    )
+
+
+def test_coupon_phrase_alone_has_no_rule_ad_detection(
+    production_config_without_model,
+):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
+    normalized = pipeline.normalizer.normalize("领取优惠券，名额有限")
+
+    rule_detections = pipeline.rule_filter.detect(normalized)
+    rule_ad_detections = [
+        detection
+        for detection in rule_detections
+        if detection.category == "ad" and detection.source in {"keyword", "regex"}
+    ]
+
+    assert rule_ad_detections == []
+    assert pipeline.sanitizer.sanitize(normalized, []) == normalized
+
+
+def test_contact_ad_variants_keep_only_semantic_ad_after_rewrite(
+    monkeypatch, production_config_without_model
+):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
+    monkeypatch.setattr(
+        pipeline.semantic_classifier,
+        "detect",
+        lambda _text: [_semantic_detection("ad")],
+    )
+    cases = [
+        (
+            "加 V-X 领取优 惠 券，名额有限",
+            "[联系方式已隐藏]领取优惠券，名额有限",
+            "领取优惠券",
+            "名额有限",
+        ),
+        (
+            "加 V-X 领取优惠券，数量有限",
+            "[联系方式已隐藏]领取优惠券，数量有限",
+            "领取优惠券",
+            "数量有限",
+        ),
+        (
+            "联系微信领取优惠券，今日截止",
+            "[联系方式已隐藏]领取优惠券，今日截止",
+            "领取优惠券",
+            "今日截止",
+        ),
+    ]
+
+    for text, expected, retained_phrase, retained_tail in cases:
+        filtered = pipeline.detect_text(text)
+        initial_rule_ad = [
+            detection
+            for detection in filtered["detections"]
+            if detection["category"] == "ad"
+            and detection["source"] in {"keyword", "regex"}
+        ]
+
+        assert initial_rule_ad
+        assert filtered["action"] == "sanitize"
+        assert filtered["sanitized_text"] == expected
+        assert "[联系方式已隐藏]" in filtered["sanitized_text"]
+        assert retained_phrase in filtered["sanitized_text"]
+        assert retained_tail in filtered["sanitized_text"]
+        assert filtered["rewrite_recheck"] is not None
+        assert filtered["rewrite_recheck"]["detections"]
+        assert all(
+            detection["source"] == "semantic_ml"
+            and detection["category"] == "ad"
+            for detection in filtered["rewrite_recheck"]["detections"]
+        )
+
+
+def test_contact_wechat_is_minimally_sanitized(production_config_without_model):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
+
+    filtered = pipeline.detect_text("联系微信了解详情")
+
+    assert filtered["action"] == "sanitize"
+    assert filtered["sanitized_text"] == "[联系方式已隐藏]了解详情"
+    assert filtered["rewrite_recheck"] is not None
+    assert filtered["rewrite_recheck"]["detections"] == []
+
+
+def test_residual_rule_detection_still_blocks(
+    monkeypatch, production_config_without_model
+):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
+    real_rule_detect = pipeline.rule_filter.detect
+
+    def detect_with_residual_rule(text):
+        detections = real_rule_detect(text)
+        if "[联系方式已隐藏]" in text:
+            detections.append(
+                Detection(
+                    category="ad",
+                    level="medium",
+                    score=55,
+                    reason="residual rule evidence",
+                    source="regex",
+                    matches=["联系方式"],
+                )
+            )
+        return detections
+
+    monkeypatch.setattr(pipeline.rule_filter, "detect", detect_with_residual_rule)
+    monkeypatch.setattr(
+        pipeline.semantic_classifier,
+        "detect",
+        lambda _text: [_semantic_detection("ad")],
+    )
+
+    filtered = pipeline.detect_text("加 V-X 领取优惠券，数量有限")
+
+    assert filtered["action"] == "block"
+    assert filtered["sanitized_text"] is None
+    assert any(
+        detection["source"] == "regex"
+        for detection in filtered["rewrite_recheck"]["detections"]
+    )
+
+
+def test_residual_non_ad_semantic_risk_still_blocks(
+    monkeypatch, production_config_without_model
+):
+    for category in ("porn", "violence", "sensitive"):
+        pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
+
+        def fake_semantic_detect(text, residual_category=category):
+            if "加微信" in text:
+                return []
+            return [_semantic_detection(residual_category)]
+
+        monkeypatch.setattr(
+            pipeline.semantic_classifier,
+            "detect",
+            fake_semantic_detect,
+        )
+
+        filtered = pipeline.detect_text("加 V-X 领取优惠券，数量有限")
+
+        assert filtered["action"] == "block"
+        assert filtered["sanitized_text"] is None
+        assert {
+            detection["category"]
+            for detection in filtered["rewrite_recheck"]["detections"]
+        } == {category}

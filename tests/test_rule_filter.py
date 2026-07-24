@@ -61,3 +61,21 @@ def test_sanitizer_replaces_regex_match_values(tmp_path):
     assert "13812345678" not in sanitized
     assert "user@example.com" not in sanitized
     assert sanitized.count("***") == 2
+
+
+def test_sanitizer_uses_contact_placeholder_and_generic_fallback():
+    sanitized = Sanitizer().sanitize(
+        "加微信领取优惠券，普通敏感片段",
+        ["普通敏感片段", "加微信", ""],
+    )
+
+    assert sanitized == "[联系方式已隐藏]领取优惠券，***"
+
+
+def test_sanitizer_prefers_longest_match_first():
+    sanitized = Sanitizer().sanitize(
+        "加微信微信普通片段",
+        ["微信", "加微信", "普通片段", ""],
+    )
+
+    assert sanitized == "[联系方式已隐藏]******"
