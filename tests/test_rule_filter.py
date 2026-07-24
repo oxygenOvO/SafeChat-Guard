@@ -70,3 +70,12 @@ def test_sanitizer_uses_contact_placeholder_and_generic_fallback():
     )
 
     assert sanitized == "[联系方式已隐藏]领取优惠券，***"
+
+
+def test_sanitizer_prefers_longest_match_first():
+    sanitized = Sanitizer().sanitize(
+        "加微信微信普通片段",
+        ["微信", "加微信", "普通片段", ""],
+    )
+
+    assert sanitized == "[联系方式已隐藏]******"

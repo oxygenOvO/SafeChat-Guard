@@ -19,11 +19,6 @@ from .semantic_config import (
 
 
 class SafeChatPipeline:
-    _BENIGN_COUPON_MESSAGES = {
-        "领取优惠券,名额有限",
-        "[联系方式已隐藏]领取优惠券,名额有限",
-    }
-
     def __init__(self, config: dict, *, project_root: str | Path | None = None):
         self.config = config
         self.project_root = Path(project_root or Path.cwd()).resolve()
@@ -177,17 +172,18 @@ class SafeChatPipeline:
         return self._filter_text(text, stage="detect")
 
     def _scan_text(self, text: str) -> tuple[str, list]:
+        normalized, rule_detections, semantic_detections = (
+            self._scan_text_layers(text)
+        )
+        return normalized, self._deduplicate_detections(
+            [*rule_detections, *semantic_detections]
+        )
+
+    def _scan_text_layers(self, text: str) -> tuple[str, list, list]:
         normalized = self.normalizer.normalize(text)
-        detections = self.rule_filter.detect(normalized)
+        rule_detections = self.rule_filter.detect(normalized)
         semantic_detections = self.semantic_classifier.detect(normalized)
-        if not detections and normalized in self._BENIGN_COUPON_MESSAGES:
-            semantic_detections = [
-                detection
-                for detection in semantic_detections
-                if detection.category != "ad"
-            ]
-        detections.extend(semantic_detections)
-        return normalized, self._deduplicate_detections(detections)
+        return normalized, rule_detections, semantic_detections
 
     def _filter_output(self, text: str) -> dict:
         if not isinstance(text, str):
@@ -228,9 +224,25 @@ class SafeChatPipeline:
     def _filter_text(self, text: str, stage: str) -> dict:
         if not isinstance(text, str):
             raise TypeError("text must be a string")
-        normalized, detections = self._scan_text(text)
+        normalized, rule_detections, semantic_detections = (
+            self._scan_text_layers(text)
+        )
+        detections = self._deduplicate_detections(
+            [*rule_detections, *semantic_detections]
+        )
         score = max((d.score for d in detections), default=0)
-        matches = [match for detection in detections for match in detection.matches]
+        matches = [
+            match
+            for detection in rule_detections
+            for match in detection.matches
+            if match and match in normalized
+        ]
+        has_replaceable_ad_evidence = any(
+            detection.category == "ad"
+            and detection.source in {"keyword", "regex"}
+            and any(match and match in normalized for match in detection.matches)
+            for detection in rule_detections
+        )
         categories = sorted({d.category for d in detections})
         block_threshold = int(self.config["risk"].get("block_threshold", 80))
         sanitize_threshold = int(self.config["risk"].get("sanitize_threshold", 40))
@@ -246,12 +258,30 @@ class SafeChatPipeline:
             sanitized = self.sanitizer.sanitize(normalized, matches)
             if "，" in text and "," not in text:
                 sanitized = sanitized.replace(",", "，")
-            re_normalized, re_detections = self._scan_text(sanitized)
+            (
+                re_normalized,
+                re_rule_detections,
+                re_semantic_detections,
+            ) = self._scan_text_layers(sanitized)
+            re_detections = self._deduplicate_detections(
+                [*re_rule_detections, *re_semantic_detections]
+            )
             rewrite_recheck = {
                 "normalized_text": re_normalized,
                 "detections": [d.__dict__ for d in re_detections],
             }
-            if re_detections:
+            semantic_ad_only = (
+                bool(re_detections)
+                and not re_rule_detections
+                and all(
+                    detection.source == "semantic_ml"
+                    and detection.category == "ad"
+                    for detection in re_detections
+                )
+            )
+            if re_detections and not (
+                has_replaceable_ad_evidence and semantic_ad_only
+            ):
                 action = "block"
                 risk_level = "high"
                 sanitized = None

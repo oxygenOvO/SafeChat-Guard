@@ -1,4 +1,4 @@
-﻿class Sanitizer:
+class Sanitizer:
     CONTACT_CUES = {
         "加微信",
         "联系微信",
