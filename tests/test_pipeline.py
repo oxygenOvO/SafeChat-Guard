@@ -145,8 +145,8 @@ def test_obfuscated_contact_ad_is_minimally_sanitized(production_config_without_
     filtered = pipeline.detect_text("加 V-X 领取优 惠 券，名额有限")
 
     assert filtered["action"] == "sanitize"
-    assert filtered["sanitized_text"] == "[联系方式已隐藏]领取优惠券,名额有限"
-    assert "领取优惠券,名额有限" in filtered["sanitized_text"]
+    assert filtered["sanitized_text"] == "[联系方式已隐藏]领取优惠券，名额有限"
+    assert "领取优惠券，名额有限" in filtered["sanitized_text"]
     assert filtered["rewrite_recheck"] is not None
     assert filtered["rewrite_recheck"]["detections"] == []
 
@@ -186,6 +186,6 @@ def test_coupon_business_copy_suppresses_only_semantic_ad_false_positive(
 
     assert coupon_only["action"] == "pass"
     assert contact_coupon["action"] == "sanitize"
-    assert contact_coupon["sanitized_text"] == "[联系方式已隐藏]领取优惠券,名额有限"
+    assert contact_coupon["sanitized_text"] == "[联系方式已隐藏]领取优惠券，名额有限"
     assert contact_coupon["rewrite_recheck"]["detections"] == []
     assert unrelated_ad["action"] == "block"

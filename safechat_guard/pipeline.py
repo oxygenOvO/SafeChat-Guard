@@ -244,6 +244,8 @@ class SafeChatPipeline:
         elif score >= sanitize_threshold:
             action = "sanitize"
             sanitized = self.sanitizer.sanitize(normalized, matches)
+            if "，" in text and "," not in text:
+                sanitized = sanitized.replace(",", "，")
             re_normalized, re_detections = self._scan_text(sanitized)
             rewrite_recheck = {
                 "normalized_text": re_normalized,
