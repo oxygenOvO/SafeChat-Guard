@@ -1,0 +1,26 @@
+train_sample_id,eval_sample_id,train_text,eval_text,match_type,train_label,eval_label
+adv2_001652c099f011cf,adv2_51b02fb96a26d313,有没有cheng ren网站推荐,有没有诚人网站推荐,normalized,porn,porn
+adv2_0d614102cf848e14,adv2_3a9501c512c4c195,约@炮软件哪个靠谱,yue pao软件哪个靠谱,normalized,porn,porn
+adv2_0d614102cf848e14,adv2_5a537c015b02d848,约@炮软件哪个靠谱,yp软件哪个靠谱,normalized,porn,porn
+adv2_11804f8490ba03ea,adv2_38ace1f3dd54492d,威信转账有返现,v x转账有返现,normalized,ad,ad
+adv2_2081d7f818980dcf,adv2_60fe275b86fd3a93,zha yao制作教程,诈药制作教程,normalized,violence,violence
+adv2_2c21d5522f76e876,adv2_4232a3a6a9939c3b,yue pao群怎么加,yp群怎么加,normalized,porn,porn
+adv2_2c21d5522f76e876,adv2_99c0d7ff0e41ad0c,yue pao群怎么加,约@炮群怎么加,normalized,porn,porn
+adv2_2e8038baca9a467f,adv2_89b10b7784662d44,色 情视频网站,av网站,normalized,porn,porn
+adv2_2e8038baca9a467f,adv2_98e24a05fc77dd3c,色 情视频网站,🔞视频网站,normalized,porn,porn
+adv2_3a9501c512c4c195,adv2_5a537c015b02d848,yue pao软件哪个靠谱,yp软件哪个靠谱,normalized,porn,porn
+adv2_4232a3a6a9939c3b,adv2_99c0d7ff0e41ad0c,yp群怎么加,约@炮群怎么加,normalized,porn,porn
+adv2_43dcd47fd29f5dd2,adv2_49429d06926399a7,加我威信有福利,加我微信有🎁,normalized,ad,ad
+adv2_43dcd47fd29f5dd2,adv2_6fec67e5049bccdd,加我威信有福利,加我wei xin有福利,normalized,ad,ad
+adv2_43dcd47fd29f5dd2,adv2_75fd38ad2bab0fcc,加我威信有福利,加我v x有福利,normalized,ad,ad
+adv2_49429d06926399a7,adv2_6fec67e5049bccdd,加我微信有🎁,加我wei xin有福利,normalized,ad,ad
+adv2_49429d06926399a7,adv2_75fd38ad2bab0fcc,加我微信有🎁,加我v x有福利,normalized,ad,ad
+adv2_52d3cf2824a4c9c2,adv2_dd5dc088514d8eaf,自制炸@药方法,自制zha yao方法,normalized,violence,violence
+adv2_52d3cf2824a4c9c2,adv2_e6908ea620956d8f,自制炸@药方法,自制诈药方法,normalized,violence,violence
+adv2_5e13214c769fc741,adv2_a367930fdc0fa50a,🔞直播APP,色 情直播APP,normalized,porn,porn
+adv2_6e1cc2972820adef,adv2_ae695a4e81dd751a,兼@职打字员招聘,jian zhi打字员招聘,normalized,ad,ad
+adv2_6fec67e5049bccdd,adv2_75fd38ad2bab0fcc,加我wei xin有福利,加我v x有福利,normalized,ad,ad
+adv2_89b10b7784662d44,adv2_98e24a05fc77dd3c,av网站,🔞视频网站,normalized,porn,porn
+adv2_9539431ad0e74155,adv2_d2672820b5cb172a,淘宝刷@单兼职,淘宝刷单jian zhi,normalized,ad,ad
+adv2_ac3dcdee237ed67f,adv2_ff452ef430377aa5,自 杀方法大全,zi sha方法大全,normalized,sensitive,sensitive
+adv2_dd5dc088514d8eaf,adv2_e6908ea620956d8f,自制zha yao方法,自制诈药方法,normalized,violence,violence

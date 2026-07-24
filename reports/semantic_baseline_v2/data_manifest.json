@@ -1,0 +1,105 @@
+{
+  "build_parameters": {
+    "conflict_policy": "exclude_all_multi_label_normalized_text_groups",
+    "deduplication": "exact_then_text_normalizer_equivalence",
+    "evaluation_data_used": false,
+    "group_id": "SHA-256(normalized_text)",
+    "oversampling_before_split": false,
+    "source_allowlist": [
+      "data/normal_sentences.txt",
+      "data/violation_sentences/ad.txt",
+      "data/violation_sentences/porn.txt",
+      "data/violation_sentences/violence.txt",
+      "data/violation_sentences/sensitive.txt"
+    ],
+    "split_ratios": {
+      "test": 0.15,
+      "train": 0.7,
+      "validation": 0.15
+    }
+  },
+  "conflict_group_count": 0,
+  "conflict_occurrence_count": 0,
+  "cross_split_leakage_by_type": {},
+  "cross_split_leakage_count": 0,
+  "evaluation_scope": "weak_label_grouped_holdout",
+  "exact_duplicate_count": 51,
+  "nonblank_line_count": 486,
+  "normalized_equivalent_duplicate_count": 0,
+  "official_competition_metric": false,
+  "per_label_count": {
+    "ad": 75,
+    "normal": 138,
+    "porn": 74,
+    "sensitive": 82,
+    "violence": 66
+  },
+  "per_split_count": {
+    "test": 65,
+    "train": 305,
+    "validation": 65
+  },
+  "per_split_label_count": {
+    "test": {
+      "ad": 11,
+      "normal": 21,
+      "porn": 11,
+      "sensitive": 12,
+      "violence": 10
+    },
+    "train": {
+      "ad": 53,
+      "normal": 96,
+      "porn": 52,
+      "sensitive": 58,
+      "violence": 46
+    },
+    "validation": {
+      "ad": 11,
+      "normal": 21,
+      "porn": 11,
+      "sensitive": 12,
+      "violence": 10
+    }
+  },
+  "random_seed": 42,
+  "raw_line_count": 486,
+  "schema_version": 2,
+  "source_files": [
+    {
+      "nonblank_line_count": 189,
+      "path": "data/normal_sentences.txt",
+      "raw_line_count": 189,
+      "sha256": "eca3d6042ee924dad8dd1858b62c9a84f046d4373a94585cb136dcdd3ff8aada"
+    },
+    {
+      "nonblank_line_count": 75,
+      "path": "data/violation_sentences/ad.txt",
+      "raw_line_count": 75,
+      "sha256": "073ee9c703bdfe2c52b03a7398c484b48000dcf798f4247a4d702d433f28b0d2"
+    },
+    {
+      "nonblank_line_count": 74,
+      "path": "data/violation_sentences/porn.txt",
+      "raw_line_count": 74,
+      "sha256": "1a30834cfcc98a5b09aee9b66a23c81563c22117ef8cd3f80d00c471e30c2d11"
+    },
+    {
+      "nonblank_line_count": 66,
+      "path": "data/violation_sentences/violence.txt",
+      "raw_line_count": 66,
+      "sha256": "6f0c0e89c08dfc4b0a54a8bbbf205799fb3813ea5d3ee7fb4a42ed351f33fc80"
+    },
+    {
+      "nonblank_line_count": 82,
+      "path": "data/violation_sentences/sensitive.txt",
+      "raw_line_count": 82,
+      "sha256": "ba727f71149ef9bfe48c61edf02f8f4a4360923611cd0c370dd9d939a9fd17ed"
+    }
+  ],
+  "source_type": "weak_label",
+  "split_manifest_sha256": "4542a463ed42ddd963e0c79caedcd777025811d108feefc3c817419b13ea37fa",
+  "unique_after_deduplication": 435,
+  "unique_after_exact_deduplication": 435,
+  "unique_after_normalized_deduplication": 435
+}

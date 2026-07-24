@@ -1,0 +1,329 @@
+{
+  "audit_passed": true,
+  "generation_version": "independent_eval_v1_repair_v2_2",
+  "new_candidates_audit_passed": true,
+  "original_file_sha256": {
+    "data/evaluation/semantic_independent_eval_v1_candidates.csv": "906d978e4ab3a2369b37b6fb2d39f1866dedd376ec7eae6ccca42eb6b9802e62",
+    "reports/data_audit_semantic_gold_v1_repaired/semantic_linkage_audit_v2_1.csv": "f141ebdc3303daf324dab25372dcdfe69f422026bb9b35aa887118c4aff7b201",
+    "reports/manual_review/semantic_independent_eval_v1_repair_trial12_v2.csv": "94d2989f4e34d7e3ad4f699e7ca15ef34f020ae692f4066bd018d37ff03acad0",
+    "reports/manual_review/semantic_independent_eval_v1_repair_trial13_v1.csv": "65d3246c5549db50d2e9d0260f6ee7156ef6409ee8f776f3bed11ac071088212",
+    "reports/manual_review/semantic_independent_eval_v1_repair_trial8_v2_1.csv": "f4bfaf35c8a517104e683f28bfd3e8192e187abea01dc9260e14af5074b6d4e7",
+    "reports/manual_review/semantic_independent_eval_v1_repair_v2_1_review_ad.csv": "bc20930d112dfde411000a7ef784846ce5154036be4d638243cda13358873cd1",
+    "reports/manual_review/semantic_independent_eval_v1_repair_v2_1_review_porn.csv": "67879cf4d6826de47982f63256c293f69734687ec09cea9734ccb509929952cf",
+    "reports/manual_review/semantic_independent_eval_v1_repair_v2_1_review_sensitive.csv": "2ac71e7dfb7b39274c79a09ae90dea2313805598922e7b92cce901c6e050fb29",
+    "reports/manual_review/semantic_independent_eval_v1_repair_v2_1_review_violence.csv": "d66a9f82e0ce2085d39addceabd30bb66f5ce83a055e75a5d78212c16d73907a",
+    "reports/manual_review/semantic_independent_eval_v1_repair_v2_1_sanitize_review.csv": "9a4f17aab1e2a7411cf9a6533469517281da2f7f618bc122964c71f754ab4b8d",
+    "reports/manual_review/semantic_independent_eval_v1_repair_v2_linkage_audit.csv": "cec5cdadfac29cbc76081239c412d118b9b4761d4906840bddaa13a71526d34f",
+    "reports/manual_review/semantic_independent_eval_v1_review_rules_v1.md": "eefdd4e654e81fcea84b6e74168c461a1b98228f887056508efe40a0921c41bd",
+    "reports/manual_review/semantic_independent_eval_v1_review_template.csv": "906d978e4ab3a2369b37b6fb2d39f1866dedd376ec7eae6ccca42eb6b9802e62",
+    "reports/manual_review/semantic_independent_eval_v1_sanitize_audit.csv": "6bb850934c50060c2f1eb84d0dd1940fd2c3e09daae9f6edb69151f858a4d2bb",
+    "reports/manual_review/semantic_independent_eval_v1_trial30.csv": "eaa6ff7fb13a1518214f2f8c3e0910e9c0546529190d3a5d4018500d5d39c3f0"
+  },
+  "original_files_unchanged": true,
+  "output_sha256": {
+    "data/evaluation/semantic_independent_eval_v1_repaired_candidates.csv": "05d7be09b2fd21ec9335afbad1ec80d1834fe4faa8d7ecff903080b751a9dfdd",
+    "data/evaluation/semantic_independent_eval_v1_replacement_manifest.csv": "f43867ec0db8b086765cd3a8775a0c901098af2a36cb44e8ea84ae726715afce",
+    "reports/manual_review/semantic_independent_eval_v1_repaired_review_template.csv": "05d7be09b2fd21ec9335afbad1ec80d1834fe4faa8d7ecff903080b751a9dfdd"
+  },
+  "repaired_candidates_audit_passed": true,
+  "replacement_count": 40,
+  "replacement_distribution": {
+    "ad/sanitize": 9,
+    "porn/block": 1,
+    "porn/sanitize": 10,
+    "sensitive/sanitize": 10,
+    "violence/sanitize": 10
+  },
+  "retained_count": 160,
+  "review_template_generated": true,
+  "schema_version": 2,
+  "semantic_linkage_audit": {
+    "by_label": {
+      "ad": {
+        "linked": 9
+      },
+      "porn": {
+        "linked": 10
+      },
+      "sensitive": {
+        "linked": 10
+      },
+      "violence": {
+        "linked": 10
+      }
+    },
+    "candidate_count": 39,
+    "candidate_id_mismatch": false,
+    "duplicate_sample_id_count": 0,
+    "forbidden_sample_ids_present": [],
+    "gates": {
+      "all_legal_contexts_present": true,
+      "all_linkage_reasons_present": true,
+      "all_risk_fragments_present": true,
+      "candidate_ids_match": true,
+      "duplicate_sample_id_count_zero": true,
+      "forbidden_sample_ids_absent": true,
+      "invalid_status_count_zero": true,
+      "pending_count_zero": true,
+      "strict_structure_reasons_present": true,
+      "unlinked_count_zero": true
+    },
+    "generation_version": "independent_eval_v1_repair_v2_2",
+    "invalid_statuses": [],
+    "linked_count": 39,
+    "missing_legal_context_count": 0,
+    "missing_linkage_reason_count": 0,
+    "missing_risk_fragment_count": 0,
+    "pending_count": 0,
+    "schema_version": 1,
+    "semantic_linkage_audit_passed": true,
+    "strict_structure_count": 17,
+    "strict_structure_missing_reason_count": 0,
+    "unlinked_count": 0
+  },
+  "semantic_linkage_audit_passed": true,
+  "structure_audit": {
+    "by_label": {
+      "ad": {
+        "count": 9,
+        "gates": {
+          "at_least_four_structures": true,
+          "at_least_three_operations": true,
+          "max_structure_ratio_at_most_0_40": true,
+          "risk_at_end_ratio_at_most_0_40": true
+        },
+        "max_structure_ratio": 0.111111,
+        "risk_at_end_ratio": 0.222222,
+        "risk_position_distribution": {
+          "embedded": 2,
+          "end": 2,
+          "middle": 3,
+          "opening": 2
+        },
+        "sanitize_operation_distribution": {
+          "delete_promotion_clause": 1,
+          "neutralize_promotion": 1,
+          "remove_polluted_field": 1,
+          "remove_polluted_title": 1,
+          "remove_private_channel": 4,
+          "replace_with_official_channel": 1
+        },
+        "sanitize_operation_type_count": 6,
+        "structure_type_count": 9,
+        "structure_type_distribution": {
+          "closing_fragment": 1,
+          "dialogue": 1,
+          "embedded_clause": 1,
+          "field_pollution": 1,
+          "list_pollution": 1,
+          "opening_fragment": 1,
+          "same_sentence_embedded": 1,
+          "signature_pollution": 1,
+          "title_pollution": 1
+        }
+      },
+      "porn": {
+        "count": 10,
+        "gates": {
+          "at_least_four_structures": true,
+          "at_least_three_operations": true,
+          "max_structure_ratio_at_most_0_40": true,
+          "risk_at_end_ratio_at_most_0_40": true
+        },
+        "max_structure_ratio": 0.2,
+        "risk_at_end_ratio": 0.2,
+        "risk_position_distribution": {
+          "embedded": 3,
+          "end": 2,
+          "middle": 3,
+          "opening": 2
+        },
+        "sanitize_operation_distribution": {
+          "delete_explicit_promotion": 3,
+          "remove_polluted_field": 1,
+          "remove_polluted_signature": 1,
+          "remove_polluted_title": 1,
+          "remove_solicitation": 2,
+          "replace_with_neutral_placeholder": 2
+        },
+        "sanitize_operation_type_count": 6,
+        "structure_type_count": 8,
+        "structure_type_distribution": {
+          "dialogue": 2,
+          "embedded_clause": 1,
+          "field_pollution": 1,
+          "list_pollution": 1,
+          "opening_fragment": 1,
+          "signature_pollution": 1,
+          "title_pollution": 1,
+          "ui_pollution": 2
+        }
+      },
+      "sensitive": {
+        "count": 10,
+        "gates": {
+          "at_least_four_structures": true,
+          "at_least_three_operations": true,
+          "max_structure_ratio_at_most_0_40": true,
+          "risk_at_end_ratio_at_most_0_40": true
+        },
+        "max_structure_ratio": 0.3,
+        "risk_at_end_ratio": 0.1,
+        "risk_position_distribution": {
+          "embedded": 3,
+          "end": 1,
+          "middle": 4,
+          "opening": 2
+        },
+        "sanitize_operation_distribution": {
+          "generalize_private_field": 1,
+          "redact_health_support": 3,
+          "redact_identifier": 4,
+          "remove_health_note": 1,
+          "remove_polluted_title": 1
+        },
+        "sanitize_operation_type_count": 5,
+        "structure_type_count": 6,
+        "structure_type_distribution": {
+          "dialogue": 2,
+          "field_pollution": 3,
+          "list_pollution": 1,
+          "opening_fragment": 1,
+          "same_sentence_embedded": 2,
+          "title_pollution": 1
+        }
+      },
+      "violence": {
+        "count": 10,
+        "gates": {
+          "at_least_four_structures": true,
+          "at_least_three_operations": true,
+          "max_structure_ratio_at_most_0_40": true,
+          "risk_at_end_ratio_at_most_0_40": true
+        },
+        "max_structure_ratio": 0.3,
+        "risk_at_end_ratio": 0.2,
+        "risk_position_distribution": {
+          "embedded": 1,
+          "end": 2,
+          "middle": 5,
+          "opening": 2
+        },
+        "sanitize_operation_distribution": {
+          "remove_polluted_signature": 1,
+          "remove_polluted_title": 1,
+          "remove_threat_field": 2,
+          "rewrite_nonviolent": 6
+        },
+        "sanitize_operation_type_count": 4,
+        "structure_type_count": 7,
+        "structure_type_distribution": {
+          "dialogue": 3,
+          "field_pollution": 1,
+          "list_pollution": 1,
+          "opening_fragment": 1,
+          "same_sentence_embedded": 2,
+          "signature_pollution": 1,
+          "title_pollution": 1
+        }
+      }
+    },
+    "candidate_count": 39,
+    "duplicate_template_signature_count": 0,
+    "gates": {
+      "duplicate_template_signature_count_zero": true,
+      "label_structure_gates_passed": true,
+      "mechanical_pairing_count_zero": true,
+      "meta_instruction_count_zero": true,
+      "obvious_two_part_ratio_below_0_40": true,
+      "real_identifier_count_zero": true,
+      "risk_fragment_present_for_all": true,
+      "safe_context_reference_count_zero": true,
+      "sanitized_text_valid_for_all": true,
+      "semantic_unlinked_count_zero": true,
+      "severe_core_intent_count_zero": true,
+      "unnatural_obfuscation_count_zero": true
+    },
+    "generation_version": "independent_eval_v1_repair_v2_2",
+    "invalid_sanitized_text_count": 0,
+    "mechanical_pairing_count": 0,
+    "meta_instruction_count": 0,
+    "missing_risk_fragment_count": 0,
+    "obvious_two_part_count": 7,
+    "obvious_two_part_ratio": 0.179487,
+    "real_identifier_count": 0,
+    "safe_context_reference_count": 0,
+    "schema_version": 1,
+    "semantic_unlinked_count": 0,
+    "severe_core_intent_count": 0,
+    "structure_audit_passed": true,
+    "unnatural_obfuscation_count": 0
+  },
+  "structure_audit_passed": true,
+  "v2_2_targeted_candidates_audit": {
+    "by_expected_action": {
+      "sanitize": 4
+    },
+    "by_label": {
+      "sensitive": 3,
+      "violence": 1
+    },
+    "by_label_and_action": {
+      "ad": {},
+      "normal": {},
+      "porn": {},
+      "sensitive": {
+        "sanitize": 3
+      },
+      "violence": {
+        "sanitize": 1
+      }
+    },
+    "candidate_count": 4,
+    "candidate_file": "data/evaluation/semantic_independent_eval_v1_replacement_manifest.csv#repair_v2_2_targeted_candidates",
+    "duplicate_sample_id_count": 0,
+    "eliminated_reference_count": 40,
+    "eliminated_text_overlap_count": 0,
+    "exact_overlap_count": 0,
+    "hard_overlap_passed": true,
+    "high_similarity_candidate_count": 0,
+    "high_similarity_threshold": 0.55,
+    "internal_high_similarity_count": 0,
+    "internal_overlap_count": 0,
+    "label_conflict_count": 0,
+    "nfkc_overlap_count": 0,
+    "old_evaluation_overlap_count": 0,
+    "reference_files": [
+      "data/normal_sentences.txt",
+      "data/violation_sentences/ad.txt",
+      "data/violation_sentences/porn.txt",
+      "data/violation_sentences/violence.txt",
+      "data/violation_sentences/sensitive.txt",
+      "data/evaluation/baseline_eval_v1.csv",
+      "data/evaluation/adversarial_eval_v1.csv",
+      "data/evaluation/adversarial_eval_v2.csv",
+      "data/evaluation/adversarial_eval_v3.csv",
+      "original_eliminated_candidates",
+      "repair_v1_sanitize_candidates",
+      "candidate_set_internal"
+    ],
+    "reference_text_count": 1412,
+    "repair_v1_overlap_by_match_type": {
+      "exact": 0,
+      "nfkc": 0,
+      "text_normalizer": 0
+    },
+    "repair_v1_text_overlap_count": 0,
+    "review_status": {
+      "pending": 4
+    },
+    "schema_version": 1,
+    "text_normalizer_overlap_count": 0,
+    "training_source_overlap_count": 0
+  },
+  "v2_2_targeted_candidates_audit_passed": true,
+  "verified_sanitize_candidate_count": 35,
+  "verified_sanitize_candidates_unchanged": true,
+  "verified_sanitize_sample_text_sha256_after": "c28174e6127a4ba6736391c82e7b2e626018ed6951524d9e04a8fbb963c86824",
+  "verified_sanitize_sample_text_sha256_before": "c28174e6127a4ba6736391c82e7b2e626018ed6951524d9e04a8fbb963c86824"
+}

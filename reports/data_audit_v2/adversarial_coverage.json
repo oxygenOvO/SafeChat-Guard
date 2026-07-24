@@ -1,0 +1,109 @@
+{
+  "by_label": {
+    "ad": 30,
+    "porn": 33,
+    "sensitive": 14,
+    "violence": 20
+  },
+  "by_perturbation_type": {
+    "abbreviation": 5,
+    "character_split": 10,
+    "emoji": 8,
+    "homophone": 9,
+    "mixed_language": 8,
+    "pinyin": 10,
+    "repeat_character": 10,
+    "space_insertion": 10,
+    "symbol_insertion": 10,
+    "traditional_simplified": 10,
+    "variant_character": 7
+  },
+  "duplicate_candidate_pairs": 74,
+  "label_by_perturbation_type": {
+    "ad": {
+      "abbreviation": 2,
+      "character_split": 3,
+      "emoji": 3,
+      "homophone": 2,
+      "mixed_language": 3,
+      "phone_obfuscation": 0,
+      "pinyin": 3,
+      "repeat_character": 3,
+      "space_insertion": 3,
+      "symbol_insertion": 3,
+      "traditional_simplified": 3,
+      "url_obfuscation": 0,
+      "variant_character": 2
+    },
+    "porn": {
+      "abbreviation": 3,
+      "character_split": 3,
+      "emoji": 3,
+      "homophone": 3,
+      "mixed_language": 3,
+      "phone_obfuscation": 0,
+      "pinyin": 3,
+      "repeat_character": 3,
+      "space_insertion": 3,
+      "symbol_insertion": 3,
+      "traditional_simplified": 3,
+      "url_obfuscation": 0,
+      "variant_character": 3
+    },
+    "sensitive": {
+      "abbreviation": 0,
+      "character_split": 2,
+      "emoji": 0,
+      "homophone": 2,
+      "mixed_language": 0,
+      "phone_obfuscation": 0,
+      "pinyin": 2,
+      "repeat_character": 2,
+      "space_insertion": 2,
+      "symbol_insertion": 2,
+      "traditional_simplified": 2,
+      "url_obfuscation": 0,
+      "variant_character": 0
+    },
+    "violence": {
+      "abbreviation": 0,
+      "character_split": 2,
+      "emoji": 2,
+      "homophone": 2,
+      "mixed_language": 2,
+      "phone_obfuscation": 0,
+      "pinyin": 2,
+      "repeat_character": 2,
+      "space_insertion": 2,
+      "symbol_insertion": 2,
+      "traditional_simplified": 2,
+      "url_obfuscation": 0,
+      "variant_character": 2
+    }
+  },
+  "review_status": "pending",
+  "shortfall_by_perturbation_type": {
+    "abbreviation": 5,
+    "character_split": 0,
+    "emoji": 2,
+    "homophone": 1,
+    "mixed_language": 2,
+    "phone_obfuscation": 10,
+    "pinyin": 0,
+    "repeat_character": 0,
+    "space_insertion": 0,
+    "symbol_insertion": 0,
+    "traditional_simplified": 0,
+    "url_obfuscation": 10,
+    "variant_character": 3
+  },
+  "shortfall_total": 33,
+  "target_per_label_per_type": {
+    "ad": 3,
+    "porn": 3,
+    "sensitive": 2,
+    "violence": 2
+  },
+  "total": 97,
+  "version": "adversarial_eval_v2"
+}

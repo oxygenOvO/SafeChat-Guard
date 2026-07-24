@@ -1,0 +1,38 @@
+{
+  "evaluation_scope": "weak_label_grouped_holdout",
+  "final_model_path": "models/semantic_model_v2.joblib",
+  "official_competition_metric": false,
+  "schema_version": 2,
+  "selected_model": "char",
+  "selection_metric": "macro_f1_then_accuracy",
+  "selection_split": "validation",
+  "test": {
+    "char": {
+      "accuracy": 0.5384615384615384,
+      "macro_f1": 0.48773448773448774,
+      "normal_false_positive_rate": 0.14285714285714285,
+      "risk_recall": 0.6136363636363636
+    },
+    "word": {
+      "accuracy": 0.3230769230769231,
+      "macro_f1": 0.09767441860465116,
+      "normal_false_positive_rate": 0.0,
+      "risk_recall": 0.0
+    }
+  },
+  "test_metrics_used_for_selection": false,
+  "training_duration_seconds": {
+    "char": 0.049195200000212935,
+    "word": 0.03114079999977548
+  },
+  "validation": {
+    "char": {
+      "accuracy": 0.676923076923077,
+      "macro_f1": 0.6291486291486291
+    },
+    "word": {
+      "accuracy": 0.3230769230769231,
+      "macro_f1": 0.09767441860465116
+    }
+  }
+}

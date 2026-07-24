@@ -1,0 +1,76 @@
+{
+  "by_expected_action": {
+    "block": 60,
+    "pass": 100,
+    "sanitize": 40
+  },
+  "by_label": {
+    "ad": 25,
+    "normal": 100,
+    "porn": 25,
+    "sensitive": 25,
+    "violence": 25
+  },
+  "by_label_and_action": {
+    "ad": {
+      "block": 15,
+      "sanitize": 10
+    },
+    "normal": {
+      "pass": 100
+    },
+    "porn": {
+      "block": 15,
+      "sanitize": 10
+    },
+    "sensitive": {
+      "block": 15,
+      "sanitize": 10
+    },
+    "violence": {
+      "block": 15,
+      "sanitize": 10
+    }
+  },
+  "candidate_count": 200,
+  "candidate_file": "data/evaluation/semantic_independent_eval_v1_repaired_candidates.csv",
+  "duplicate_sample_id_count": 0,
+  "eliminated_reference_count": 40,
+  "eliminated_text_overlap_count": 0,
+  "exact_overlap_count": 0,
+  "hard_overlap_passed": true,
+  "high_similarity_candidate_count": 0,
+  "high_similarity_threshold": 0.55,
+  "internal_high_similarity_count": 0,
+  "internal_overlap_count": 0,
+  "label_conflict_count": 0,
+  "nfkc_overlap_count": 0,
+  "old_evaluation_overlap_count": 0,
+  "reference_files": [
+    "data/normal_sentences.txt",
+    "data/violation_sentences/ad.txt",
+    "data/violation_sentences/porn.txt",
+    "data/violation_sentences/violence.txt",
+    "data/violation_sentences/sensitive.txt",
+    "data/evaluation/baseline_eval_v1.csv",
+    "data/evaluation/adversarial_eval_v1.csv",
+    "data/evaluation/adversarial_eval_v2.csv",
+    "data/evaluation/adversarial_eval_v3.csv",
+    "original_eliminated_candidates",
+    "repair_v1_sanitize_candidates",
+    "candidate_set_internal"
+  ],
+  "reference_text_count": 1373,
+  "repair_v1_overlap_by_match_type": {
+    "exact": 0,
+    "nfkc": 0,
+    "text_normalizer": 0
+  },
+  "repair_v1_text_overlap_count": 0,
+  "review_status": {
+    "pending": 200
+  },
+  "schema_version": 1,
+  "text_normalizer_overlap_count": 0,
+  "training_source_overlap_count": 0
+}

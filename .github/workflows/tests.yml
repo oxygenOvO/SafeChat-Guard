@@ -1,0 +1,54 @@
+name: SafeChat-Guard Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+
+      - name: Scan committed delivery
+        run: python scripts/security_scan.py
+
+      - name: Run pytest
+        run: python -m pytest -q --basetemp=.test_tmp
+
+      - name: Verify runtime
+        run: python scripts/verify_runtime.py --iterations 20
+
+      - name: Compile Python files
+        run: python -m compileall app.py api_server.py safechat_guard scripts tests

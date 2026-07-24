@@ -1,0 +1,10 @@
+sample_id,pair_id,original_text,adversarial_text,label,perturbation_type,source,review_status,notes
+adv2_4232a3a6a9939c3b,pair_9118633eec2e9b73,约炮群怎么加,yp群怎么加,porn,abbreviation,data/violation_sentences/porn.txt,pending,high-confidence map replacement (0.85)
+adv2_5a537c015b02d848,pair_c8f03727ccdfa9a2,约炮软件哪个靠谱,yp软件哪个靠谱,porn,abbreviation,data/violation_sentences/porn.txt,pending,high-confidence map replacement (0.85)
+adv2_e10271fe7050ada3,pair_e9a4c45532544fa7,福利姬推特账号,🎁姬推特账号,porn,emoji,data/violation_sentences/porn.txt,pending,replace core risk expression with mapped emoji
+adv2_0e5425b8e6334d7d,pair_db1bec7c1aafa45e,附近的人找小姐,附近的人找小姝,porn,homophone,data/violation_sentences/porn.txt,pending,homophone confidence=medium; 近音替换但可能是正常人名用字; high-priority manual review required
+adv2_51b02fb96a26d313,pair_68f00a0fab00d692,有没有成人网站推荐,有没有诚人网站推荐,porn,homophone,data/violation_sentences/porn.txt,pending,homophone confidence=medium; 语境可识别但并非常见稳定写法; high-priority manual review required
+adv2_60fe275b86fd3a93,pair_af46d92729cbf587,炸药制作教程,诈药制作教程,violence,homophone,data/violation_sentences/violence.txt,pending,homophone confidence=medium; 近音可识别但存在语义歧义; high-priority manual review required
+adv2_cfdde1de930ada2e,pair_5177b54184e735e7,优惠券大放送,优 惠 券大放送,ad,space_insertion,data/violation_sentences/ad.txt,pending,insert spaces inside risk keyword: 优惠券
+adv2_d072a7486317a4b1,pair_b060796b0e1880cc,会员充值返利,会员充值返 利,ad,space_insertion,data/violation_sentences/ad.txt,pending,insert spaces inside risk keyword: 返利
+adv2_e56a77f306e0e47e,pair_a9c6afe7ec48dad4,招代理无押金,招代 理无押金,ad,space_insertion,data/violation_sentences/ad.txt,pending,insert spaces inside risk keyword: 代理

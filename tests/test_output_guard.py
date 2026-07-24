@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from safechat_guard.output_guard import OutputGuard
 from safechat_guard.pipeline import SafeChatPipeline
 
@@ -21,17 +19,35 @@ def test_output_guard_rewrites_privacy_only():
     assert "[邮箱]" in result["final_text"]
 
 
-def test_pipeline_logs_member_c_fields():
-    log_path = Path(".test_tmp/member_c_events.jsonl")
-    log_path.parent.mkdir(exist_ok=True)
-    config = {
-        "risk": {"block_threshold": 80, "sanitize_threshold": 40},
-        "llm": {"provider": "mock"},
-        "logging": {"path": str(log_path)},
-    }
-    pipeline = SafeChatPipeline(config)
-    result = pipeline.handle_chat("请测试")
+def test_pipeline_logs_input_output_and_final_separately(production_config_without_model):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
+    result = pipeline.handle_chat("safe test")
+
     assert "output_filter" in result
-    event = pipeline.logger.read_all()[-1]
-    for key in ["raw_reply", "final_reply", "risk_categories", "risk_level", "blocked", "rewritten", "matched_rules"]:
-        assert key in event
+    events = pipeline.logger.read_all()
+    assert [event["stage"] for event in events[-3:]] == ["input", "output", "final"]
+    output_result = events[-2]["result"]
+    for key in [
+        "risk_categories",
+        "risk_level",
+        "blocked",
+        "rewritten",
+        "matched_rules",
+    ]:
+        assert key in output_result
+    assert events[-2]["raw_reply"] == "[REDACTED]"
+
+
+def test_address_detection_avoids_common_suffix_false_positives():
+    guard = OutputGuard()
+    for text in ["\u601d\u8def", "\u6559\u5ba4", "\u529e\u516c\u5ba4", "\u804a\u5929\u5ba4"]:
+        _, detections = guard.mask_sensitive_info(text)
+        assert detections == []
+
+
+def test_address_detection_still_masks_structured_addresses():
+    guard = OutputGuard()
+    masked, detections = guard.mask_sensitive_info("\u5e78\u798f\u8def88\u53f7")
+
+    assert masked == "[\u5730\u5740]"
+    assert detections and detections[0].matches == ["address"]

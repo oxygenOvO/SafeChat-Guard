@@ -1,0 +1,44 @@
+{
+  "by_label": {
+    "ad": {
+      "linked": 9
+    },
+    "porn": {
+      "linked": 10
+    },
+    "sensitive": {
+      "linked": 10
+    },
+    "violence": {
+      "linked": 10
+    }
+  },
+  "candidate_count": 39,
+  "candidate_id_mismatch": false,
+  "duplicate_sample_id_count": 0,
+  "forbidden_sample_ids_present": [],
+  "gates": {
+    "all_legal_contexts_present": true,
+    "all_linkage_reasons_present": true,
+    "all_risk_fragments_present": true,
+    "candidate_ids_match": true,
+    "duplicate_sample_id_count_zero": true,
+    "forbidden_sample_ids_absent": true,
+    "invalid_status_count_zero": true,
+    "pending_count_zero": true,
+    "strict_structure_reasons_present": true,
+    "unlinked_count_zero": true
+  },
+  "generation_version": "independent_eval_v1_repair_v2_2",
+  "invalid_statuses": [],
+  "linked_count": 39,
+  "missing_legal_context_count": 0,
+  "missing_linkage_reason_count": 0,
+  "missing_risk_fragment_count": 0,
+  "pending_count": 0,
+  "schema_version": 1,
+  "semantic_linkage_audit_passed": true,
+  "strict_structure_count": 17,
+  "strict_structure_missing_reason_count": 0,
+  "unlinked_count": 0
+}

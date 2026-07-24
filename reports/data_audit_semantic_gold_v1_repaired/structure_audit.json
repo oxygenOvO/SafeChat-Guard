@@ -1,0 +1,177 @@
+{
+  "by_label": {
+    "ad": {
+      "count": 9,
+      "gates": {
+        "at_least_four_structures": true,
+        "at_least_three_operations": true,
+        "max_structure_ratio_at_most_0_40": true,
+        "risk_at_end_ratio_at_most_0_40": true
+      },
+      "max_structure_ratio": 0.111111,
+      "risk_at_end_ratio": 0.222222,
+      "risk_position_distribution": {
+        "embedded": 2,
+        "end": 2,
+        "middle": 3,
+        "opening": 2
+      },
+      "sanitize_operation_distribution": {
+        "delete_promotion_clause": 1,
+        "neutralize_promotion": 1,
+        "remove_polluted_field": 1,
+        "remove_polluted_title": 1,
+        "remove_private_channel": 4,
+        "replace_with_official_channel": 1
+      },
+      "sanitize_operation_type_count": 6,
+      "structure_type_count": 9,
+      "structure_type_distribution": {
+        "closing_fragment": 1,
+        "dialogue": 1,
+        "embedded_clause": 1,
+        "field_pollution": 1,
+        "list_pollution": 1,
+        "opening_fragment": 1,
+        "same_sentence_embedded": 1,
+        "signature_pollution": 1,
+        "title_pollution": 1
+      }
+    },
+    "porn": {
+      "count": 10,
+      "gates": {
+        "at_least_four_structures": true,
+        "at_least_three_operations": true,
+        "max_structure_ratio_at_most_0_40": true,
+        "risk_at_end_ratio_at_most_0_40": true
+      },
+      "max_structure_ratio": 0.2,
+      "risk_at_end_ratio": 0.2,
+      "risk_position_distribution": {
+        "embedded": 3,
+        "end": 2,
+        "middle": 3,
+        "opening": 2
+      },
+      "sanitize_operation_distribution": {
+        "delete_explicit_promotion": 3,
+        "remove_polluted_field": 1,
+        "remove_polluted_signature": 1,
+        "remove_polluted_title": 1,
+        "remove_solicitation": 2,
+        "replace_with_neutral_placeholder": 2
+      },
+      "sanitize_operation_type_count": 6,
+      "structure_type_count": 8,
+      "structure_type_distribution": {
+        "dialogue": 2,
+        "embedded_clause": 1,
+        "field_pollution": 1,
+        "list_pollution": 1,
+        "opening_fragment": 1,
+        "signature_pollution": 1,
+        "title_pollution": 1,
+        "ui_pollution": 2
+      }
+    },
+    "sensitive": {
+      "count": 10,
+      "gates": {
+        "at_least_four_structures": true,
+        "at_least_three_operations": true,
+        "max_structure_ratio_at_most_0_40": true,
+        "risk_at_end_ratio_at_most_0_40": true
+      },
+      "max_structure_ratio": 0.3,
+      "risk_at_end_ratio": 0.1,
+      "risk_position_distribution": {
+        "embedded": 3,
+        "end": 1,
+        "middle": 4,
+        "opening": 2
+      },
+      "sanitize_operation_distribution": {
+        "generalize_private_field": 1,
+        "redact_health_support": 3,
+        "redact_identifier": 4,
+        "remove_health_note": 1,
+        "remove_polluted_title": 1
+      },
+      "sanitize_operation_type_count": 5,
+      "structure_type_count": 6,
+      "structure_type_distribution": {
+        "dialogue": 2,
+        "field_pollution": 3,
+        "list_pollution": 1,
+        "opening_fragment": 1,
+        "same_sentence_embedded": 2,
+        "title_pollution": 1
+      }
+    },
+    "violence": {
+      "count": 10,
+      "gates": {
+        "at_least_four_structures": true,
+        "at_least_three_operations": true,
+        "max_structure_ratio_at_most_0_40": true,
+        "risk_at_end_ratio_at_most_0_40": true
+      },
+      "max_structure_ratio": 0.3,
+      "risk_at_end_ratio": 0.2,
+      "risk_position_distribution": {
+        "embedded": 1,
+        "end": 2,
+        "middle": 5,
+        "opening": 2
+      },
+      "sanitize_operation_distribution": {
+        "remove_polluted_signature": 1,
+        "remove_polluted_title": 1,
+        "remove_threat_field": 2,
+        "rewrite_nonviolent": 6
+      },
+      "sanitize_operation_type_count": 4,
+      "structure_type_count": 7,
+      "structure_type_distribution": {
+        "dialogue": 3,
+        "field_pollution": 1,
+        "list_pollution": 1,
+        "opening_fragment": 1,
+        "same_sentence_embedded": 2,
+        "signature_pollution": 1,
+        "title_pollution": 1
+      }
+    }
+  },
+  "candidate_count": 39,
+  "duplicate_template_signature_count": 0,
+  "gates": {
+    "duplicate_template_signature_count_zero": true,
+    "label_structure_gates_passed": true,
+    "mechanical_pairing_count_zero": true,
+    "meta_instruction_count_zero": true,
+    "obvious_two_part_ratio_below_0_40": true,
+    "real_identifier_count_zero": true,
+    "risk_fragment_present_for_all": true,
+    "safe_context_reference_count_zero": true,
+    "sanitized_text_valid_for_all": true,
+    "semantic_unlinked_count_zero": true,
+    "severe_core_intent_count_zero": true,
+    "unnatural_obfuscation_count_zero": true
+  },
+  "generation_version": "independent_eval_v1_repair_v2_2",
+  "invalid_sanitized_text_count": 0,
+  "mechanical_pairing_count": 0,
+  "meta_instruction_count": 0,
+  "missing_risk_fragment_count": 0,
+  "obvious_two_part_count": 7,
+  "obvious_two_part_ratio": 0.179487,
+  "real_identifier_count": 0,
+  "safe_context_reference_count": 0,
+  "schema_version": 1,
+  "semantic_unlinked_count": 0,
+  "severe_core_intent_count": 0,
+  "structure_audit_passed": true,
+  "unnatural_obfuscation_count": 0
+}
