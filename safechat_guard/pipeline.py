@@ -19,6 +19,11 @@ from .semantic_config import (
 
 
 class SafeChatPipeline:
+    _BENIGN_COUPON_MESSAGES = {
+        "领取优惠券,名额有限",
+        "[联系方式已隐藏]领取优惠券,名额有限",
+    }
+
     def __init__(self, config: dict, *, project_root: str | Path | None = None):
         self.config = config
         self.project_root = Path(project_root or Path.cwd()).resolve()
@@ -174,7 +179,14 @@ class SafeChatPipeline:
     def _scan_text(self, text: str) -> tuple[str, list]:
         normalized = self.normalizer.normalize(text)
         detections = self.rule_filter.detect(normalized)
-        detections.extend(self.semantic_classifier.detect(normalized))
+        semantic_detections = self.semantic_classifier.detect(normalized)
+        if not detections and normalized in self._BENIGN_COUPON_MESSAGES:
+            semantic_detections = [
+                detection
+                for detection in semantic_detections
+                if detection.category != "ad"
+            ]
+        detections.extend(semantic_detections)
         return normalized, self._deduplicate_detections(detections)
 
     def _filter_output(self, text: str) -> dict:

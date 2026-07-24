@@ -127,3 +127,65 @@ def test_stats_exposes_semantic_classifier_status(production_config_without_mode
         "violence",
         "sensitive",
     }
+
+
+def test_coupon_phrase_alone_is_not_treated_as_ad(production_config_without_model):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
+
+    filtered = pipeline.detect_text("领取优惠券，名额有限")
+
+    assert filtered["action"] == "pass"
+    assert filtered["sanitized_text"] is None
+    assert "ad" not in {item["category"] for item in filtered["detections"]}
+
+
+def test_obfuscated_contact_ad_is_minimally_sanitized(production_config_without_model):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
+
+    filtered = pipeline.detect_text("加 V-X 领取优 惠 券，名额有限")
+
+    assert filtered["action"] == "sanitize"
+    assert filtered["sanitized_text"] == "[联系方式已隐藏]领取优惠券,名额有限"
+    assert "领取优惠券,名额有限" in filtered["sanitized_text"]
+    assert filtered["rewrite_recheck"] is not None
+    assert filtered["rewrite_recheck"]["detections"] == []
+
+
+def test_contact_wechat_is_minimally_sanitized(production_config_without_model):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
+
+    filtered = pipeline.detect_text("联系微信了解详情")
+
+    assert filtered["action"] == "sanitize"
+    assert filtered["sanitized_text"] == "[联系方式已隐藏]了解详情"
+    assert filtered["rewrite_recheck"] is not None
+    assert filtered["rewrite_recheck"]["detections"] == []
+
+def test_coupon_business_copy_suppresses_only_semantic_ad_false_positive(
+    monkeypatch, production_config_without_model
+):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
+
+    def fake_detect(_text):
+        return [
+            Detection(
+                category="ad",
+                level="medium",
+                score=60,
+                reason="semantic ad false positive",
+                source="semantic_ml",
+                matches=["ad: 29.78%"],
+            )
+        ]
+
+    monkeypatch.setattr(pipeline.semantic_classifier, "detect", fake_detect)
+
+    coupon_only = pipeline.detect_text("领取优惠券，名额有限")
+    contact_coupon = pipeline.detect_text("加 V-X 领取优 惠 券，名额有限")
+    unrelated_ad = pipeline.detect_text("其他广告文案")
+
+    assert coupon_only["action"] == "pass"
+    assert contact_coupon["action"] == "sanitize"
+    assert contact_coupon["sanitized_text"] == "[联系方式已隐藏]领取优惠券,名额有限"
+    assert contact_coupon["rewrite_recheck"]["detections"] == []
+    assert unrelated_ad["action"] == "block"
