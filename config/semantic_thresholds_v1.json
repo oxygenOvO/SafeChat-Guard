@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "model_path": "models/semantic_model_v2.joblib",
-  "model_sha256": "82d1b4d188844df7f0670422721a857f6e270ce7ab682859e2e0fd47547fcd7c",
+  "model_sha256": "d72ab0af3d3e43c6b76865c019dffbd0966b21a76827592fdf00135d10a2d07b",
   "category_thresholds": {
     "ad": 0.25,
     "porn": 0.25,

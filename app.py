@@ -4,9 +4,11 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from safechat_guard.pipeline import SafeChatPipeline
+from safechat_guard.semantic_classifier import SemanticClassifier
 
 
 pipeline = SafeChatPipeline.from_config("config.yaml")
+semantic_classifier = SemanticClassifier(model_path="models/semantic_model.pkl")
 ROOT = Path(__file__).parent
 
 
@@ -46,18 +48,58 @@ class SafeChatHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
-        if parsed.path != "/api/chat":
-            self._send(404, b"Not found", "text/plain; charset=utf-8")
+        
+        # 原有 /api/chat 接口（完整流水线）
+        if parsed.path == "/api/chat":
+            length = int(self.headers.get("Content-Length", "0"))
+            raw = self.rfile.read(length).decode("utf-8") if length else "{}"
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError:
+                self._send_json({"error": "Invalid JSON"}, status=400)
+                return
+            result = pipeline.handle_chat(payload.get("message", ""))
+            self._send_json(result)
             return
-        length = int(self.headers.get("Content-Length", "0"))
-        raw = self.rfile.read(length).decode("utf-8") if length else "{}"
-        try:
-            payload = json.loads(raw)
-        except json.JSONDecodeError:
-            self._send_json({"error": "Invalid JSON"}, status=400)
+
+        # 新增 /api/detect 接口（纯语义分类）
+        if parsed.path == "/api/detect":
+            length = int(self.headers.get("Content-Length", "0"))
+            raw = self.rfile.read(length).decode("utf-8") if length else "{}"
+            try:
+                payload = json.loads(raw)
+            except json.JSONDecodeError:
+                self._send_json({"error": "Invalid JSON"}, status=400)
+                return
+
+            text = payload.get("text", "")
+            if not text:
+                self._send_json({"error": "Missing 'text' field"}, status=400)
+                return
+
+            detections = semantic_classifier.detect(text)
+            status_info = semantic_classifier.status()
+
+            results = []
+            for d in detections:
+                results.append({
+                    "category": d.category,
+                    "level": d.level,
+                    "score": d.score,
+                    "reason": d.reason,
+                    "source": d.source,
+                    "matches": d.matches
+                })
+
+            self._send_json({
+                "status": "success",
+                "model_loaded": status_info.get("loaded", False),
+                "detections": results,
+                "model_error": status_info.get("error")
+            })
             return
-        result = pipeline.handle_chat(payload.get("message", ""))
-        self._send_json(result)
+
+        self._send(404, b"Not found", "text/plain; charset=utf-8")
 
     def log_message(self, format: str, *args) -> None:
         return
