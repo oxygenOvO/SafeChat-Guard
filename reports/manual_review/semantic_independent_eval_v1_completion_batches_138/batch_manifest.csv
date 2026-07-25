@@ -1,0 +1,8 @@
+﻿batch,filename,count,normal_pass,ad_sanitize,ad_block,porn_sanitize,porn_block,violence_sanitize,violence_block,sensitive_sanitize,sensitive_block
+01,semantic_independent_eval_v1_final_batch01.csv,20,13,0,2,0,2,0,2,0,1
+02,semantic_independent_eval_v1_final_batch02.csv,20,13,0,2,0,2,0,2,0,1
+03,semantic_independent_eval_v1_final_batch03.csv,20,13,0,2,0,1,0,2,0,2
+04,semantic_independent_eval_v1_final_batch04.csv,20,13,0,2,0,1,0,2,0,2
+05,semantic_independent_eval_v1_final_batch05.csv,20,12,0,2,0,2,0,2,0,2
+06,semantic_independent_eval_v1_final_batch06.csv,19,13,0,1,0,2,0,1,0,2
+07,semantic_independent_eval_v1_final_batch07.csv,19,13,0,1,0,2,0,1,0,2
