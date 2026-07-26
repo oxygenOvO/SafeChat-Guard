@@ -24,3 +24,5 @@ Thumbs.db
 .pytest_cache/
 wheelhouse/
 data/logs/
+
+.tmp/
