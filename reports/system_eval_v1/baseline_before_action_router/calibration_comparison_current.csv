@@ -1,0 +1,4 @@
+﻿"Mode","Samples","Accuracy","MacroF1","ActionAccuracy","BlockRecall","SanitizeRecall","NormalFPR"
+"rule_only","80","0.5","0.1678","0.5","0.0","0.0625","0.025"
+"semantic_only","80","0.55","0.2989","0.4875","0.0","0.125","0.075"
+"combined","80","0.55","0.3148","0.4875","0.0","0.1875","0.1"
