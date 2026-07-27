@@ -17,10 +17,17 @@ _RULE_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 _PRIMARY_CLAUSE_PATTERN = re.compile(r"[^。！？!?；;\r\n]+")
 _SECONDARY_DELIMITER_PATTERN = re.compile(r"[,，:：]")
 _SCOPE_TRANSITIONS = (
-    "但是", "不过", "然而", "随后", "然后", "接着", "另一段",
-    "后半段", "页面下方", "却", "但",
+    "完毕之后", "页面下方", "接下来", "结束后", "另一段", "后半段",
+    "但是", "不过", "然而", "随后", "然后", "之后", "同时", "另外",
+    "转而", "接着", "再", "却", "但",
+)
+_SAFETY_NARRATIVE_TERMS = (
+    "报道", "通报", "回顾", "说明", "讲解", "教学", "分析", "讨论",
+    "研究", "提醒", "警示", "警惕", "举报", "查获", "破获", "处置",
+    "制止", "下架", "拒绝", "禁止", "不要", "不得", "切勿", "反对", "解释", "列举",
 )
 _NEGATION_WINDOW = 10
+_SAFETY_CONTEXT_DISTANCE = 48
 
 
 @dataclass(frozen=True)
@@ -82,6 +89,14 @@ class _Evidence:
             "rule_id": self.rule_id,
             "clause_index": self.clause_index,
         }
+
+@dataclass(frozen=True)
+class _ContextEvidence:
+    context_id: str
+    term: str
+    start: int
+    end: int
+    clause_index: int
 
 
 class ActionRouter:
@@ -195,7 +210,8 @@ class ActionRouter:
             ),
         )
     def _route_clause(self, clause: _Clause) -> dict[str, Any]:
-        safe_ids = self._matched_context_ids(clause.text, self.safety_contexts)
+        safety_evidence = self._find_safety_evidence(clause)
+        safe_ids = list(dict.fromkeys(item.context_id for item in safety_evidence))
         unsafe_override = self._matched_terms(clause.text, self.unsafe_override_terms)
         protected_families, legal_ids = self._legal_protections(clause)
         local_insert = self._matched_terms(
@@ -212,7 +228,14 @@ class ActionRouter:
             family_id = match["family"].rule_id
             if family_id in protected_families:
                 continue
-            if safe_ids and not unsafe_override:
+            match_evidence = [match["object"], match["implementation"]]
+            if (
+                safety_evidence
+                and not unsafe_override
+                and self._risk_is_safety_protected(
+                    clause, safety_evidence, match_evidence
+                )
+            ):
                 continue
             if local_insert and not local_block_override:
                 downgraded.append(match)
@@ -235,7 +258,17 @@ class ActionRouter:
                 evidence=[selected["object"], selected["implementation"]],
             )
 
-        sanitize_evidence = self._match_sanitize_rules(clause)
+        sanitize_evidence = [
+            (rule, evidence)
+            for rule, evidence in self._match_sanitize_rules(clause)
+            if not (
+                safety_evidence
+                and not unsafe_override
+                and self._risk_is_safety_protected(
+                    clause, safety_evidence, evidence
+                )
+            )
+        ]
         if downgraded:
             selected = downgraded[0]
             evidence = [selected["object"], selected["implementation"]]
@@ -271,11 +304,27 @@ class ActionRouter:
             )
 
         object_evidence = self._object_evidence(clause)
-        unprotected_objects = [
-            item for item in object_evidence
-            if item.rule_id not in protected_families
-        ]
-        if safe_ids:
+        unprotected_objects = []
+        for item in object_evidence:
+            if item.rule_id in protected_families:
+                continue
+            if (
+                safety_evidence
+                and not unsafe_override
+                and self._risk_is_safety_protected(
+                    clause, safety_evidence, [item]
+                )
+            ):
+                continue
+            unprotected_objects.append(item)
+        explicit_safe_narrative = self._clause_is_explicit_safe_narrative(
+            clause, safety_evidence
+        )
+        if (
+            safety_evidence
+            and not unprotected_objects
+            and (object_evidence or explicit_safe_narrative)
+        ):
             reasons = ["SAFE_CONTEXT"]
             if family_matches or object_evidence:
                 reasons.append("NON_REAL_WORLD_MENTION")
@@ -293,7 +342,11 @@ class ActionRouter:
                 evidence=[],
                 protected=True,
             )
-        if legal_ids and not unprotected_objects:
+        if (
+            legal_ids
+            and not unprotected_objects
+            and (object_evidence or explicit_safe_narrative)
+        ):
             return self._clause_result(
                 clause,
                 action="pass",
@@ -335,9 +388,8 @@ class ActionRouter:
             matched_rule_ids=legal_ids,
             sanitize_matches=[],
             evidence=[],
-            protected=bool(legal_ids),
+            protected=bool(legal_ids) and (object_evidence or explicit_safe_narrative),
         )
-
     def _detector_fallback(
         self,
         clause_results: list[dict[str, Any]],
@@ -346,7 +398,18 @@ class ActionRouter:
     ) -> dict[str, Any] | None:
         if not rule_detections and not semantic_detections:
             return None
-        if any(result.get("protected") for result in clause_results):
+        protected_indexes = {
+            result["clause_index"]
+            for result in clause_results
+            if result.get("protected")
+        }
+        located_indexes = self._locate_detection_clauses(
+            clause_results, rule_detections, semantic_detections
+        )
+        if located_indexes and located_indexes.issubset(protected_indexes):
+            return None
+        all_indexes = {result["clause_index"] for result in clause_results}
+        if not located_indexes and protected_indexes == all_indexes:
             return None
         category = self._select_risk_category(rule_detections, semantic_detections)
         if category is None:
@@ -378,6 +441,104 @@ class ActionRouter:
             evidence=[],
         )
 
+    def _locate_detection_clauses(
+        self,
+        clause_results: list[dict[str, Any]],
+        rule_detections: list[Detection],
+        semantic_detections: list[Detection],
+    ) -> set[int]:
+        located: set[int] = set()
+        clause_texts = {
+            result["clause_index"]: result.get("clause_text", "")
+            for result in clause_results
+        }
+        for detection in [*rule_detections, *semantic_detections]:
+            for match in detection.matches:
+                if not isinstance(match, str) or not match.strip():
+                    continue
+                term = self._canonicalize(match)
+                for clause_index, clause_text in clause_texts.items():
+                    if term in clause_text:
+                        located.add(clause_index)
+        return located
+
+    def _find_safety_evidence(self, clause: _Clause) -> list[_ContextEvidence]:
+        evidence = []
+        for context in self.safety_contexts:
+            for term in context.terms:
+                start = 0
+                while True:
+                    local_start = clause.text.find(term, start)
+                    if local_start < 0:
+                        break
+                    local_end = local_start + len(term)
+                    evidence.append(
+                        _ContextEvidence(
+                            context_id=context.rule_id,
+                            term=term,
+                            start=clause.start + local_start,
+                            end=clause.start + local_end,
+                            clause_index=clause.index,
+                        )
+                    )
+                    start = local_end
+        return evidence
+
+    @staticmethod
+    def _clause_is_explicit_safe_narrative(
+        clause: _Clause,
+        contexts: list[_ContextEvidence],
+    ) -> bool:
+        subject_prefixed_contexts = {"通报", "举报", "处置", "提醒", "警示", "警惕"}
+        directive_prefixes = {"请", "也", "并", "应", "须", "务必"}
+        for context in contexts:
+            if context.clause_index != clause.index:
+                continue
+            local_start = context.start - clause.start
+            if local_start:
+                prefix = clause.text[:local_start]
+                subject_prefixed = (
+                    local_start <= 4 and context.term in subject_prefixed_contexts
+                )
+                directive_prefixed = (
+                    local_start <= 2 and prefix in directive_prefixes
+                )
+                if (
+                    not (subject_prefixed or directive_prefixed)
+                    or re.search(r"[，,。！？!?；;：:]", prefix)
+                    or any(marker in prefix for marker in _SCOPE_TRANSITIONS)
+                ):
+                    continue
+            scope_text = clause.text[local_start:]
+            if any(term in scope_text for term in _SAFETY_NARRATIVE_TERMS):
+                return True
+        return False
+    def _risk_is_safety_protected(
+        self,
+        clause: _Clause,
+        contexts: list[_ContextEvidence],
+        risk_evidence: list[_Evidence],
+    ) -> bool:
+        if not risk_evidence:
+            return False
+        risk_start = min(item.start for item in risk_evidence)
+        risk_end = max(item.end for item in risk_evidence)
+        for context in contexts:
+            if context.clause_index != clause.index or context.end > risk_start:
+                continue
+            if risk_start - context.end > _SAFETY_CONTEXT_DISTANCE:
+                continue
+            local_context_end = context.end - clause.start
+            local_risk_start = risk_start - clause.start
+            between = clause.text[local_context_end:local_risk_start]
+            if any(marker in between for marker in _SCOPE_TRANSITIONS):
+                continue
+            local_context_start = context.start - clause.start
+            local_risk_end = risk_end - clause.start
+            scope_text = clause.text[local_context_start:local_risk_end]
+            if any(term in scope_text for term in _SAFETY_NARRATIVE_TERMS):
+                return True
+        return False
     def _match_families(self, clause: _Clause) -> list[dict[str, Any]]:
         matches = []
         for family in self.rule_families:
@@ -940,6 +1101,7 @@ class ActionRouter:
         return {
             **values,
             "clause_index": clause.index,
+            "clause_text": clause.text,
             "protected": protected,
         }
 
