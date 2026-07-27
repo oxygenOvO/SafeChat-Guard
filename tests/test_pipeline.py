@@ -44,7 +44,7 @@ def test_phone_regex_records_and_sanitizes_real_match(production_config_without_
     assert "13812345678" not in filtered["sanitized_text"]
 
 
-def test_rule_and_semantic_results_are_both_preserved(
+def test_rule_and_semantic_results_are_preserved_when_recheck_blocks(
     monkeypatch, production_config_without_model
 ):
     pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
@@ -72,7 +72,9 @@ def test_rule_and_semantic_results_are_both_preserved(
 
     assert calls[0] == filtered["normalized_text"]
     assert len(calls) == 2
-    assert filtered["action"] == "sanitize"
+    assert filtered["action"] == "block"
+    assert filtered["sanitized_text"] is None
+    assert filtered["recheck_action"] == "sanitize"
     assert {"regex", "semantic_ml"} <= sources
     assert filtered["rewrite_recheck"]["detections"]
     assert {
@@ -162,7 +164,7 @@ def test_coupon_phrase_alone_has_no_rule_ad_detection(
     assert pipeline.sanitizer.sanitize(normalized, []) == normalized
 
 
-def test_contact_ad_variants_keep_only_semantic_ad_after_rewrite(
+def test_contact_ad_variants_block_when_semantic_ad_survives_rewrite(
     monkeypatch, production_config_without_model
 ):
     pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
@@ -202,11 +204,14 @@ def test_contact_ad_variants_keep_only_semantic_ad_after_rewrite(
         ]
 
         assert initial_rule_ad
-        assert filtered["action"] == "sanitize"
-        assert filtered["sanitized_text"] == expected
-        assert "[联系方式已隐藏]" in filtered["sanitized_text"]
-        assert retained_phrase in filtered["sanitized_text"]
-        assert retained_tail in filtered["sanitized_text"]
+        assert filtered["action"] == "block"
+        assert filtered["sanitized_text"] is None
+        assert filtered["rewrite_changed"] is True
+        assert filtered["recheck_action"] == "sanitize"
+        assert filtered["rewrite_recheck"]["normalized_text"] == expected.replace("，", ",")
+        assert "[联系方式已隐藏]" in filtered["rewrite_recheck"]["normalized_text"]
+        assert retained_phrase in filtered["rewrite_recheck"]["normalized_text"]
+        assert retained_tail in filtered["rewrite_recheck"]["normalized_text"]
         assert filtered["rewrite_recheck"] is not None
         assert filtered["rewrite_recheck"]["detections"]
         assert all(
