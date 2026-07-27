@@ -406,3 +406,191 @@ def test_independent_medium_risk_rules_sanitize(router, text, category):
     assert result["action"] == "sanitize"
     assert result["category"] == category
     assert result["hard_block"] is False
+@pytest.mark.parametrize(
+    "text",
+    [
+        "新闻解说完成再出售枪械配件并通知买方取货。",
+        "反诈课程完毕之后有人兜售答案并收取费用。",
+        "研究讨论结束后广告转而付费代查入住档案。",
+        "讲座内容告一段落，卖家开始供应暗市配件并现金交易。",
+    ],
+)
+def test_scope_transition_resets_safety_context(router, text):
+    result = route(router, text)
+
+    assert result["action"] == "block"
+    assert result["hard_block"] is True
+
+
+def test_trailing_course_term_cannot_protect_prior_transaction(router):
+    result = route(router, "正在出售手枪并安排线下取货，这算课程说明吗？")
+
+    assert result["action"] == "block"
+    assert result["hard_block"] is True
+
+
+def test_safe_clause_does_not_disable_unlocated_semantic_fallback(router):
+    result = route(
+        router,
+        "论文研究用于风险科普。另一条消息提供成人交友服务。",
+        semantics=[detection("porn", "semantic_ml", 90)],
+    )
+
+    assert result["action"] == "sanitize"
+    assert result["hard_block"] is False
+    assert "SEMANTIC_RISK_EVIDENCE" in result["reason_codes"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "玩具商店出售塑料枪支模型并支持到店取货。",
+        "收藏店正常交易模型枪道具并允许现场取货。",
+        "医院经患者本人授权批量获取个人数据并合并病历。",
+        "政务窗口依法批量获取公民信息用于本人核验。",
+        "合规企业在授权范围内批量获取个人数据进行业务处理。",
+    ],
+)
+def test_explicit_legal_workflows_remain_pass(router, text):
+    result = route(router, text)
+
+    assert result["action"] == "pass"
+    assert result["hard_block"] is False
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "医院未授权批量获取病历并出售给外部人员。",
+        "政务窗口有人付费代查身份数据并向客户收款。",
+    ],
+)
+def test_illegal_qualifier_cancels_legal_privacy_protection(router, text):
+    result = route(router, text)
+
+    assert result["action"] == "block"
+    assert result["hard_block"] is True
+
+
+@pytest.mark.parametrize(
+    ("text", "rule_id"),
+    [
+        ("对方假称可以恢复网银，要求申请人先交保证金。", "FINANCIAL_SCAM_PAYMENT"),
+        ("有人偷录更衣室画面并在群内贩卖。", "PORN_PAID_DISTRIBUTION"),
+        ("地下渠道供应暗市配件，并约定现金交易。", "ILLEGAL_WEAPON_TRADE"),
+        ("带头者纠集多人堵截目标，完事后分钱。", "REAL_WORLD_ORGANIZED_HARM"),
+        ("中介声称可以付费代查旅馆登记。", "PRIVACY_ILLEGAL_TRADE"),
+    ],
+)
+def test_generalized_concept_pairs_block(router, text, rule_id):
+    result = route(router, text)
+
+    assert result["action"] == "block"
+    assert result["hard_block"] is True
+    assert rule_id in result["matched_rule_ids"]
+
+def semantic_scope_route(router: ActionRouter, text: str) -> dict:
+    return route(
+        router,
+        text,
+        semantics=[detection("porn", "semantic_ml", 90)],
+    )
+
+
+def test_unlocated_semantic_risk_without_context_sanitizes(router):
+    result = semantic_scope_route(
+        router, "\u4e00\u6bb5\u96be\u4ee5\u5b9a\u4f4d\u7684\u7070\u8272\u9080\u7ea6\u5185\u5bb9"
+    )
+
+    assert result["action"] == "sanitize"
+    assert "SEMANTIC_RISK_EVIDENCE" in result["reason_codes"]
+
+
+@pytest.mark.parametrize(
+    "suffix",
+    [
+        "\uff0c\u8fd9\u7b97\u7814\u7a76\u5185\u5bb9\u5417\uff1f",
+        "\uff0c\u7528\u4e8e\u8bfe\u7a0b\u63d0\u95ee\u3002",
+        "\uff0c\u65b0\u95fb\u8ba8\u8bba\u4e00\u4e0b\u3002",
+        "\uff0c\u8bba\u6587\u91cc\u662f\u5426\u63d0\u5230\uff1f",
+    ],
+)
+def test_trailing_safe_terms_do_not_protect_unlocated_semantic_risk(
+    router, suffix
+):
+    result = semantic_scope_route(
+        router, "\u4e00\u6bb5\u96be\u4ee5\u5b9a\u4f4d\u7684\u7070\u8272\u9080\u7ea6\u5185\u5bb9" + suffix
+    )
+
+    assert result["action"] == "sanitize"
+    assert result["hard_block"] is False
+    assert "SEMANTIC_RISK_EVIDENCE" in result["reason_codes"]
+    assert "SAFE_CONTEXT" not in result["reason_codes"]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "\u7814\u7a76\u62a5\u544a\u8ba8\u8bba\u4e86\u4e00\u7c7b\u96be\u4ee5\u5b9a\u4f4d\u7684\u7070\u8272\u9080\u7ea6\u4e3b\u9898\u3002",
+        "\u8bfe\u7a0b\u5206\u6790\u4e86\u67d0\u79cd\u96be\u4ee5\u5b9a\u4f4d\u7684\u7070\u8272\u9080\u7ea6\u73b0\u8c61\u3002",
+    ],
+)
+def test_prefixed_safe_narrative_protects_unlocated_semantic_risk(router, text):
+    result = semantic_scope_route(router, text)
+
+    assert result["action"] == "pass"
+    assert result["hard_block"] is False
+    assert "SAFE_CONTEXT" in result["reason_codes"]
+
+
+def test_independent_safe_clause_does_not_protect_semantic_risk_clause(router):
+    result = semantic_scope_route(
+        router,
+        "\u7814\u7a76\u62a5\u544a\u53ea\u4f5c\u80cc\u666f\u8bf4\u660e\u3002"
+        "\u53e6\u4e00\u6bb5\u51fa\u73b0\u96be\u4ee5\u5b9a\u4f4d\u7684\u7070\u8272\u9080\u7ea6\u3002",
+    )
+
+    assert result["action"] == "sanitize"
+    assert "SEMANTIC_RISK_EVIDENCE" in result["reason_codes"]
+
+
+def test_safe_terms_around_ungoverned_semantic_risk_do_not_protect_it(router):
+    result = semantic_scope_route(
+        router,
+        "\u7814\u7a76\u8d44\u6599\u53ea\u4ecb\u7ecd\u65b9\u6cd5\u3002"
+        "\u968f\u540e\u662f\u4e00\u6bb5\u96be\u4ee5\u5b9a\u4f4d\u7684\u7070\u8272\u9080\u7ea6\uff0c"
+        "\u6700\u540e\u9644\u4e0a\u8bfe\u7a0b\u8bf4\u660e\u3002",
+    )
+
+    assert result["action"] == "sanitize"
+    assert result["reason_codes"] == ["SEMANTIC_RISK_EVIDENCE"]
+
+
+def test_short_directive_prefix_keeps_prevention_narrative_protected(router):
+    result = semantic_scope_route(
+        router,
+        "\u8bf7\u62d2\u7edd\u6253\u5f00\u964c\u751f\u9644\u4ef6\uff0c"
+        "\u4e5f\u4e0d\u8981\u63d0\u4ea4\u8d26\u6237\u53e3\u4ee4\u3002",
+    )
+
+    assert result["action"] == "pass"
+    assert result["hard_block"] is False
+
+@pytest.mark.parametrize(
+    ("text", "expected_action"),
+    [
+        ("\u6b63\u5728\u51fa\u552e\u624b\u67aa\u5e76\u5b89\u6392\u7ebf\u4e0b\u53d6\u8d27\u3002", "block"),
+        (
+            "\u533b\u9662\u7ecf\u60a3\u8005\u672c\u4eba\u6388\u6743\u6279\u91cf\u83b7\u53d6\u4e2a\u4eba\u6570\u636e\u5e76\u5408\u5e76\u75c5\u5386\u3002",
+            "pass",
+        ),
+        ("\u6d3b\u52a8\u9875\u9762\u5f39\u51fa\u6210\u4eba\u88f8\u804a\u5165\u53e3\u3002", "sanitize"),
+    ],
+)
+def test_semantic_scope_fix_preserves_existing_route_classes(
+    router, text, expected_action
+):
+    result = route(router, text)
+
+    assert result["action"] == expected_action
+    assert result["hard_block"] is (expected_action == "block")

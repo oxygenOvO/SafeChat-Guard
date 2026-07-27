@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import subprocess
 import sys
@@ -15,6 +16,7 @@ except ModuleNotFoundError:
 
 
 ACTION_LABELS = ("pass", "sanitize", "block")
+CALIBRATION_ONLY_FILENAME = "semantic_gold_v1_calibration.csv"
 ERROR_FIELDS = (
     "sample_id",
     "true_label",
@@ -39,12 +41,22 @@ def load_calibration_rows(
         raise ValueError(
             "ActionRouter V1 evaluation is restricted to evaluation_split=calibration"
         )
+    if gold_path.name != CALIBRATION_ONLY_FILENAME:
+        raise ValueError(
+            "ActionRouter calibration requires the isolated "
+            f"{CALIBRATION_ONLY_FILENAME}; combined Gold is forbidden"
+        )
     rows = read_csv(gold_path, GOLD_FIELDS)
-    selected = [
-        row for row in rows if row["evaluation_split"] == "calibration"
-    ]
-    _validate_calibration_rows(selected)
-    return selected
+    invalid_splits = sorted(
+        {row["evaluation_split"] for row in rows} - {"calibration"}
+    )
+    if invalid_splits:
+        raise ValueError(
+            "calibration-only file contains non-calibration rows: "
+            f"actual={invalid_splits}"
+        )
+    _validate_calibration_rows(rows)
+    return rows
 
 
 def _validate_calibration_rows(rows: list[dict[str, str]]) -> None:
@@ -87,6 +99,14 @@ def _validate_calibration_rows(rows: list[dict[str, str]]) -> None:
             "calibration review_status mismatch: "
             f"actual_non_verified={non_verified}, expected_non_verified=0"
         )
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def build_components(project_root: Path):
@@ -169,6 +189,7 @@ def evaluate_rows(
     rule_detector,
     semantic_detector,
     router,
+    input_sha256: str | None = None,
 ) -> dict[str, Any]:
     predictions = []
     for row in rows:
@@ -241,6 +262,7 @@ def evaluate_rows(
         "schema_version": 1,
         "evaluation_scope": "action_router_v1_calibration_only",
         "evaluation_split": "calibration",
+        "input_sha256": input_sha256,
         "sample_count": sample_count,
         "action_accuracy": action_correct / sample_count if sample_count else 0.0,
         "block_total": block_total,
@@ -292,7 +314,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--gold",
         type=Path,
-        default=project_root / "data/evaluation/semantic_gold_v1.csv",
+        default=project_root / "data/evaluation/semantic_gold_v1_calibration.csv",
     )
     parser.add_argument("--evaluation-split", required=True)
     parser.add_argument(
@@ -318,12 +340,14 @@ def main() -> int:
     args = parse_args()
     project_root = args.project_root.resolve()
     try:
-        rows = load_calibration_rows(
-            _resolve_from_root(project_root, args.gold),
-            args.evaluation_split,
-        )
+        gold_path = _resolve_from_root(project_root, args.gold)
+        rows = load_calibration_rows(gold_path, args.evaluation_split)
         components = build_components(project_root)
-        metrics = evaluate_rows(rows, *components)
+        metrics = evaluate_rows(
+            rows,
+            *components,
+            input_sha256=sha256_file(gold_path),
+        )
         output_path = _resolve_from_root(project_root, args.output)
         errors_output_path = _resolve_from_root(project_root, args.errors_output)
         write_outputs(metrics, output_path, errors_output_path)

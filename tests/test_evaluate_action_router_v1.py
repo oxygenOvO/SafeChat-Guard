@@ -6,11 +6,13 @@ import json
 import pytest
 
 from scripts.evaluate_action_router_v1 import (
+    CALIBRATION_ONLY_FILENAME,
     ERROR_FIELDS,
     evaluate_rows,
     load_calibration_rows,
     _validate_calibration_rows,
     resolve_frozen_model_path,
+    sha256_file,
     write_outputs,
 )
 
@@ -128,31 +130,24 @@ def _valid_calibration_rows():
     ]
 
 
-def test_loader_selects_only_verified_calibration_rows(tmp_path):
-    path = tmp_path / "gold.csv"
+def _write_calibration_file(path, rows):
     fieldnames = [
         "sample_id", "text", "label", "risk_level", "expected_action",
         "scenario", "source_type", "source_reference", "review_status",
         "reviewer", "notes", "evaluation_split",
     ]
-    rows = []
-    for row_data in _valid_calibration_rows():
-        rows.append({**{field: "" for field in fieldnames}, **row_data})
-    rows.append(
-        {
-            **{field: "" for field in fieldnames},
-            "sample_id": "held-out",
-            "text": "must not be selected",
-            "label": "normal",
-            "expected_action": "pass",
-            "review_status": "verified",
-            "evaluation_split": "test",
-        }
-    )
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(rows)
+        writer.writerows(
+            {**{field: "" for field in fieldnames}, **row_data}
+            for row_data in rows
+        )
+
+
+def test_loader_accepts_isolated_verified_calibration_rows(tmp_path):
+    path = tmp_path / CALIBRATION_ONLY_FILENAME
+    _write_calibration_file(path, _valid_calibration_rows())
 
     selected = load_calibration_rows(path, "calibration")
 
@@ -161,6 +156,22 @@ def test_loader_selects_only_verified_calibration_rows(tmp_path):
         f"cal-{index:03d}" for index in range(80)
     }
 
+
+def test_loader_refuses_combined_gold_path_before_reading_file(tmp_path):
+    combined = tmp_path / "semantic_gold_v1.csv"
+
+    with pytest.raises(ValueError, match="isolated.*combined Gold is forbidden"):
+        load_calibration_rows(combined, "calibration")
+
+
+def test_loader_rejects_non_calibration_row(tmp_path):
+    rows = _valid_calibration_rows()
+    rows[-1]["evaluation_split"] = "test"
+    path = tmp_path / CALIBRATION_ONLY_FILENAME
+    _write_calibration_file(path, rows)
+
+    with pytest.raises(ValueError, match="non-calibration rows.*test"):
+        load_calibration_rows(path, "calibration")
 
 @pytest.mark.parametrize(
     ("mutate", "message"),
@@ -210,6 +221,7 @@ def test_outputs_include_json_and_only_action_errors(tmp_path):
         EmptyDetector(),
         EmptyDetector(),
         MarkerRouter(),
+        input_sha256="a" * 64,
     )
     output = tmp_path / "metrics.json"
     errors = tmp_path / "errors.csv"
@@ -219,7 +231,15 @@ def test_outputs_include_json_and_only_action_errors(tmp_path):
     stored = json.loads(output.read_text(encoding="utf-8"))
     error_rows = list(csv.DictReader(errors.open(encoding="utf-8")))
     assert stored["sample_count"] == 2
+    assert stored["input_sha256"] == "a" * 64
     assert len(error_rows) == 1
     assert error_rows[0]["sample_id"] == "wrong"
     assert set(error_rows[0]) == set(ERROR_FIELDS)
     assert "text" not in error_rows[0]
+
+
+def test_sha256_file_records_exact_input(tmp_path):
+    path = tmp_path / CALIBRATION_ONLY_FILENAME
+    path.write_bytes(b"isolated-calibration")
+
+    assert sha256_file(path) == "81f7ad69c4328817dfed197524d7dd4873cbadd9d3ce6935c3961f17c9c7ed81"
