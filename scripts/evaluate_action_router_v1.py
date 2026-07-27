@@ -43,11 +43,50 @@ def load_calibration_rows(
     selected = [
         row for row in rows if row["evaluation_split"] == "calibration"
     ]
-    if not selected:
-        raise ValueError("gold contains no calibration rows")
-    if any(row["review_status"] != "verified" for row in selected):
-        raise ValueError("calibration gold contains non-verified rows")
+    _validate_calibration_rows(selected)
     return selected
+
+
+def _validate_calibration_rows(rows: list[dict[str, str]]) -> None:
+    expected_count = 80
+    actual_count = len(rows)
+    if actual_count != expected_count:
+        raise ValueError(
+            f"calibration sample count mismatch: actual={actual_count}, "
+            f"expected={expected_count}"
+        )
+    sample_ids = [row["sample_id"] for row in rows]
+    unique_count = len(set(sample_ids))
+    if unique_count != actual_count:
+        raise ValueError(
+            "calibration sample_id values must be unique: "
+            f"actual_unique={unique_count}, expected_unique={actual_count}"
+        )
+    allowed_actions = set(ACTION_LABELS)
+    invalid_actions = sorted(
+        {row["expected_action"] for row in rows} - allowed_actions
+    )
+    if invalid_actions:
+        raise ValueError(
+            "calibration expected_action contains invalid values: "
+            f"actual={invalid_actions}, expected={sorted(allowed_actions)}"
+        )
+    expected_distribution = {"pass": 40, "sanitize": 16, "block": 24}
+    actual_distribution = {
+        action: sum(row["expected_action"] == action for row in rows)
+        for action in ACTION_LABELS
+    }
+    if actual_distribution != expected_distribution:
+        raise ValueError(
+            "calibration action distribution mismatch: "
+            f"actual={actual_distribution}, expected={expected_distribution}"
+        )
+    non_verified = sum(row["review_status"] != "verified" for row in rows)
+    if non_verified:
+        raise ValueError(
+            "calibration review_status mismatch: "
+            f"actual_non_verified={non_verified}, expected_non_verified=0"
+        )
 
 
 def build_components(project_root: Path):

@@ -21,6 +21,7 @@ REQUIRED_FIELDS = {
     "risk_score",
     "matched_rule_ids",
     "sanitize_matches",
+    "evidence",
 }
 
 
@@ -63,7 +64,7 @@ def test_configuration_loads_and_return_fields_are_bounded(router):
 @pytest.mark.parametrize(
     ("mutate", "message"),
     [
-        (lambda value: value.update(schema_version=2), "schema_version"),
+        (lambda value: value.update(schema_version=3), "schema_version"),
         (lambda value: value["rule_families"][0].update(category="normal"), "risk category"),
         (lambda value: value["rule_families"][0].update(confidence=1.5), "confidence"),
         (
@@ -260,3 +261,148 @@ def test_reason_codes_do_not_contain_complete_input(router):
 
     assert all(text not in code for code in result["reason_codes"])
     assert all(text not in rule_id for rule_id in result["matched_rule_ids"])
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "反诈提醒到此结束。有人提供试题答案并要求普通付款。",
+        "新闻报道已经结束；卖家随后出售改装武器并安排交易。",
+        "课程介绍在前。页面下方有人为极端团体招人并号召线下集结。",
+        "请注意保护隐私！另一段广告称可未授权查询实时定位并收费提供。",
+    ],
+)
+def test_safe_clause_cannot_cover_later_real_world_action(router, text):
+    result = route(router, text)
+
+    assert result["action"] == "block"
+    assert result["hard_block"] is True
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "聊天记录只写了改装武器。",
+        "便签上只有上门报复四个字。",
+        "标题内容是清除名单。",
+        "页面只显示成人视频。",
+        "表格字段名为实时定位。",
+    ],
+)
+def test_single_compound_risk_phrase_never_hard_blocks(router, text):
+    result = route(router, text)
+
+    assert result["action"] in {"pass", "sanitize"}
+    assert result["hard_block"] is False
+
+
+def test_object_and_implementation_spans_are_independent(router):
+    result = route(router, "卖家兜售手枪零件并约买方当面取货。")
+
+    assert result["action"] == "block"
+    assert len(result["evidence"]) >= 2
+    objects = [item for item in result["evidence"] if item["evidence_type"] == "risk_object"]
+    implementations = [item for item in result["evidence"] if item["evidence_type"] == "implementation"]
+    assert objects and implementations
+    assert objects[0]["clause_index"] == implementations[0]["clause_index"]
+    assert objects[0]["end"] <= implementations[0]["start"] or implementations[0]["end"] <= objects[0]["start"]
+    distance = max(
+        implementations[0]["start"] - objects[0]["end"],
+        objects[0]["start"] - implementations[0]["end"],
+        0,
+    )
+    assert distance <= 24
+
+
+def test_unrelated_clauses_do_not_form_hard_block(router):
+    result = route(router, "说明材料提到武器；另一家商店出售普通文具。")
+
+    assert result["action"] == "sanitize"
+    assert result["hard_block"] is False
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "网店出售儿童玩具武器模型，支持正常退货。",
+        "足球教练组织前锋加强边路攻击训练。",
+        "医院挂号系统查询个人数据仅用于本人核验。",
+        "证券课程讲解内幕交易为何违法并提醒投资者远离。",
+    ],
+)
+def test_legal_domain_contexts_pass(router, text):
+    result = route(router, text)
+
+    assert result["action"] == "pass"
+    assert result["hard_block"] is False
+
+
+@pytest.mark.parametrize(
+    ("text", "rule_id"),
+    [
+        ("以冻结账户为由催促受害人先汇款，之后承诺放贷。", "FINANCIAL_SCAM_PAYMENT"),
+        ("有人兜售针孔拍摄内容，并收费提供私密影像下载。", "PORN_PAID_DISTRIBUTION"),
+        ("地下卖家供应手枪零件，并安排双方当面取货。", "ILLEGAL_WEAPON_TRADE"),
+        ("群主召集多人去教训目标，事成后按轻重给钱。", "REAL_WORLD_ORGANIZED_HARM"),
+        ("中介调取酒店入住档案和移动路线，再有偿提供给客户。", "PRIVACY_ILLEGAL_TRADE"),
+        ("激进暴力团伙要求新人表忠心，并拉人加入。", "EXTREMIST_RECRUITMENT"),
+        ("卖家用代称兜售违禁药剂，先给试样再收钱。", "CONTRABAND_TRADE"),
+    ],
+)
+def test_common_synonym_compounds_block(router, text, rule_id):
+    result = route(router, text)
+
+    assert result["action"] == "block"
+    assert result["hard_block"] is True
+    assert rule_id in result["matched_rule_ids"]
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("confidence", "0.9", "FINANCIAL_SCAM_PAYMENT.confidence"),
+        ("risk_score", True, "FINANCIAL_SCAM_PAYMENT.risk_score"),
+        ("risk_score", 96.5, "FINANCIAL_SCAM_PAYMENT.risk_score"),
+    ],
+)
+def test_rule_numeric_types_are_strict(tmp_path, field, value, message):
+    payload = json.loads(RULES_PATH.read_text(encoding="utf-8"))
+    payload["rule_families"][0][field] = value
+    path = tmp_path / "invalid-numeric.json"
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(ValueError, match=message):
+        ActionRouter(path)
+
+
+def test_object_implementation_containment_is_rejected(tmp_path):
+    payload = json.loads(RULES_PATH.read_text(encoding="utf-8"))
+    family = payload["rule_families"][0]
+    family["object_terms"].append("自造重叠词")
+    family["implementation_terms"].append("重叠")
+    path = tmp_path / "invalid-overlap.json"
+    path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+
+    with pytest.raises(
+        ValueError,
+        match="FINANCIAL_SCAM_PAYMENT.object_terms conflicts.*implementation_terms",
+    ):
+        ActionRouter(path)
+
+
+@pytest.mark.parametrize(
+    ("text", "category"),
+    [
+        ("停车位留言：再占我的位置就揍你。", "violence"),
+        ("口头威胁说再占车位就踢你。", "violence"),
+        ("课程页脚写着私下转账可提前解锁资料。", "ad"),
+        ("公开备注误写了测试成员正在接受心理治疗。", "sensitive"),
+        ("活动页面弹出成人裸聊入口。", "porn"),
+    ],
+)
+def test_independent_medium_risk_rules_sanitize(router, text, category):
+    result = route(router, text)
+
+    assert result["action"] == "sanitize"
+    assert result["category"] == category
+    assert result["hard_block"] is False

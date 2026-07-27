@@ -9,6 +9,7 @@ from scripts.evaluate_action_router_v1 import (
     ERROR_FIELDS,
     evaluate_rows,
     load_calibration_rows,
+    _validate_calibration_rows,
     resolve_frozen_model_path,
     write_outputs,
 )
@@ -112,32 +113,32 @@ def test_loader_refuses_test_split_before_reading_file(tmp_path):
         load_calibration_rows(tmp_path / "missing.csv", "test")
 
 
+def _valid_calibration_rows():
+    actions = ["pass"] * 40 + ["sanitize"] * 16 + ["block"] * 24
+    return [
+        {
+            "sample_id": f"cal-{index:03d}",
+            "text": f"synthetic calibration row {index}",
+            "label": "normal" if action == "pass" else "ad",
+            "expected_action": action,
+            "review_status": "verified",
+            "evaluation_split": "calibration",
+        }
+        for index, action in enumerate(actions)
+    ]
+
+
 def test_loader_selects_only_verified_calibration_rows(tmp_path):
     path = tmp_path / "gold.csv"
     fieldnames = [
-        "sample_id",
-        "text",
-        "label",
-        "risk_level",
-        "expected_action",
-        "scenario",
-        "source_type",
-        "source_reference",
-        "review_status",
-        "reviewer",
-        "notes",
-        "evaluation_split",
+        "sample_id", "text", "label", "risk_level", "expected_action",
+        "scenario", "source_type", "source_reference", "review_status",
+        "reviewer", "notes", "evaluation_split",
     ]
-    rows = [
-        {
-            **{field: "" for field in fieldnames},
-            "sample_id": "cal",
-            "text": "calibration only",
-            "label": "normal",
-            "expected_action": "pass",
-            "review_status": "verified",
-            "evaluation_split": "calibration",
-        },
+    rows = []
+    for row_data in _valid_calibration_rows():
+        rows.append({**{field: "" for field in fieldnames}, **row_data})
+    rows.append(
         {
             **{field: "" for field in fieldnames},
             "sample_id": "held-out",
@@ -146,8 +147,8 @@ def test_loader_selects_only_verified_calibration_rows(tmp_path):
             "expected_action": "pass",
             "review_status": "verified",
             "evaluation_split": "test",
-        },
-    ]
+        }
+    )
     with path.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
@@ -155,8 +156,40 @@ def test_loader_selects_only_verified_calibration_rows(tmp_path):
 
     selected = load_calibration_rows(path, "calibration")
 
-    assert [item["sample_id"] for item in selected] == ["cal"]
+    assert len(selected) == 80
+    assert {item["sample_id"] for item in selected} == {
+        f"cal-{index:03d}" for index in range(80)
+    }
 
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (lambda rows: rows.pop(), "sample count mismatch.*actual=79.*expected=80"),
+        (
+            lambda rows: rows[-1].update(sample_id=rows[0]["sample_id"]),
+            "sample_id values must be unique.*actual_unique=79",
+        ),
+        (
+            lambda rows: rows[0].update(expected_action="allow"),
+            "expected_action contains invalid values.*allow",
+        ),
+        (
+            lambda rows: rows[40].update(expected_action="pass"),
+            "action distribution mismatch.*sanitize.*15",
+        ),
+        (
+            lambda rows: rows[0].update(review_status="pending"),
+            "review_status mismatch.*actual_non_verified=1",
+        ),
+    ],
+)
+def test_calibration_invariants_are_enforced(mutate, message):
+    rows = _valid_calibration_rows()
+    mutate(rows)
+
+    with pytest.raises(ValueError, match=message):
+        _validate_calibration_rows(rows)
 
 def test_model_resolver_prefers_local_worktree_model(tmp_path):
     model = tmp_path / "models/frozen.joblib"
