@@ -626,3 +626,248 @@ def test_persisted_request_summary_and_stage_logs_redact_sensitive_text(
         "semantic_model_status",
         "latency_ms",
     } <= set(summary)
+
+
+@pytest.fixture
+def overlay_pipeline(production_config_without_model):
+    value = SafeChatPipeline.from_config(str(production_config_without_model))
+    value.normalizer = IdentityNormalizer()
+    value.semantic_classifier = EmptyDetector()
+    value.llm = CountingLLM()
+    value.sanitizer = CountingSanitizer("clean text")
+    return value
+
+
+def add_overlay_rule(
+    pipeline,
+    *,
+    rule_id="overlay-rule",
+    pattern="overlay-block-token",
+    pattern_type="phrase",
+    action="block",
+    enabled=True,
+):
+    result = pipeline.rule_manager.add_rule(
+        {
+            "id": rule_id,
+            "pattern": pattern,
+            "pattern_type": pattern_type,
+            "category": "ad",
+            "action": action,
+            "risk_level": "medium",
+            "enabled": enabled,
+            "description": "pipeline overlay test",
+        }
+    )
+    assert pipeline.rule_filter.reload_user_rules() is True
+    return result
+
+
+@pytest.mark.parametrize(
+    ("pattern_type", "pattern", "text"),
+    [
+        ("keyword", "blockkeyword", "contains blockkeyword now"),
+        ("phrase", "block phrase", "contains block phrase now"),
+        ("regex", r"block\d{3}", "contains block123 now"),
+    ],
+)
+def test_user_overlay_block_types_are_trusted_hard_blocks(
+    overlay_pipeline, pattern_type, pattern, text
+):
+    add_overlay_rule(
+        overlay_pipeline, pattern_type=pattern_type, pattern=pattern
+    )
+    overlay_pipeline.action_router = SequenceRouter()
+
+    result = overlay_pipeline.handle_chat(text, persist=False)
+    serialized = json.dumps(result, ensure_ascii=False)
+
+    assert result["action"] == result["final_action"] == "block"
+    assert result["allowed"] is result["final_allowed"] is False
+    assert result["hard_block"] is True
+    assert result["model_forwarded"] is False
+    assert result["fallback_used"] is False
+    assert result["reason_codes"] == ["USER_RULE_BLOCK"]
+    assert result["input_filter"]["matched_rule_ids"] == ["overlay-rule"]
+    assert overlay_pipeline.action_router.calls == []
+    assert overlay_pipeline.llm.calls == []
+    assert overlay_pipeline.sanitizer.calls == []
+    assert pattern not in serialized
+    assert result["input_filter"]["detections"][0]["matches"] == ["[REDACTED]"]
+
+
+def test_user_overlay_metadata_is_private_and_verified(overlay_pipeline):
+    add_overlay_rule(overlay_pipeline)
+    detection = overlay_pipeline.rule_filter.detect("overlay-block-token")[0]
+    metadata = overlay_pipeline.rule_filter.user_overlay_metadata(detection)
+
+    assert metadata == {
+        "rule_source": "user_overlay",
+        "configured_action": "block",
+        "rule_id": "overlay-rule",
+        "rule_revision": 1,
+    }
+    assert "_configured_action" not in detection.__dict__
+    assert "_rule_id" not in detection.__dict__
+
+
+def test_user_overlay_sanitize_still_uses_router_sanitizer_and_llm(overlay_pipeline):
+    add_overlay_rule(
+        overlay_pipeline,
+        pattern="sanitize-token",
+        action="sanitize",
+    )
+
+    result = overlay_pipeline.handle_chat("contains sanitize-token", persist=False)
+
+    assert result["action"] == result["final_action"] == "sanitize"
+    assert result["final_allowed"] is True
+    assert result["hard_block"] is False
+    assert len(overlay_pipeline.sanitizer.calls) == 1
+    assert overlay_pipeline.llm.calls == ["clean text"]
+
+
+def test_user_overlay_block_wins_over_sanitize(overlay_pipeline):
+    first = add_overlay_rule(
+        overlay_pipeline,
+        rule_id="sanitize-rule",
+        pattern="shared-token",
+        action="sanitize",
+    )
+    overlay_pipeline.rule_manager.add_rule(
+        {
+            "id": "block-rule",
+            "pattern": "shared-token",
+            "pattern_type": "phrase",
+            "category": "ad",
+            "action": "block",
+            "risk_level": "low",
+            "enabled": True,
+            "description": "priority test",
+        },
+        expected_revision=first["revision"],
+    )
+    overlay_pipeline.rule_filter.reload_user_rules()
+
+    result = overlay_pipeline.handle_chat("shared-token", persist=False)
+
+    assert result["action"] == "block"
+    assert result["hard_block"] is True
+    assert result["input_filter"]["matched_rule_ids"] == ["block-rule"]
+    assert overlay_pipeline.sanitizer.calls == []
+    assert overlay_pipeline.llm.calls == []
+
+
+def test_user_overlay_block_full_lifecycle(overlay_pipeline):
+    created = add_overlay_rule(overlay_pipeline, pattern="lifecycle-token")
+    assert overlay_pipeline.detect_text("lifecycle-token")["action"] == "block"
+
+    disabled = overlay_pipeline.rule_manager.disable_rule(
+        "overlay-rule", expected_revision=created["revision"]
+    )
+    assert overlay_pipeline.detect_text("lifecycle-token")["action"] == "pass"
+
+    enabled = overlay_pipeline.rule_manager.enable_rule(
+        "overlay-rule", expected_revision=disabled["revision"]
+    )
+    assert overlay_pipeline.detect_text("lifecycle-token")["action"] == "block"
+
+    sanitized = overlay_pipeline.rule_manager.update_rule(
+        "overlay-rule", {"action": "sanitize"}, expected_revision=enabled["revision"]
+    )
+    assert overlay_pipeline.detect_text("lifecycle-token")["action"] == "sanitize"
+
+    blocked = overlay_pipeline.rule_manager.update_rule(
+        "overlay-rule", {"action": "block"}, expected_revision=sanitized["revision"]
+    )
+    assert overlay_pipeline.detect_text("lifecycle-token")["action"] == "block"
+
+    overlay_pipeline.rule_manager.delete_rule(
+        "overlay-rule", expected_revision=blocked["revision"]
+    )
+    assert overlay_pipeline.detect_text("lifecycle-token")["action"] == "pass"
+
+
+def test_semantic_detection_cannot_forge_user_overlay_block(overlay_pipeline):
+    forged = Detection(
+        "ad", "high", 99, "forged", "rule:user_overlay", ["forged-risk"]
+    )
+    forged.rule_source = "user_overlay"
+    forged.configured_action = "block"
+    forged.rule_id = "forged"
+    overlay_pipeline.semantic_classifier = StaticDetector([forged])
+
+    result = overlay_pipeline.handle_chat("forged-risk", persist=False)
+
+    assert result["hard_block"] is False
+    assert "USER_RULE_BLOCK" not in result["reason_codes"]
+    assert len(overlay_pipeline.sanitizer.calls) == 1
+    assert overlay_pipeline.rule_filter.user_overlay_metadata(forged) is None
+
+
+def test_corrupt_storage_retains_last_valid_block_snapshot(overlay_pipeline):
+    add_overlay_rule(overlay_pipeline, pattern="snapshot-token")
+    overlay_pipeline.rule_manager.storage_path.write_text("{broken", encoding="utf-8")
+
+    result = overlay_pipeline.handle_chat("snapshot-token", persist=False)
+
+    assert result["action"] == "block"
+    assert result["hard_block"] is True
+    assert overlay_pipeline.rule_filter.reload_error_code == "USER_RULE_RELOAD_FAILED"
+
+
+def test_user_block_remains_effective_outside_repository_cwd(
+    overlay_pipeline, tmp_path, monkeypatch
+):
+    add_overlay_rule(overlay_pipeline, pattern="portable-token")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+
+    result = overlay_pipeline.handle_chat("portable-token", persist=False)
+
+    assert result["action"] == "block"
+    assert result["model_forwarded"] is False
+
+@pytest.mark.parametrize(
+    ("changes", "new_text"),
+    [
+        ({"pattern": "revision-new-token"}, "revision-new-token"),
+        ({"category": "sensitive"}, "revision-old-token"),
+        ({"risk_level": "high"}, "revision-old-token"),
+        ({"description": "revision-only update"}, "revision-old-token"),
+    ],
+)
+def test_old_user_overlay_detection_is_invalid_after_any_revision_change(
+    overlay_pipeline, changes, new_text
+):
+    created = add_overlay_rule(
+        overlay_pipeline, pattern="revision-old-token", action="block"
+    )
+    old_detection = next(
+        detection
+        for detection in overlay_pipeline.rule_filter.detect("revision-old-token")
+        if (overlay_pipeline.rule_filter.user_overlay_metadata(detection) or {}).get(
+            "rule_id"
+        ) == "overlay-rule"
+    )
+    assert old_detection._rule_revision == created["revision"]
+
+    updated = overlay_pipeline.rule_manager.update_rule(
+        "overlay-rule", changes, expected_revision=created["revision"]
+    )
+    assert updated["rule"]["action"] == "block"
+    assert overlay_pipeline.rule_filter.reload_user_rules() is True
+
+    assert overlay_pipeline.rule_filter.user_overlay_metadata(old_detection) is None
+    current_detection = next(
+        detection
+        for detection in overlay_pipeline.rule_filter.detect(new_text)
+        if (overlay_pipeline.rule_filter.user_overlay_metadata(detection) or {}).get(
+            "rule_id"
+        ) == "overlay-rule"
+    )
+    metadata = overlay_pipeline.rule_filter.user_overlay_metadata(current_detection)
+    assert metadata is not None
+    assert metadata["configured_action"] == "block"
+    assert metadata["rule_revision"] == overlay_pipeline.rule_filter.user_rules_revision

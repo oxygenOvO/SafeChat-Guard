@@ -214,3 +214,20 @@ def test_uploaded_csv_without_demo_only_defaults_to_demo():
 
     assert "demo_only" in prepared
     assert bool(prepared.iloc[0]["demo_only"]) is True
+
+
+def test_frontend_source_contains_rule_crud_import_and_request_stats_controls():
+    source = Path(frontend_app.__file__).read_text(encoding="utf-8")
+    assert "新增规则" in source
+    assert "保存规则内容" in source
+    assert "删除用户规则" in source
+    assert "仅校验（dry-run）" in source
+    assert "stage=request_summary" in source
+    assert "内置规则只读" in source
+
+def test_rule_page_requires_authorized_mode_before_full_pattern_editing():
+    source = Path(frontend_app.__file__).read_text(encoding="utf-8")
+    assert "authorized_mode" in source
+    assert "include_pattern=authorized_mode" in source
+    assert 'catalog.get("pattern_access")' in source
+    assert 'type="password"' in source

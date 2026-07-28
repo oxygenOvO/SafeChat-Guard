@@ -243,3 +243,102 @@ def test_adapter_has_safe_legacy_fallback_without_final_fields(
 
     assert result["final_action"] == "block"
     assert result["final_allowed"] is False
+
+
+def test_adapter_rule_catalog_marks_builtins_read_only(make_adapter):
+    adapter = make_adapter()
+    catalog = adapter.rule_catalog()
+    builtins = [rule for rule in catalog["rules"] if rule["origin"] == "builtin"]
+    assert builtins
+    assert all(rule["read_only"] is True for rule in builtins)
+    assert catalog["user_count"] == 0
+
+
+def test_adapter_user_rule_crud_reloads_filter(make_adapter):
+    adapter = make_adapter()
+    payload = {
+        "id": "ui-rule-1",
+        "pattern": "前端紫色词",
+        "pattern_type": "phrase",
+        "category": "ad",
+        "action": "sanitize",
+        "risk_level": "medium",
+        "enabled": True,
+        "description": "UI test",
+    }
+    created = adapter.add_user_rule(payload, 0)
+    assert adapter.pipeline.rule_filter.detect("包含前端紫色词")
+    updated = adapter.update_user_rule(
+        "ui-rule-1", {"description": "changed"}, created["revision"]
+    )
+    disabled = adapter.set_user_rule_enabled(
+        "ui-rule-1", False, updated["revision"]
+    )
+    assert adapter.pipeline.rule_filter.detect("包含前端紫色词") == []
+    adapter.delete_user_rule("ui-rule-1", disabled["revision"])
+    assert adapter.rule_catalog()["user_count"] == 0
+
+
+def test_adapter_daily_stats_zero_state(make_adapter):
+    stats = make_adapter().daily_stats()
+    assert stats["request_count"] == 0
+    assert stats["violation_count"] == 0
+    assert stats["source"] == "request_summary"
+
+def test_adapter_rule_catalog_redacts_pattern_by_default(make_adapter):
+    adapter = make_adapter()
+    payload = {
+        "id": "private-ui-rule",
+        "pattern": "private-ui-pattern",
+        "pattern_type": "phrase",
+        "category": "ad",
+        "action": "sanitize",
+        "risk_level": "medium",
+        "enabled": True,
+        "description": "private UI test",
+    }
+    created = adapter.add_user_rule(payload, 0)
+    assert created["rule"]["pattern"] == "[REDACTED]"
+    catalog = adapter.rule_catalog()
+    user_rule = next(rule for rule in catalog["rules"] if rule["id"] == "private-ui-rule")
+    assert user_rule["pattern"] == "[REDACTED]"
+    assert user_rule["pattern_redacted"] is True
+    assert catalog["pattern_access"] is False
+
+
+def test_adapter_privileged_catalog_requires_token_and_supports_edit(
+    make_adapter, monkeypatch
+):
+    adapter = make_adapter()
+    token = "frontend-admin-token"
+    monkeypatch.setenv("SAFECHAT_RULE_ADMIN_TOKEN", token)
+    payload = {
+        "id": "editable-ui-rule",
+        "pattern": "editable-private-pattern",
+        "pattern_type": "phrase",
+        "category": "ad",
+        "action": "sanitize",
+        "risk_level": "medium",
+        "enabled": True,
+        "description": "editable UI test",
+    }
+    created = adapter.add_user_rule(payload, 0)
+    with pytest.raises(PermissionError):
+        adapter.rule_catalog(include_pattern=True, admin_token="wrong")
+
+    catalog = adapter.rule_catalog(include_pattern=True, admin_token=token)
+    selected = next(rule for rule in catalog["rules"] if rule["id"] == "editable-ui-rule")
+    assert selected["pattern"] == "editable-private-pattern"
+    assert selected["pattern_redacted"] is False
+    assert catalog["pattern_access"] is True
+
+    updated = adapter.update_user_rule(
+        "editable-ui-rule",
+        {"pattern": "edited-private-pattern"},
+        created["revision"],
+    )
+    assert updated["rule"]["pattern"] == "[REDACTED]"
+    privileged = adapter.rule_catalog(include_pattern=True, admin_token=token)
+    selected = next(rule for rule in privileged["rules"] if rule["id"] == "editable-ui-rule")
+    assert selected["pattern"] == "edited-private-pattern"
+    assert token not in adapter.pipeline.logger.path.read_text(encoding="utf-8")

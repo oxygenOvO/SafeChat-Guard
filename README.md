@@ -90,6 +90,10 @@ python -B -c "from pathlib import Path; files=list(Path('safechat_guard').glob('
 - `GET /ready`：语义模型与LLM运行状态检查。
 - `POST /api/detect`：仅执行输入检测链路。
 - `GET /api/stats`：返回日志统计，包括总事件数、拦截数、改写数、类别分布、风险等级分布。
+- `GET/POST/PATCH/DELETE /api/rules`：管理独立用户规则 overlay；内置规则只读。
+  - 用户 `block` 规则在 ActionRouter 前可信校验并直接拦截；`sanitize` 规则继续走脱敏与复检。
+- `POST /api/rules/import`：原子导入 UTF-8 CSV/JSON，支持 `dry_run`。
+- `GET /api/stats/summary`、`/api/stats/daily`：基于 `request_summary` 的请求级每日统计。
 
 ## 目录结构
 
@@ -99,6 +103,7 @@ safechat_guard/
   output_guard.py         # 输出侧二次校验与脱敏改写
   logger.py               # JSONL日志与统计
   rule_filter.py          # 关键词/正则检测
+  rule_manager.py         # 用户规则CRUD、校验与原子存储
   normalizer.py           # 中文对抗归一化
   semantic_classifier.py  # 语义分类器，可选依赖
 data/
@@ -108,3 +113,8 @@ templates/                # 前端页面
 static/                   # 前端样式与脚本
 tests/                    # 测试用例
 ```
+### User-rule privacy and activation
+
+Rule patterns are redacted by default in rule list/get and mutation responses. Full patterns require an explicit `include_pattern=true` read that passes the same loopback/admin-token policy used by management writes. The Streamlit rule page enables full-pattern editing only after its authorized-management mode succeeds.
+
+Rule changes use candidate compilation followed by atomic persistence and snapshot activation. If activation fails, the previous file, revision, and in-memory RuleFilter snapshot are restored. A rollback failure enters a degraded state that preserves the last trusted in-memory rules and rejects later writes.
