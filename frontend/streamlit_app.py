@@ -548,6 +548,7 @@ def render_detection_workspace() -> None:
             st.markdown(
                 risk_pill(result["risk"])
                 + action_pill(result["action"])
+                + action_pill(result["final_action"])
                 + label_pill(CATEGORY_LABELS.get(result["category"], result["category"]), "blue"),
                 unsafe_allow_html=True,
             )
@@ -557,11 +558,12 @@ def render_detection_workspace() -> None:
                 f"""
                 <div class="result-panel result-{escape(str(result["risk"]))}">
                     <div class="result-eyebrow">FINAL DECISION · 最终结论</div>
-                    <div class="result-verdict">{escape(ACTION_LABELS[result["action"]])}</div>
+                    <div class="result-verdict">{escape(ACTION_LABELS[result["final_action"]])}</div>
                     <div class="result-meta">
                         风险：{escape(RISK_LABELS[result["risk"]])} · {result["risk_score"]}/100<br>
                         类别：{escape(CATEGORY_LABELS.get(result["category"], result["category"]))}<br>
-                        说明：{escape(str(result["comparison_note"]))}{error_note}{model_note}
+                        说明：{escape(str(result["comparison_note"]))}{error_note}{model_note}<br>
+                        FINAL ALLOWED: {escape(str(result["final_allowed"]))}
                     </div>
                 </div>
                 """,

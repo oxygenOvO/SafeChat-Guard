@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 import time
 import warnings
@@ -120,6 +120,8 @@ class SafeChatPipeline:
                     model_forwarded=False,
                     model_response=None,
                     output_guard_action=None,
+                    final_action="block",
+                    final_allowed=False,
                     started=started,
                 )
             )
@@ -127,22 +129,32 @@ class SafeChatPipeline:
                 {"stage": "final", "action": "block", "reason": "input_block"},
                 persist,
             )
-            return result
+            return self._complete_request(
+                result,
+                input_result,
+                started=started,
+                persist=persist,
+            )
 
         safe_message = input_result.get("sanitized_text") or message
         rewrite = {
             "changed": safe_message != message,
             "rewrite_text": safe_message if safe_message != message else None,
         }
-        model_forwarded = raw_reply_override is None
-        input_result["model_forwarded"] = model_forwarded
+        model_forwarded = False
         try:
-            raw_reply = (
-                raw_reply_override
-                if raw_reply_override is not None
-                else self.llm.chat(safe_message)
-            )
+            if raw_reply_override is not None:
+                raw_reply = raw_reply_override
+            else:
+                try:
+                    raw_reply = self.llm.chat(safe_message)
+                except LLMClientError:
+                    model_forwarded = True
+                    raise
+                else:
+                    model_forwarded = True
         except LLMClientError:
+            input_result["model_forwarded"] = model_forwarded
             result = {
                 "allowed": False,
                 "reply": "\u6a21\u578b\u670d\u52a1\u6682\u65f6\u4e0d\u53ef\u7528\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002",
@@ -159,6 +171,8 @@ class SafeChatPipeline:
                     model_forwarded=model_forwarded,
                     model_response=None,
                     output_guard_action=None,
+                    final_action="block",
+                    final_allowed=False,
                     started=started,
                 )
             )
@@ -170,9 +184,15 @@ class SafeChatPipeline:
                 },
                 persist,
             )
-            return result
+            return self._complete_request(
+                result,
+                input_result,
+                started=started,
+                persist=persist,
+            )
 
         output_result = self._filter_output(raw_reply)
+        input_result["model_forwarded"] = model_forwarded
         self._write_event(
             {"stage": "output", "raw_reply": raw_reply, "result": output_result},
             persist,
@@ -195,19 +215,29 @@ class SafeChatPipeline:
                 model_forwarded=model_forwarded,
                 model_response=None if output_risky else raw_reply,
                 output_guard_action=output_result["action"],
+                final_action=self._final_action(
+                    input_result["action"], output_result["action"]
+                ),
+                final_allowed=output_result["action"] != "block",
                 started=started,
             )
         )
         self._write_event(
             {
                 "stage": "final",
-                "action": output_result["action"],
+                "action": result["final_action"],
                 "allowed": result["allowed"],
                 "final_reply": final_reply,
             },
             persist,
         )
-        return result
+        return self._complete_request(
+            result,
+            input_result,
+            started=started,
+            persist=persist,
+        )
+
     def detect_text(self, text: str) -> dict:
         return self._filter_text(text, stage="detect")
 
@@ -558,10 +588,14 @@ class SafeChatPipeline:
         model_forwarded: bool,
         model_response: str | None,
         output_guard_action: str | None,
+        final_action: str,
+        final_allowed: bool,
         started: float,
     ) -> dict:
         return {
             "action": input_result["action"],
+            "final_action": final_action,
+            "final_allowed": final_allowed,
             "category": input_result["category"],
             "risk_level": input_result["risk_level"],
             "risk_score": input_result["risk_score"],
@@ -576,6 +610,64 @@ class SafeChatPipeline:
             "fallback_used": input_result["fallback_used"],
             "latency_ms": max(0, round((time.perf_counter() - started) * 1000)),
         }
+
+    @staticmethod
+    def _final_action(input_action: str, output_action: str | None) -> str:
+        if input_action == "block" or output_action == "block":
+            return "block"
+        if input_action == "sanitize" or output_action == "sanitize":
+            return "sanitize"
+        return "pass"
+
+    def _complete_request(
+        self,
+        result: dict,
+        input_result: dict,
+        *,
+        started: float,
+        persist: bool,
+    ) -> dict:
+        result["latency_ms"] = max(
+            0, round((time.perf_counter() - started) * 1000)
+        )
+        output_filter = result.get("output_filter") or {}
+        output_action = result.get("output_guard_action") or "not_run"
+        category = result["category"]
+        risk_level = result["risk_level"]
+        risk_score = result["risk_score"]
+        if output_action in {"sanitize", "block"}:
+            output_categories = output_filter.get("risk_categories") or []
+            if output_categories:
+                category = sorted(output_categories)[0]
+            risk_level = output_filter.get("risk_level", risk_level)
+            risk_score = max(risk_score, int(output_filter.get("risk_score", 0)))
+        input_sanitize = bool(input_result.get("rewrite_called"))
+        input_changed = bool(input_result.get("rewrite_changed"))
+        output_sanitize = output_action == "sanitize"
+        output_changed = bool(output_filter.get("rewritten"))
+
+        self._write_event(
+            {
+                "stage": "request_summary",
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "input_action": input_result["action"],
+                "output_action": output_action,
+                "final_action": result["final_action"],
+                "final_allowed": result["final_allowed"],
+                "category": category,
+                "risk_level": risk_level,
+                "risk_score": risk_score,
+                "model_forwarded": result["model_forwarded"],
+                "sanitize_applied": input_sanitize or output_sanitize,
+                "sanitize_changed": input_changed or output_changed,
+                "fallback_used": result["fallback_used"],
+                "semantic_model_status": result["semantic_model_status"],
+                "latency_ms": result["latency_ms"],
+            },
+            persist,
+        )
+        return result
+
     def stats(
         self,
         since: datetime | None = None,
@@ -621,7 +713,14 @@ class SafeChatPipeline:
 
     def _write_event(self, event: dict, persist: bool) -> None:
         if persist:
-            self.logger.write(event)
+            try:
+                self.logger.write(event)
+            except Exception:
+                warnings.warn(
+                    "audit event could not be persisted",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
 
     def _risk_level(self, score: int) -> str:
         if score >= int(self.config["risk"].get("block_threshold", 80)):

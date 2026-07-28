@@ -197,3 +197,49 @@ def test_adapter_exposes_real_rule_configuration(make_adapter):
 
     assert adapter.lexicon_rows()
     assert adapter.regex_rows()
+
+
+def test_adapter_prefers_pipeline_final_fields(make_adapter, monkeypatch):
+    adapter = make_adapter()
+    pipeline_result = adapter.pipeline.handle_chat(
+        "ordinary",
+        raw_reply_override="safe reply",
+        persist=False,
+    )
+    pipeline_result["final_action"] = "block"
+    pipeline_result["final_allowed"] = False
+
+    monkeypatch.setattr(
+        adapter.pipeline,
+        "handle_chat",
+        lambda *args, **kwargs: pipeline_result,
+    )
+    result = adapter.analyze("ordinary", output_override="safe reply", persist=False)
+
+    assert result["action"] == "pass"
+    assert result["final_action"] == "block"
+    assert result["final_allowed"] is False
+    assert result["record"]["final_action"] == "block"
+
+
+def test_adapter_has_safe_legacy_fallback_without_final_fields(
+    make_adapter, monkeypatch
+):
+    adapter = make_adapter()
+    pipeline_result = adapter.pipeline.handle_chat(
+        "ordinary",
+        raw_reply_override="\u6211\u4f1a\u6740\u4e86\u4f60",
+        persist=False,
+    )
+    pipeline_result.pop("final_action")
+    pipeline_result.pop("final_allowed")
+    monkeypatch.setattr(
+        adapter.pipeline,
+        "handle_chat",
+        lambda *args, **kwargs: pipeline_result,
+    )
+
+    result = adapter.analyze("ordinary", persist=False)
+
+    assert result["final_action"] == "block"
+    assert result["final_allowed"] is False

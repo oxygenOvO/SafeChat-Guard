@@ -88,10 +88,13 @@ def test_concurrent_chat_and_stats_requests(api_runtime):
 
     assert all(status == 200 for status, _ in results)
     assert all(payload["allowed"] is True for _, payload in results)
-    assert pipeline.logger.stats()["total_events"] == 36
+    assert all(payload["final_allowed"] is True for _, payload in results)
+    assert all(payload["final_action"] == "pass" for _, payload in results)
+    assert pipeline.logger.stats()["total_events"] == 48
     status, stats = request_json(base_url, "/api/stats")
     assert status == 200
-    assert stats["total_events"] == 36
+    assert stats["total_events"] == 48
+    assert stats["stage_counts"]["request_summary"] == 12
 
 
 def test_internal_error_does_not_expose_exception(api_runtime, monkeypatch):
@@ -137,3 +140,27 @@ def test_get_internal_error_uses_unified_safe_response(api_runtime, monkeypatch)
     assert status == 500
     assert error == {"error": "internal_error", "message": "Internal server error"}
     assert "SECRET-GET-DETAIL" not in json.dumps(error)
+
+
+def test_api_output_block_uses_final_contract_without_raw_leak(api_runtime):
+    base_url, _ = api_runtime
+    unsafe = "\u6211\u4f1a\u6740\u4e86\u4f60"
+
+    status, payload = request_json(
+        base_url,
+        "/api/chat",
+        {
+            "message": "ordinary question",
+            "raw_reply_override": unsafe,
+        },
+    )
+    serialized = json.dumps(payload, ensure_ascii=False)
+
+    assert status == 200
+    assert payload["action"] == "pass"
+    assert payload["output_guard_action"] == "block"
+    assert payload["final_action"] == "block"
+    assert payload["final_allowed"] is False
+    assert payload["raw_reply"] is None
+    assert payload["model_response"] is None
+    assert unsafe not in serialized
