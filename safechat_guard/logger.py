@@ -1,10 +1,12 @@
 import json
 import threading
 import time
+import warnings
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone, tzinfo
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 SENSITIVE_FIELDS = {
@@ -81,6 +83,11 @@ class EventLogger:
                     try:
                         event = json.loads(line)
                     except json.JSONDecodeError:
+                        warnings.warn(
+                            "skipped malformed audit log line",
+                            RuntimeWarning,
+                            stacklevel=2,
+                        )
                         continue
                     if since is not None:
                         try:
@@ -198,6 +205,20 @@ class EventLogger:
             "final_action_counts": dict(final_action_counter),
         }
 
+    def daily_stats(
+        self,
+        *,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        timezone_name: str | None = None,
+    ) -> dict[str, Any]:
+        """Aggregate only request_summary events into request-level metrics."""
+        return request_summary_statistics(
+            self.read_all(),
+            start_date=start_date,
+            end_date=end_date,
+            timezone_name=timezone_name,
+        )
     def _rotate_if_needed(self, incoming_bytes: int) -> None:
         if not self.max_bytes or not self.path.exists():
             return
@@ -252,3 +273,146 @@ class EventLogger:
     @staticmethod
     def _is_semantic_source(source: str) -> bool:
         return source.startswith("semantic")
+
+
+MAX_DATE_RANGE_DAYS = 366
+
+
+class StatisticsValidationError(ValueError):
+    pass
+
+
+def request_summary_statistics(
+    events: list[dict[str, Any]],
+    *,
+    start_date: str | date | None = None,
+    end_date: str | date | None = None,
+    timezone_name: str | None = None,
+) -> dict[str, Any]:
+    tz, timezone_label = _resolve_timezone(timezone_name)
+    start = _parse_date(start_date, "start_date")
+    end = _parse_date(end_date, "end_date")
+    if start is not None and end is not None:
+        if start > end:
+            raise StatisticsValidationError("start_date must not be after end_date")
+        if (end - start).days + 1 > MAX_DATE_RANGE_DAYS:
+            raise StatisticsValidationError(
+                f"date range must not exceed {MAX_DATE_RANGE_DAYS} days"
+            )
+
+    summaries: list[tuple[dict[str, Any], date]] = []
+    for event in events:
+        if event.get("stage") != "request_summary":
+            continue
+        event_time = _event_time(event)
+        if event_time is None:
+            continue
+        local_date = event_time.astimezone(tz).date()
+        if start is not None and local_date < start:
+            continue
+        if end is not None and local_date > end:
+            continue
+        summaries.append((event, local_date))
+
+    action_counts: Counter[str] = Counter()
+    categories: Counter[str] = Counter()
+    daily: Counter[str] = Counter()
+    input_block_count = 0
+    output_block_count = 0
+    fallback_count = 0
+    model_forwarded_count = 0
+    for event, local_date in summaries:
+        final_action = event.get("final_action")
+        if final_action in {"pass", "sanitize", "block"}:
+            action_counts[final_action] += 1
+        if event.get("input_action") == "block":
+            input_block_count += 1
+        if event.get("output_action") == "block":
+            output_block_count += 1
+        fallback_count += int(event.get("fallback_used") is True)
+        model_forwarded_count += int(event.get("model_forwarded") is True)
+        if final_action in {"sanitize", "block"}:
+            daily[local_date.isoformat()] += 1
+            category = event.get("category")
+            if isinstance(category, str) and category and category != "normal":
+                categories[category] += 1
+
+    if start is not None and end is not None:
+        current = start
+        while current <= end:
+            daily.setdefault(current.isoformat(), 0)
+            current += timedelta(days=1)
+
+    legacy_event_count = sum(
+        1 for event in events if event.get("stage") != "request_summary"
+    )
+    has_request_summaries = any(
+        event.get("stage") == "request_summary" for event in events
+    )
+    source = (
+        "request_summary"
+        if has_request_summaries or not events
+        else "legacy_stage_events"
+    )
+    block_count = action_counts["block"]
+    sanitize_count = action_counts["sanitize"]
+    return {
+        "source": source,
+        "timezone": timezone_label,
+        "start_date": start.isoformat() if start else None,
+        "end_date": end.isoformat() if end else None,
+        "request_count": len(summaries),
+        "violation_count": block_count + sanitize_count,
+        "block_count": block_count,
+        "sanitize_count": sanitize_count,
+        "pass_count": action_counts["pass"],
+        "input_block_count": input_block_count,
+        "output_block_count": output_block_count,
+        "fallback_count": fallback_count,
+        "model_forwarded_count": model_forwarded_count,
+        "category_distribution": dict(sorted(categories.items())),
+        "daily_violation_counts": dict(sorted(daily.items())),
+        "legacy_event_count": legacy_event_count,
+    }
+
+
+def _event_time(event: dict[str, Any]) -> datetime | None:
+    value = event.get("timestamp") or event.get("time")
+    if not isinstance(value, str):
+        return None
+    normalized = value[:-1] + "+00:00" if value.endswith("Z") else value
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _parse_date(value: str | date | None, field: str) -> date | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        raise StatisticsValidationError(f"{field} must be an ISO date")
+    if isinstance(value, date):
+        return value
+    if not isinstance(value, str):
+        raise StatisticsValidationError(f"{field} must be an ISO date")
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise StatisticsValidationError(f"{field} must be an ISO date") from exc
+
+
+def _resolve_timezone(value: str | None) -> tuple[tzinfo, str]:
+    if value is None:
+        local = datetime.now().astimezone().tzinfo or timezone.utc
+        return local, str(local)
+    if not isinstance(value, str) or not value.strip():
+        raise StatisticsValidationError("timezone must be a non-empty IANA name")
+    try:
+        zone = ZoneInfo(value)
+    except (ZoneInfoNotFoundError, ValueError) as exc:
+        raise StatisticsValidationError("timezone is invalid") from exc
+    return zone, value

@@ -11,9 +11,15 @@ import api_server
 from safechat_guard.pipeline import SafeChatPipeline
 
 
-def request_json(base_url: str, path: str, payload=None, content_type="application/json"):
+def request_json(
+    base_url: str,
+    path: str,
+    payload=None,
+    content_type="application/json",
+    method: str | None = None,
+):
     data = None if payload is None else json.dumps(payload).encode("utf-8")
-    request = Request(f"{base_url}{path}", data=data)
+    request = Request(f"{base_url}{path}", data=data, method=method)
     if data is not None:
         request.add_header("Content-Type", content_type)
     try:
@@ -164,3 +170,94 @@ def test_api_output_block_uses_final_contract_without_raw_leak(api_runtime):
     assert payload["raw_reply"] is None
     assert payload["model_response"] is None
     assert unsafe not in serialized
+
+
+def test_rule_management_real_http_routes_and_reload(api_runtime):
+    base_url, pipeline = api_runtime
+    new_rule = {
+        "id": "http-rule-1",
+        "pattern": "青色接口命中",
+        "pattern_type": "phrase",
+        "category": "ad",
+        "action": "sanitize",
+        "risk_level": "medium",
+        "enabled": True,
+        "description": "HTTP integration",
+    }
+    status, created = request_json(
+        base_url, "/api/rules", new_rule, method="POST"
+    )
+    assert status == 201
+    assert pipeline.rule_filter.detect("包含青色接口命中")
+
+    status, listed = request_json(base_url, "/api/rules")
+    assert status == 200 and listed["user_count"] == 1
+    status, disabled = request_json(
+        base_url,
+        "/api/rules/http-rule-1",
+        {"enabled": False, "expected_revision": created["revision"]},
+        method="PATCH",
+    )
+    assert status == 200 and disabled["rule"]["enabled"] is False
+    assert pipeline.rule_filter.detect("包含青色接口命中") == []
+
+    status, deleted = request_json(
+        base_url,
+        "/api/rules/http-rule-1",
+        {"expected_revision": disabled["revision"]},
+        method="DELETE",
+    )
+    assert status == 200 and deleted["deleted"] == "http-rule-1"
+
+
+def test_request_summary_statistics_real_http_route(api_runtime):
+    base_url, _ = api_runtime
+    request_json(base_url, "/api/chat", {"message": "ordinary request"})
+    status, stats = request_json(base_url, "/api/stats/summary?timezone=UTC")
+    assert status == 200
+    assert stats["source"] == "request_summary"
+    assert stats["request_count"] == 1
+    assert stats["pass_count"] == 1
+    assert "events" not in stats and "path" not in stats
+
+def test_http_chat_user_overlay_block_contract_and_no_leak(api_runtime, monkeypatch):
+    base_url, pipeline = api_runtime
+    private_pattern = "http-private-block-token"
+
+    def forbidden(_message):
+        raise AssertionError("user overlay block must not call LLM")
+
+    monkeypatch.setattr(pipeline.llm, "chat", forbidden)
+    status, created = request_json(
+        base_url,
+        "/api/rules",
+        {
+            "id": "http-block-rule",
+            "pattern": private_pattern,
+            "pattern_type": "phrase",
+            "category": "ad",
+            "action": "block",
+            "risk_level": "medium",
+            "enabled": True,
+            "description": "HTTP block contract",
+        },
+        method="POST",
+    )
+    assert status == 201 and created["rule"]["action"] == "block"
+
+    status, result = request_json(
+        base_url,
+        "/api/chat",
+        {"message": f"contains {private_pattern}"},
+        method="POST",
+    )
+    serialized = json.dumps(result, ensure_ascii=False)
+
+    assert status == 200
+    assert result["action"] == result["final_action"] == "block"
+    assert result["final_allowed"] is False
+    assert result["hard_block"] is True
+    assert result["model_forwarded"] is False
+    assert "USER_RULE_BLOCK" in result["reason_codes"]
+    assert private_pattern not in serialized
+    assert private_pattern not in pipeline.logger.path.read_text(encoding="utf-8")

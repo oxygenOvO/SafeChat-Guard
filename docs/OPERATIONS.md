@@ -64,3 +64,27 @@ python D:\Projects\SafeChat-Guard-system-integration-v1\api_server.py
 配置始终相对于脚本所在项目根目录解析。两个入口均提供相同的 `/health`、`/ready` 和 `/api/*` 行为。
 
 每个持久化聊天请求结束后产生一条 `request_summary`。该摘要不包含完整输入或完整模型输出；日志写入失败只产生不含敏感原文的内部warning，不改变API安全结果。
+
+## 规则管理运维
+
+内置词表与正则保持只读；管理界面和 API 只写 `data/rules/user_rules.json`。写入流程为严格校验、同目录临时文件、fsync、单份 `.bak` 备份和原子替换。服务使用进程内写锁与 revision 乐观并发检查；更新成功后立即重载，其他进程会在下一次检测前按文件签名轻量重载。重载失败保留上一份已编译规则，不清空内置或内存规则。
+
+生产环境必须设置管理员 token：
+
+```powershell
+$env:SAFECHAT_RULE_ADMIN_TOKEN = '<从密钥管理系统注入>'
+python api_server.py
+```
+
+未设置 token 时，仅 loopback 客户端可执行规则写操作。不要把 token 写入配置、命令历史、日志或截图。CSV 必须为 UTF-8，规范表头为 `id,pattern,pattern_type,category,action,risk_level,enabled,description`；JSON 为规则数组或仅含 `rules` 的对象。建议先调用 validate-import 或在页面勾选 dry-run。
+
+如果主 overlay 损坏，停止写操作并检查 `.bak`；不要用空数组覆盖损坏文件。恢复前验证 JSON 结构、revision 和 content_sha256。规则管理审计业务字段只记录 operation、rule_id、revision 和 result（日志基础层另加 stage/time），不记录 pattern、导入文件、token、异常堆栈或绝对路径。
+
+## 每日统计
+
+`/api/stats/summary` 和前端统计页只聚合 `request_summary`。日期边界按请求的 IANA timezone 计算；未指定时使用操作系统本地时区。空日志返回零值。损坏 JSONL 行会被跳过并产生不含正文和路径的 warning。旧日志缺少 request_summary 时明确标记 legacy，不能与请求数混用。
+## User-rule transaction recovery
+
+A rule mutation is successful only after disk persistence and RuleFilter activation agree on the same revision. Candidate compilation failure does not write the file. Activation failure rolls back the prior file and retains the last-good memory snapshot. Failed transactions emit a `stage=rule_management` audit event with `result=failed` and no pattern or exception text.
+
+If rollback itself fails, rule management enters degraded mode: automatic rule reload is frozen on the last trusted snapshot and subsequent writes are rejected. Repair the user-rule storage from a trusted backup and restart the service before re-enabling management operations.

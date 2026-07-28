@@ -702,30 +702,150 @@ def render_rewrite_page() -> None:
 
 
 def render_rules_page() -> None:
-    st.subheader("词库与规则配置")
-    st.caption("只读展示后端当前实际加载的词库和正则规则，避免页面内修改与文件配置不一致。")
-    rows = [
-        {"类别": CATEGORY_LABELS.get(item["category"], item["category"]), "词条": item["word"]}
-        for item in get_adapter().lexicon_rows()
-    ]
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
-    st.markdown('<div class="section-title">正则规则</div>', unsafe_allow_html=True)
-    regex_rows = get_adapter().regex_rows()
-    st.dataframe(
-        pd.DataFrame(
-            [
-                {
-                    "类别": CATEGORY_LABELS.get(rule.get("category", "unknown"), rule.get("category", "unknown")),
-                    "规则说明": rule.get("reason", rule.get("name", "")),
-                    "正则表达式": rule.get("pattern", ""),
-                }
-                for rule in regex_rows
-            ]
-        ),
-        use_container_width=True,
-        hide_index=True,
+    st.subheader("规则管理")
+    st.caption("内置规则只读；用户规则作为独立 overlay 保存，成功更新后立即重载。")
+    adapter = get_adapter()
+    authorized_mode = st.checkbox("授权管理模式", value=False)
+    admin_token = (
+        st.text_input("管理员令牌", type="password")
+        if authorized_mode
+        else None
     )
+    try:
+        catalog = adapter.rule_catalog(
+            include_pattern=authorized_mode,
+            admin_token=admin_token,
+        )
+    except PermissionError:
+        st.warning("管理权限不足，规则内容保持脱敏。")
+        catalog = adapter.rule_catalog()
+    st.caption(f"Revision {catalog['revision']} · 内置 {catalog['built_in_count']} 条 · 用户 {catalog['user_count']} 条")
+    display_rows = [
+        {
+            "ID": rule["id"], "来源": "内置只读" if rule["read_only"] else "用户规则",
+            "类型": rule["pattern_type"], "类别": CATEGORY_LABELS.get(rule["category"], rule["category"]),
+            "动作": ACTION_LABELS.get(rule["action"], rule["action"]),
+            "风险": RISK_LABELS.get(rule["risk_level"], rule["risk_level"]),
+            "启用": rule["enabled"], "规则": rule["pattern"],
+        }
+        for rule in catalog["rules"]
+    ]
+    st.dataframe(pd.DataFrame(display_rows), use_container_width=True, hide_index=True)
 
+    add_tab, edit_tab, import_tab = st.tabs(["新增", "启停/删除", "批量导入"])
+    with add_tab:
+        with st.form("add-user-rule"):
+            rule_id = st.text_input("规则 ID")
+            pattern = st.text_input("关键词、短语或正则")
+            pattern_type = st.selectbox("匹配类型", ["keyword", "phrase", "regex"])
+            category = st.selectbox("类别", ["porn", "violence", "ad", "sensitive"])
+            action = st.selectbox("动作", ["sanitize", "block"])
+            risk_level = st.selectbox("风险等级", ["low", "medium", "high"], index=1)
+            description = st.text_input("说明")
+            enabled = st.checkbox("立即启用", value=True)
+            submitted = st.form_submit_button("新增规则", type="primary")
+        if submitted:
+            try:
+                adapter.add_user_rule(
+                    {"id": rule_id, "pattern": pattern, "pattern_type": pattern_type,
+                     "category": category, "action": action, "risk_level": risk_level,
+                     "enabled": enabled, "description": description},
+                    catalog["revision"],
+                )
+                st.success("规则已保存并重载。")
+                st.rerun()
+            except Exception as exc:
+                st.error(f"新增失败：{str(exc)}")
+
+    user_rules = [rule for rule in catalog["rules"] if not rule["read_only"]]
+    with edit_tab:
+        if not user_rules:
+            st.info("当前没有用户规则。")
+        else:
+            selected_id = st.selectbox("选择用户规则", [rule["id"] for rule in user_rules])
+            selected = next(rule for rule in user_rules if rule["id"] == selected_id)
+            if catalog.get("pattern_access"):
+                with st.expander("编辑规则内容"):
+                    with st.form(f"edit-{selected_id}"):
+                        edit_pattern = st.text_input("规则内容", value=selected["pattern"])
+                        edit_type = st.selectbox(
+                            "匹配类型",
+                            ["keyword", "phrase", "regex"],
+                            index=["keyword", "phrase", "regex"].index(selected["pattern_type"]),
+                            key=f"type-{selected_id}",
+                        )
+                        edit_category = st.selectbox(
+                            "类别", ["porn", "violence", "ad", "sensitive"],
+                            index=["porn", "violence", "ad", "sensitive"].index(selected["category"]),
+                            key=f"category-{selected_id}",
+                        )
+                        edit_action = st.selectbox(
+                            "动作", ["sanitize", "block"],
+                            index=["sanitize", "block"].index(selected["action"]),
+                            key=f"action-{selected_id}",
+                        )
+                        edit_risk = st.selectbox(
+                            "风险等级", ["low", "medium", "high"],
+                            index=["low", "medium", "high"].index(selected["risk_level"]),
+                            key=f"risk-{selected_id}",
+                        )
+                        edit_description = st.text_input(
+                            "说明", value=selected["description"], key=f"description-{selected_id}"
+                        )
+                        edit_submitted = st.form_submit_button("保存规则内容")
+                    if edit_submitted:
+                        try:
+                            adapter.update_user_rule(
+                                selected_id,
+                                {"pattern": edit_pattern, "pattern_type": edit_type,
+                                 "category": edit_category, "action": edit_action,
+                                 "risk_level": edit_risk, "description": edit_description},
+                                catalog["revision"],
+                            )
+                            st.success("规则内容已更新并重载。")
+                            st.rerun()
+                        except Exception as exc:
+                            st.error(f"更新失败：{str(exc)}")
+            else:
+                st.info("进入授权管理模式后可编辑完整规则内容。")
+            enabled_value = st.checkbox("启用该规则", value=selected["enabled"], key=f"enabled-{selected_id}")
+            col1, col2 = st.columns(2)
+            if col1.button("保存启停状态", use_container_width=True):
+                try:
+                    adapter.set_user_rule_enabled(selected_id, enabled_value, catalog["revision"])
+                    st.success("规则状态已更新。")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"更新失败：{str(exc)}")
+            if col2.button("删除用户规则", use_container_width=True):
+                try:
+                    adapter.delete_user_rule(selected_id, catalog["revision"])
+                    st.success("用户规则已删除。")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"删除失败：{str(exc)}")
+
+    with import_tab:
+        uploaded = st.file_uploader("上传 UTF-8 CSV 或 JSON", type=["csv", "json"])
+        mode = st.selectbox("导入模式", ["create", "update"])
+        dry_run = st.checkbox("仅校验（dry-run）", value=True)
+        if st.button("校验或导入", type="primary", disabled=uploaded is None):
+            try:
+                format_name = Path(uploaded.name).suffix.lower().lstrip(".")
+                report = adapter.import_user_rules(
+                    uploaded.getvalue(), format_name=format_name, dry_run=dry_run,
+                    mode=mode, expected_revision=catalog["revision"],
+                )
+                st.json({key: value for key, value in report.items() if key != "errors"})
+                if report.get("errors"):
+                    st.dataframe(pd.DataFrame(report["errors"]), hide_index=True)
+                elif dry_run:
+                    st.success("校验通过，未写入文件。")
+                else:
+                    st.success("整批规则已原子导入并重载。")
+                    st.rerun()
+            except Exception as exc:
+                st.error(f"导入失败：{str(exc)}")
 
 def render_batch_page() -> None:
     st.subheader("批量页面回归")
@@ -793,24 +913,36 @@ def render_batch_page() -> None:
     )
 
 def render_logs_page() -> None:
-    st.subheader("日志审计")
-    st.caption("仅展示公开统计接口返回的聚合数据；输入、模型原始输出和最终文本均不会在前端日志中展示。")
-    stats = get_adapter().stats()
+    st.subheader("请求级审计与每日统计")
+    st.caption("所有指标只基于 stage=request_summary；不展示输入、模型原始输出或日志路径。")
+    stats = get_adapter().daily_stats()
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("审计事件", stats.get("total_events", 0))
-    m2.metric("输入检测", stats.get("input_detection_count", 0))
-    m3.metric("输出检测", stats.get("output_detection_count", 0))
-    m4.metric("已拦截", stats.get("blocked", 0))
-    rows = pd.DataFrame(get_adapter().log_rows())
-    if rows.empty:
-        st.info("还没有安全审计统计。请先在实时检测工作台运行一次检测。")
-        return
-    st.dataframe(rows, use_container_width=True, hide_index=True)
-    st.download_button(
-        "导出脱敏聚合统计 CSV",
-        data=rows.to_csv(index=False, encoding="utf-8-sig"),
-        file_name="safechat_guard_audit_summary.csv",
-        mime="text/csv",
+    m1.metric("请求数", stats["request_count"])
+    m2.metric("违规请求", stats["violation_count"])
+    m3.metric("输入拦截", stats["input_block_count"])
+    m4.metric("输出拦截", stats["output_block_count"])
+    m5, m6, m7 = st.columns(3)
+    m5.metric("模型转发", stats["model_forwarded_count"])
+    m6.metric("安全降级", stats["fallback_count"])
+    m7.metric("统计来源", stats["source"])
+    daily = pd.DataFrame([{"日期": day, "违规请求": count} for day, count in stats["daily_violation_counts"].items()])
+    categories = pd.DataFrame([{"类别": CATEGORY_LABELS.get(category, category), "违规请求": count} for category, count in stats["category_distribution"].items()])
+    if daily.empty and categories.empty:
+        st.info("当前日期范围内没有 request_summary 数据。")
+    else:
+        left, right = st.columns(2)
+        if not daily.empty:
+            left.line_chart(daily.set_index("日期"))
+        if not categories.empty:
+            right.bar_chart(categories.set_index("类别"))
+    st.dataframe(
+        pd.DataFrame([
+            {"动作": "pass", "请求数": stats["pass_count"]},
+            {"动作": "sanitize", "请求数": stats["sanitize_count"]},
+            {"动作": "block", "请求数": stats["block_count"]},
+        ]),
+        use_container_width=True,
+        hide_index=True,
     )
 
 def render_report_page() -> None:

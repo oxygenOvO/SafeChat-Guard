@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Any
+import hmac
+import os
+import warnings
 
 from safechat_guard.pipeline import SafeChatPipeline
+from safechat_guard.rule_manager import RuleManagerError, apply_rule_transaction
 
 
 class FrontendPipelineAdapter:
@@ -167,6 +171,227 @@ class FrontendPipelineAdapter:
                 )
         return rows
 
+    def daily_stats(
+        self,
+        *,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        timezone_name: str | None = None,
+    ) -> dict[str, Any]:
+        return self.pipeline.logger.daily_stats(
+            start_date=start_date,
+            end_date=end_date,
+            timezone_name=timezone_name,
+        )
+
+    def rule_catalog(
+        self,
+        *,
+        include_pattern: bool = False,
+        admin_token: str | None = None,
+    ) -> dict[str, Any]:
+        if include_pattern and not self._pattern_access_authorized(admin_token):
+            raise PermissionError("Rule management access denied")
+        builtins = []
+        for category, words in sorted(self.pipeline.rule_filter.words.items()):
+            for index, word in enumerate(words):
+                builtins.append(
+                    self._public_rule(
+                        {
+                            "id": f"builtin:keyword:{category}:{index}",
+                            "pattern": word,
+                            "pattern_type": "keyword",
+                            "category": category,
+                            "action": "block" if category in {"porn", "violence"} else "sanitize",
+                            "risk_level": "high" if category in {"porn", "violence"} else "medium",
+                            "enabled": True,
+                            "description": "Built-in keyword rule",
+                            "source": "builtin",
+                            "origin": "builtin",
+                            "read_only": True,
+                        },
+                        include_pattern=include_pattern,
+                    )
+                )
+        for index, rule in enumerate(self.pipeline.rule_filter.regex_rules):
+            builtins.append(
+                self._public_rule(
+                    {
+                        "id": f"builtin:regex:{index}",
+                        "pattern": rule.get("pattern", ""),
+                        "pattern_type": "regex",
+                        "category": rule.get("category", "sensitive"),
+                        "action": "block" if int(rule.get("score", 60)) >= 80 else "sanitize",
+                        "risk_level": rule.get("level", "medium"),
+                        "enabled": True,
+                        "description": rule.get("reason", "Built-in regex rule"),
+                        "source": "builtin",
+                        "origin": "builtin",
+                        "read_only": True,
+                    },
+                    include_pattern=include_pattern,
+                )
+            )
+        users = [
+            {
+                **self._public_rule(rule, include_pattern=include_pattern),
+                "origin": "user",
+                "read_only": False,
+            }
+            for rule in self.pipeline.rule_manager.list_rules()
+        ]
+        return {
+            "rules": [*builtins, *users],
+            "built_in_count": len(builtins),
+            "user_count": len(users),
+            "pattern_access": include_pattern,
+            **self.pipeline.rule_manager.metadata(),
+        }
+
+    def add_user_rule(self, rule: dict[str, Any], expected_revision: int) -> dict[str, Any]:
+        rule_id = rule.get("id") if isinstance(rule.get("id"), str) else None
+        result = self._apply_rule_change(
+            "rule_created",
+            rule_id,
+            lambda: self.pipeline.rule_manager.add_rule(
+                rule, expected_revision=expected_revision
+            ),
+        )
+        return self._public_management_result(result)
+
+    def update_user_rule(
+        self, rule_id: str, changes: dict[str, Any], expected_revision: int
+    ) -> dict[str, Any]:
+        result = self._apply_rule_change(
+            "rule_updated",
+            rule_id,
+            lambda: self.pipeline.rule_manager.update_rule(
+                rule_id, changes, expected_revision=expected_revision
+            ),
+        )
+        return self._public_management_result(result)
+
+    def set_user_rule_enabled(
+        self, rule_id: str, enabled: bool, expected_revision: int
+    ) -> dict[str, Any]:
+        operation = (
+            self.pipeline.rule_manager.enable_rule
+            if enabled
+            else self.pipeline.rule_manager.disable_rule
+        )
+        event = "rule_enabled" if enabled else "rule_disabled"
+        result = self._apply_rule_change(
+            event,
+            rule_id,
+            lambda: operation(rule_id, expected_revision=expected_revision),
+        )
+        return self._public_management_result(result)
+
+    def delete_user_rule(self, rule_id: str, expected_revision: int) -> dict[str, Any]:
+        return self._apply_rule_change(
+            "rule_deleted",
+            rule_id,
+            lambda: self.pipeline.rule_manager.delete_rule(
+                rule_id, expected_revision=expected_revision
+            ),
+        )
+
+    def import_user_rules(
+        self,
+        content: bytes,
+        *,
+        format_name: str,
+        dry_run: bool,
+        mode: str,
+        expected_revision: int,
+    ) -> dict[str, Any]:
+        importer = (
+            self.pipeline.rule_manager.import_csv
+            if format_name == "csv"
+            else self.pipeline.rule_manager.import_json
+        )
+        mutation = lambda: importer(
+            content,
+            dry_run=dry_run,
+            mode=mode,
+            expected_revision=expected_revision,
+        )
+        if dry_run:
+            return mutation()
+        return self._apply_rule_change("rule_imported", None, mutation)
+
+    def _apply_rule_change(
+        self, event: str, rule_id: str | None, mutation: Any
+    ) -> dict[str, Any]:
+        try:
+            result = apply_rule_transaction(
+                self.pipeline.rule_manager,
+                self.pipeline.rule_filter,
+                mutation,
+            )
+        except RuleManagerError:
+            self._audit_rule_change(
+                event,
+                rule_id,
+                self.pipeline.rule_manager.revision,
+                "failed",
+            )
+            raise
+        self._audit_rule_change(
+            event, rule_id, result["revision"], "success"
+        )
+        return result
+
+    def _audit_rule_change(
+        self,
+        event: str,
+        rule_id: str | None,
+        revision: int,
+        result: str,
+    ) -> None:
+        try:
+            self.pipeline.logger.write(
+                {
+                    "stage": "rule_management",
+                    "operation": event,
+                    "rule_id": rule_id,
+                    "revision": revision,
+                    "result": result,
+                }
+            )
+        except Exception:
+            warnings.warn(
+                "rule management audit logging failed",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+
+    @staticmethod
+    def _public_rule(
+        rule: dict[str, Any], *, include_pattern: bool
+    ) -> dict[str, Any]:
+        public = dict(rule)
+        public["pattern_redacted"] = not include_pattern
+        if not include_pattern:
+            public["pattern"] = "[REDACTED]"
+        return public
+
+    @classmethod
+    def _public_management_result(cls, result: dict[str, Any]) -> dict[str, Any]:
+        public = dict(result)
+        if isinstance(public.get("rule"), dict):
+            public["rule"] = cls._public_rule(
+                public["rule"], include_pattern=False
+            )
+        return public
+
+    @staticmethod
+    def _pattern_access_authorized(admin_token: str | None) -> bool:
+        configured = os.getenv("SAFECHAT_RULE_ADMIN_TOKEN")
+        if not configured:
+            return True
+        supplied = admin_token if isinstance(admin_token, str) else ""
+        return bool(supplied) and hmac.compare_digest(supplied, configured)
     def lexicon_rows(self) -> list[dict[str, str]]:
         return [
             {"category": category, "word": word}

@@ -1,13 +1,436 @@
 from __future__ import annotations
 
+import hmac
+import ipaddress
 import json
+import os
 import socket
+import warnings
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from typing import Any
+from urllib.parse import parse_qs, unquote, urlparse
+
 
 from safechat_guard.pipeline import SafeChatPipeline
+from safechat_guard.logger import StatisticsValidationError
+from safechat_guard.rule_manager import (
+    RuleConflictError,
+    RuleImportTooLargeError,
+    RuleManagerError,
+    RuleNotFoundError,
+    RuleStorageError,
+    RuleValidationError,
+    apply_rule_transaction,
+)
+
+def dispatch_management_get(handler: Any, parsed: Any, pipeline: Any) -> bool:
+    if parsed.path in {"/api/stats/summary", "/api/stats/daily"}:
+        from urllib.parse import parse_qs
+
+        params = parse_qs(parsed.query)
+        try:
+            stats = pipeline.logger.daily_stats(
+                start_date=_one(params, "start_date"),
+                end_date=_one(params, "end_date"),
+                timezone_name=_one(params, "timezone"),
+            )
+        except StatisticsValidationError as exc:
+            handler._send_json(
+                {"error": "invalid_request", "message": str(exc)}, status=400
+            )
+            return True
+        if parsed.path.endswith("/daily"):
+            stats = {
+                "source": stats["source"],
+                "timezone": stats["timezone"],
+                "start_date": stats["start_date"],
+                "end_date": stats["end_date"],
+                "request_count": stats["request_count"],
+                "violation_count": stats["violation_count"],
+                "daily_violation_counts": stats["daily_violation_counts"],
+                "category_distribution": stats["category_distribution"],
+            }
+        handler._send_json(stats)
+        return True
+
+    if parsed.path == "/api/rules" or parsed.path.startswith("/api/rules/"):
+        try:
+            include_pattern = _include_pattern_requested(parsed)
+        except RuleValidationError as exc:
+            handler._send_json(
+                {"error": exc.code, "message": str(exc)}, status=400
+            )
+            return True
+        if include_pattern and not _admin_authorized(handler):
+            handler._send_json(
+                {"error": "forbidden", "message": "Rule management access denied"},
+                status=403,
+            )
+            return True
+        if parsed.path == "/api/rules":
+            handler._send_json(
+                _rules_payload(pipeline, include_pattern=include_pattern)
+            )
+            return True
+        prefix = "/api/rules/"
+        rule_id = unquote(parsed.path[len(prefix):])
+        if not rule_id or "/" in rule_id:
+            return False
+        rule = _find_public_rule(
+            pipeline, rule_id, include_pattern=include_pattern
+        )
+        if rule is None:
+            handler._send_json(
+                {"error": "not_found", "message": "Rule not found"}, status=404
+            )
+        else:
+            handler._send_json({"rule": rule, **pipeline.rule_manager.metadata()})
+        return True
+    return False
+
+
+def dispatch_management_write(
+    handler: Any,
+    method: str,
+    parsed: Any,
+    payload: dict[str, Any],
+    pipeline: Any,
+) -> bool:
+    path = parsed.path
+    if not (
+        path == "/api/rules"
+        or path.startswith("/api/rules/")
+    ):
+        return False
+    if not _admin_authorized(handler):
+        handler._send_json(
+            {"error": "forbidden", "message": "Rule management access denied"},
+            status=403,
+        )
+        return True
+
+    manager = pipeline.rule_manager
+    try:
+        if method == "POST" and path == "/api/rules":
+            expected = payload.pop("expected_revision", None)
+            rule_id = payload.get("id") if isinstance(payload.get("id"), str) else None
+            result = _run_rule_mutation(
+                pipeline,
+                "rule_created",
+                rule_id,
+                lambda: manager.add_rule(
+                    payload, expected_revision=expected, source="manual"
+                ),
+            )
+            handler._send_json(_public_management_result(result), status=201)
+            return True
+
+        if method == "POST" and path in {
+            "/api/rules/import",
+            "/api/rules/validate-import",
+        }:
+            allowed = {
+                "format", "content", "mode", "dry_run", "expected_revision"
+            }
+            unknown = set(payload) - allowed
+            if unknown:
+                raise RuleValidationError(
+                    "unknown field is not allowed"
+                )
+            format_name = payload.get("format")
+            content = payload.get("content")
+            mode = payload.get("mode", "create")
+            dry_run = (
+                True
+                if path.endswith("validate-import")
+                else payload.get("dry_run", False)
+            )
+            if not isinstance(dry_run, bool):
+                raise RuleValidationError("dry_run must be a boolean")
+            importer = (
+                manager.import_csv
+                if format_name == "csv"
+                else manager.import_json
+                if format_name == "json"
+                else None
+            )
+            if importer is None:
+                raise RuleValidationError("format must be csv or json")
+            mutation = lambda: importer(
+                content,
+                dry_run=dry_run,
+                mode=mode,
+                expected_revision=payload.get("expected_revision"),
+            )
+            result = (
+                mutation()
+                if dry_run
+                else _run_rule_mutation(
+                    pipeline, "rule_imported", None, mutation
+                )
+            )
+            handler._send_json(_public_management_result(result))
+            return True
+
+        prefix = "/api/rules/"
+        if not path.startswith(prefix):
+            return False
+        suffix = unquote(path[len(prefix):])
+        operation = None
+        if suffix.endswith("/enable"):
+            rule_id, operation = suffix[:-7], "enable"
+        elif suffix.endswith("/disable"):
+            rule_id, operation = suffix[:-8], "disable"
+        else:
+            rule_id = suffix
+        if not rule_id or "/" in rule_id:
+            raise RuleNotFoundError("rule does not exist")
+        if rule_id.startswith("builtin:"):
+            raise RuleConflictError("built-in rules are read-only")
+        expected = payload.get("expected_revision")
+
+        if method == "PATCH" and operation is None:
+            changes = dict(payload)
+            changes.pop("expected_revision", None)
+            mutation = lambda: manager.update_rule(
+                rule_id, changes, expected_revision=expected
+            )
+            event = "rule_updated"
+        elif method == "POST" and operation == "enable":
+            _only_expected_revision(payload)
+            mutation = lambda: manager.enable_rule(
+                rule_id, expected_revision=expected
+            )
+            event = "rule_enabled"
+        elif method == "POST" and operation == "disable":
+            _only_expected_revision(payload)
+            mutation = lambda: manager.disable_rule(
+                rule_id, expected_revision=expected
+            )
+            event = "rule_disabled"
+        elif method == "DELETE" and operation is None:
+            _only_expected_revision(payload)
+            mutation = lambda: manager.delete_rule(
+                rule_id, expected_revision=expected
+            )
+            event = "rule_deleted"
+        else:
+            return False
+        result = _run_rule_mutation(pipeline, event, rule_id, mutation)
+        handler._send_json(_public_management_result(result))
+        return True
+    except RuleManagerError as exc:
+        status = _error_status(exc)
+        message = (
+            "Rule storage operation failed"
+            if isinstance(exc, RuleStorageError)
+            else str(exc)
+        )
+        response: dict[str, Any] = {"error": exc.code, "message": message}
+        if isinstance(exc.details, dict):
+            response["details"] = exc.details
+        handler._send_json(response, status=status)
+        return True
+
+
+def _include_pattern_requested(parsed: Any) -> bool:
+    values = parse_qs(parsed.query).get("include_pattern")
+    if values is None:
+        return False
+    if len(values) != 1 or values[0] not in {"true", "false"}:
+        raise RuleValidationError("include_pattern must be true or false")
+    return values[0] == "true"
+
+
+def _public_rule(rule: dict[str, Any], *, include_pattern: bool) -> dict[str, Any]:
+    public = dict(rule)
+    public["pattern_redacted"] = not include_pattern
+    if not include_pattern:
+        public["pattern"] = "[REDACTED]"
+    return public
+
+
+def _public_management_result(result: dict[str, Any]) -> dict[str, Any]:
+    public = dict(result)
+    if isinstance(public.get("rule"), dict):
+        public["rule"] = _public_rule(public["rule"], include_pattern=False)
+    return public
+
+
+def _rules_payload(pipeline: Any, *, include_pattern: bool = False) -> dict[str, Any]:
+    builtins = _builtin_rules(pipeline, include_pattern=include_pattern)
+    users = [
+        {
+            **_public_rule(rule, include_pattern=include_pattern),
+            "origin": "user",
+            "read_only": False,
+        }
+        for rule in pipeline.rule_manager.list_rules()
+    ]
+    return {
+        "rules": [*builtins, *users],
+        "built_in_count": len(builtins),
+        "user_count": len(users),
+        **pipeline.rule_manager.metadata(),
+    }
+
+
+def _builtin_rules(
+    pipeline: Any, *, include_pattern: bool = False
+) -> list[dict[str, Any]]:
+    rows = []
+    for category, words in sorted(pipeline.rule_filter.words.items()):
+        for index, word in enumerate(words):
+            rows.append(
+                _public_rule(
+                    {
+                        "id": f"builtin:keyword:{category}:{index}",
+                        "pattern": word,
+                        "pattern_type": "keyword",
+                        "category": category,
+                        "action": "block" if category in {"porn", "violence"} else "sanitize",
+                        "risk_level": "high" if category in {"porn", "violence"} else "medium",
+                        "enabled": True,
+                        "description": "Built-in keyword rule",
+                        "source": "builtin",
+                        "origin": "builtin",
+                        "read_only": True,
+                    },
+                    include_pattern=include_pattern,
+                )
+            )
+    for index, rule in enumerate(pipeline.rule_filter.regex_rules):
+        rows.append(
+            _public_rule(
+                {
+                    "id": f"builtin:regex:{index}",
+                    "pattern": rule.get("pattern", ""),
+                    "pattern_type": "regex",
+                    "category": rule.get("category", "sensitive"),
+                    "action": "block" if int(rule.get("score", 60)) >= 80 else "sanitize",
+                    "risk_level": rule.get("level", "medium"),
+                    "enabled": True,
+                    "description": rule.get("reason", "Built-in regex rule"),
+                    "source": "builtin",
+                    "origin": "builtin",
+                    "read_only": True,
+                },
+                include_pattern=include_pattern,
+            )
+        )
+    return rows
+
+
+def _find_public_rule(
+    pipeline: Any, rule_id: str, *, include_pattern: bool = False
+) -> dict[str, Any] | None:
+    if rule_id.startswith("builtin:"):
+        return next(
+            (
+                rule
+                for rule in _builtin_rules(
+                    pipeline, include_pattern=include_pattern
+                )
+                if rule["id"] == rule_id
+            ),
+            None,
+        )
+    try:
+        return {
+            **_public_rule(
+                pipeline.rule_manager.get_rule(rule_id),
+                include_pattern=include_pattern,
+            ),
+            "origin": "user",
+            "read_only": False,
+        }
+    except RuleNotFoundError:
+        return None
+
+
+def _run_rule_mutation(
+    pipeline: Any,
+    operation: str,
+    rule_id: str | None,
+    mutation: Any,
+) -> dict[str, Any]:
+    try:
+        result = apply_rule_transaction(
+            pipeline.rule_manager, pipeline.rule_filter, mutation
+        )
+    except RuleManagerError:
+        _audit(pipeline, operation, rule_id, pipeline.rule_manager.revision, "failed")
+        raise
+    _audit(pipeline, operation, rule_id, result["revision"], "success")
+    return result
+
+def _admin_authorized(handler: Any) -> bool:
+    configured = os.getenv("SAFECHAT_RULE_ADMIN_TOKEN")
+    if configured:
+        supplied = handler.headers.get("X-Admin-Token", "")
+        authorization = handler.headers.get("Authorization", "")
+        if authorization.startswith("Bearer "):
+            supplied = authorization[7:]
+        return bool(supplied) and hmac.compare_digest(supplied, configured)
+    try:
+        return ipaddress.ip_address(handler.client_address[0]).is_loopback
+    except (AttributeError, ValueError):
+        return False
+
+
+
+def _audit(
+    pipeline: Any,
+    operation: str,
+    rule_id: str | None,
+    revision: int,
+    result: str = "success",
+) -> None:
+    try:
+        pipeline.logger.write(
+            {
+                "stage": "rule_management",
+                "operation": operation,
+                "rule_id": rule_id,
+                "revision": revision,
+                "result": result,
+            }
+        )
+    except Exception:
+        warnings.warn(
+            "rule management audit logging failed",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+
+
+def _only_expected_revision(payload: dict[str, Any]) -> None:
+    unknown = set(payload) - {"expected_revision"}
+    if unknown:
+        raise RuleValidationError("unknown field is not allowed")
+
+
+def _error_status(exc: RuleManagerError) -> int:
+    if isinstance(exc, RuleImportTooLargeError):
+        return 413
+    if isinstance(exc, RuleNotFoundError):
+        return 404
+    if isinstance(exc, RuleConflictError):
+        return 409
+    if isinstance(exc, RuleValidationError):
+        return 400
+    return 500
+
+
+def _one(params: dict[str, list[str]], name: str) -> str | None:
+    values = params.get(name)
+    if not values:
+        return None
+    if len(values) != 1:
+        raise StatisticsValidationError(f"{name} must be provided once")
+    return values[0]
 
 
 ROOT = Path(__file__).resolve().parent
@@ -173,6 +596,8 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
                     return
                 self._send_json(pipeline.stats(since=since, portable_paths=True))
                 return
+            if dispatch_management_get(self, parsed, pipeline):
+                return
             self._send_json(error_payload("not_found", "Not found"), status=404)
         except (BrokenPipeError, ConnectionResetError):
             return
@@ -202,6 +627,9 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
                     error_payload(error, messages.get(error, error)),
                     status=statuses.get(error, 400),
                 )
+                return
+
+            if dispatch_management_write(self, "POST", parsed, payload, pipeline):
                 return
 
             if parsed.path == "/api/chat":
@@ -240,6 +668,29 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
         except Exception:
             self._send_internal_error()
 
+    def _management_mutation(self, method: str) -> None:
+        try:
+            parsed = urlparse(self.path)
+            payload, error = self._read_json()
+            if error:
+                status = 413 if error == "request_too_large" else 400
+                self._send_json(
+                    error_payload(error, "Invalid request body"), status=status
+                )
+                return
+            if dispatch_management_write(self, method, parsed, payload, pipeline):
+                return
+            self._send_json(error_payload("not_found", "Not found"), status=404)
+        except (BrokenPipeError, ConnectionResetError):
+            return
+        except Exception:
+            self._send_internal_error()
+
+    def do_PATCH(self) -> None:
+        self._management_mutation("PATCH")
+
+    def do_DELETE(self) -> None:
+        self._management_mutation("DELETE")
     def log_message(self, format: str, *args) -> None:
         return
 

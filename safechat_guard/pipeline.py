@@ -12,6 +12,7 @@ from .logger import EventLogger
 from .normalizer import TextNormalizer
 from .output_guard import OutputGuard
 from .rule_filter import RuleFilter
+from .rule_manager import RuleManager
 from .sanitizer import Sanitizer
 from .semantic_config import (
     DEFAULT_PRODUCTION_CONFIG_PATH,
@@ -29,9 +30,11 @@ class SafeChatPipeline:
             str(self.package_root / "data/maps/homophone_map.json"),
             str(self.package_root / "data/maps/emoji_map.json"),
         )
+        self.rule_manager = RuleManager(RuleManager.default_path(self.project_root))
         self.rule_filter = RuleFilter(
             str(self.package_root / "data/lexicons"),
             str(self.package_root / "data/rules/regex_rules.json"),
+            rule_manager=self.rule_manager,
         )
         semantic_options = config.get("semantic", {})
         semantic_config_path = semantic_options.get(
@@ -101,6 +104,11 @@ class SafeChatPipeline:
         self._write_event(
             {"stage": "input", "input": message, "result": input_result}, persist
         )
+        if "USER_RULE_BLOCK" in input_result.get("reason_codes", []):
+            input_result = dict(input_result)
+            input_result["original_text"] = None
+            input_result["normalized_text"] = None
+            input_result["sanitized_text"] = None
         if input_result["action"] == "block":
             result = {
                 "allowed": False,
@@ -301,7 +309,7 @@ class SafeChatPipeline:
         detections = self._deduplicate_detections(
             [*rule_detections, *semantic_detections]
         )
-        routed, fallback_used = self._route_input(
+        routed, fallback_used = self._route_with_user_overlay_guard(
             text,
             normalized,
             rule_detections,
@@ -364,7 +372,7 @@ class SafeChatPipeline:
                         "reason_codes": ["SANITIZER_UNCHANGED"],
                         "hard_block": False,
                         "fallback_used": False,
-                        "detections": [d.__dict__ for d in detections],
+                        "detections": self._serialize_detections(detections),
                     }
                 else:
                     rewrite_changed = True
@@ -379,7 +387,7 @@ class SafeChatPipeline:
                         re_detections = self._deduplicate_detections(
                             [*re_rule_detections, *re_semantic_detections]
                         )
-                        re_routed, re_fallback = self._route_input(
+                        re_routed, re_fallback = self._route_with_user_overlay_guard(
                             rewritten,
                             re_normalized,
                             re_rule_detections,
@@ -396,7 +404,7 @@ class SafeChatPipeline:
                             "reason_codes": re_routed["reason_codes"],
                             "hard_block": re_routed["hard_block"],
                             "fallback_used": re_fallback,
-                            "detections": [d.__dict__ for d in re_detections],
+                            "detections": self._serialize_detections(re_detections),
                         }
                     except Exception:
                         re_fallback = True
@@ -439,8 +447,12 @@ class SafeChatPipeline:
         )
         return {
             "stage": stage,
-            "original_text": text,
-            "normalized_text": normalized,
+            "original_text": (
+                None if "USER_RULE_BLOCK" in reason_codes else text
+            ),
+            "normalized_text": (
+                None if "USER_RULE_BLOCK" in reason_codes else normalized
+            ),
             "action": action,
             "category": category,
             "risk_score": int(risk_score),
@@ -455,13 +467,68 @@ class SafeChatPipeline:
             "rewrite_changed": rewrite_changed,
             "recheck_action": recheck_action,
             "rewrite_recheck": rewrite_recheck,
-            "detections": [d.__dict__ for d in detections],
+            "detections": self._serialize_detections(detections),
             "semantic_model_status": self._semantic_model_status(),
             "fallback_used": fallback_used,
             "model_forwarded": False,
             "latency_ms": max(0, round((time.perf_counter() - started) * 1000)),
         }
 
+    def _route_with_user_overlay_guard(
+        self,
+        original_text: str,
+        normalized_text: str,
+        rule_detections: list,
+        semantic_detections: list,
+    ) -> tuple[dict, bool]:
+        metadata_reader = getattr(self.rule_filter, "user_overlay_metadata", None)
+        if not callable(metadata_reader):
+            return self._route_input(
+                original_text,
+                normalized_text,
+                rule_detections,
+                semantic_detections,
+            )
+        trusted_blocks = []
+        for detection in rule_detections:
+            metadata = metadata_reader(detection)
+            if metadata and metadata["configured_action"] == "block":
+                trusted_blocks.append((detection, metadata))
+        if not trusted_blocks:
+            return self._route_input(
+                original_text,
+                normalized_text,
+                rule_detections,
+                semantic_detections,
+            )
+
+        selected, _ = max(trusted_blocks, key=lambda item: item[0].score)
+        rule_ids = sorted({metadata["rule_id"] for _, metadata in trusted_blocks})
+        return (
+            {
+                "action": "block",
+                "category": selected.category,
+                "risk_level": selected.level,
+                "confidence": 1.0,
+                "reason_codes": ["USER_RULE_BLOCK"],
+                "hard_block": True,
+                "risk_score": int(selected.score),
+                "matched_rule_ids": rule_ids,
+                "sanitize_matches": [],
+                "evidence": [],
+            },
+            False,
+        )
+
+    def _serialize_detections(self, detections: list) -> list[dict]:
+        serialized = []
+        overlay_checker = getattr(self.rule_filter, "is_user_overlay_detection", None)
+        for detection in detections:
+            public = dict(detection.__dict__)
+            if callable(overlay_checker) and overlay_checker(detection):
+                public["matches"] = ["[REDACTED]"] if detection.matches else []
+            serialized.append(public)
+        return serialized
     def _is_explicit_legacy_hard_block(
         self,
         routed: dict,
