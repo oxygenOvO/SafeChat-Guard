@@ -244,10 +244,26 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
         return
 
 
-if __name__ == "__main__":
-    host = pipeline.config["app"].get("host", "127.0.0.1")
-    port = int(pipeline.config["app"].get("port", 8000))
-    print(f"SafeChat-Guard API running at http://{host}:{port}")
-    server = ThreadingHTTPServer((host, port), SafeChatApiHandler)
+def create_server(
+    host: str | None = None,
+    port: int | None = None,
+) -> ThreadingHTTPServer:
+    configured_host = pipeline.config["app"].get("host", "127.0.0.1")
+    configured_port = int(pipeline.config["app"].get("port", 8000))
+    server = ThreadingHTTPServer(
+        (host or configured_host, configured_port if port is None else port),
+        SafeChatApiHandler,
+    )
     server.daemon_threads = True
+    return server
+
+
+def main() -> None:
+    server = create_server()
+    host, port = server.server_address[:2]
+    print(f"SafeChat-Guard API running at http://{host}:{port}")
     server.serve_forever()
+
+
+if __name__ == "__main__":
+    main()

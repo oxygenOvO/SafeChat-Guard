@@ -101,3 +101,46 @@ def test_parse_since_normalizes_utc_timestamp():
     parsed = parse_since("2026-07-21T01:02:03Z")
     assert parsed.tzinfo == timezone.utc
     assert parsed.isoformat() == "2026-07-21T01:02:03+00:00"
+
+
+def test_compatibility_app_reuses_canonical_api_server():
+    import app
+
+    assert app.pipeline is api_server.pipeline
+    assert app.SafeChatHandler is api_server.SafeChatApiHandler
+    assert app.create_server is api_server.create_server
+    assert app.main is api_server.main
+
+
+def test_server_factory_uses_canonical_handler():
+    server = api_server.create_server("127.0.0.1", 0)
+    try:
+        assert server.RequestHandlerClass is api_server.SafeChatApiHandler
+        assert server.daemon_threads is True
+    finally:
+        server.server_close()
+
+
+def test_api_modules_resolve_config_outside_repository(tmp_path):
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    project_root = Path(__file__).resolve().parents[1]
+    code = (
+        "import sys; "
+        f"sys.path.insert(0, {str(project_root)!r}); "
+        "import api_server, app; "
+        "assert app.pipeline is api_server.pipeline; "
+        "assert app.SafeChatHandler is api_server.SafeChatApiHandler; "
+        "assert api_server.build_health_payload()['status'] == 'ok'"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=30,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr

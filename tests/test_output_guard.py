@@ -25,8 +25,12 @@ def test_pipeline_logs_input_output_and_final_separately(production_config_witho
 
     assert "output_filter" in result
     events = pipeline.logger.read_all()
-    assert [event["stage"] for event in events[-3:]] == ["input", "output", "final"]
-    output_result = events[-2]["result"]
+    assert [event["stage"] for event in events[-4:]] == [
+        "input", "output", "final", "request_summary"
+    ]
+    assert events[-1]["final_action"] == result["final_action"]
+    assert events[-1]["final_allowed"] == result["final_allowed"]
+    output_result = events[-3]["result"]
     for key in [
         "risk_categories",
         "risk_level",
@@ -35,7 +39,7 @@ def test_pipeline_logs_input_output_and_final_separately(production_config_witho
         "matched_rules",
     ]:
         assert key in output_result
-    assert events[-2]["raw_reply"] == "[REDACTED]"
+    assert events[-3]["raw_reply"] == "[REDACTED]"
 
 
 def test_address_detection_avoids_common_suffix_false_positives():

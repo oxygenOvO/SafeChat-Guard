@@ -57,3 +57,32 @@
 - 404：接口不存在。
 - 500：内部错误（统一安全响应）。
 - 503：LLM 或必需运行依赖不可用。
+
+## 最终动作字段
+
+`POST /api/chat` 的动作字段定义如下：
+
+- `action`：输入侧动作，保留用于向后兼容。
+- `allowed`：旧兼容布尔字段。
+- `final_action`：整个请求完成输入过滤和输出复检后的最终动作。
+- `final_allowed`：推荐客户端用于最终判断的布尔字段。
+- `input_filter.action`：输入过滤动作。
+- `output_filter.action` 或 `output_guard_action`：输出检查动作；未执行时为 `null` 或 `not_run`。
+
+外部客户端必须优先检查 `final_allowed` 和 `final_action`，不得只依据 `action` 判断最终结果。
+
+### 映射规则
+
+- 输入直接拦截：`action=block`、`final_action=block`、`final_allowed=false`。
+- 输入放行且输出安全：`final_action=pass`、`final_allowed=true`。
+- 输入脱敏成功且输出安全：`final_action=sanitize`、`final_allowed=true`。
+- OutputGuard拦截输出：`final_action=block`、`final_allowed=false`。
+- 服务异常或fail-closed：`final_action=block`、`final_allowed=false`。
+
+OutputGuard拦截时，`raw_reply` 必须为 `null`，`model_response` 不得包含违规原始模型输出，`reply` 只包含标准安全替换文本。
+
+## 请求级审计摘要
+
+每个持久化聊天请求完成后写入且仅写入一条 `request_summary`。摘要包含输入、输出和最终动作、类别、风险、真实模型转发状态、sanitize状态、fallback状态、语义模型状态及端到端延迟。
+
+审计摘要不保存完整用户输入或完整模型输出。日志写入失败不得改变已经完成的安全响应，也不得向API客户端暴露异常正文、路径或敏感文本。

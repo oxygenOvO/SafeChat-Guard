@@ -50,3 +50,17 @@ Invoke-RestMethod http://127.0.0.1:8000/ready
 - 模型完整性异常：恢复与正式配置哈希匹配的受信产物，不要修改配置去迁就来源
   不明的模型。
 - 凭据曾进入 Git 历史：立即在提供方撤销并轮换；代码修改无法撤销外部凭据。
+
+## 正式入口与兼容入口
+
+`api_server.py` 是唯一正式HTTP API实现。`app.py` 仅为兼容启动包装器，直接复用正式服务器，不维护独立路由、Pipeline或请求校验。
+
+从非仓库当前目录启动时可使用绝对路径：
+
+```powershell
+python D:\Projects\SafeChat-Guard-system-integration-v1\api_server.py
+```
+
+配置始终相对于脚本所在项目根目录解析。两个入口均提供相同的 `/health`、`/ready` 和 `/api/*` 行为。
+
+每个持久化聊天请求结束后产生一条 `request_summary`。该摘要不包含完整输入或完整模型输出；日志写入失败只产生不含敏感原文的内部warning，不改变API安全结果。

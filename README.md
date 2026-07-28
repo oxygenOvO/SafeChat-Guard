@@ -1,4 +1,4 @@
-﻿# SafeChat-Guard
+# SafeChat-Guard
 
 面向中文对话场景的大模型输入/输出违规内容过滤与日志统计系统。
 
@@ -56,7 +56,7 @@ streamlit run frontend/streamlit_app.py
 ## 快速运行
 
 ```powershell
-python app.py
+python api_server.py
 ```
 
 浏览器访问：
@@ -81,9 +81,14 @@ python -B -c "from pathlib import Path; files=list(Path('safechat_guard').glob('
 
 ## 接口说明
 
-启动 `app.py` 后：
+启动唯一正式入口 `api_server.py` 后：
+
+`app.py` 仅保留为兼容启动包装器，复用相同服务器、配置解析、请求校验和异常处理。
 
 - `POST /api/chat`：提交用户输入，返回输入过滤、模型回复、输出过滤结果。
+- `GET /health`：进程存活检查。
+- `GET /ready`：语义模型与LLM运行状态检查。
+- `POST /api/detect`：仅执行输入检测链路。
 - `GET /api/stats`：返回日志统计，包括总事件数、拦截数、改写数、类别分布、风险等级分布。
 
 ## 目录结构

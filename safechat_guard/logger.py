@@ -117,6 +117,8 @@ class EventLogger:
                 stage_counter["final"] += 1
                 if event.get("action"):
                     final_action_counter[event["action"]] += 1
+            elif event.get("stage") == "request_summary":
+                stage_counter["request_summary"] += 1
             results = [
                 event.get("input_filter"),
                 event.get("output_filter"),

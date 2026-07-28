@@ -29,6 +29,23 @@ class FrontendPipelineAdapter:
         output_result = chat_result.get("output_filter")
         input_summary = self._summarize_result(input_result)
         output_summary = self._summarize_output(output_result)
+        final_action = chat_result.get("final_action")
+        if final_action not in {"pass", "sanitize", "block"}:
+            if (
+                not chat_result.get("allowed", False)
+                or output_summary["action"] == "block"
+            ):
+                final_action = "block"
+            elif (
+                input_result["action"] == "sanitize"
+                or output_summary["action"] == "sanitize"
+            ):
+                final_action = "sanitize"
+            else:
+                final_action = "pass"
+        final_allowed = chat_result.get("final_allowed")
+        if not isinstance(final_allowed, bool):
+            final_allowed = final_action != "block"
 
         # Baseline data is diagnostic only and never influences the safety action.
         trace = self.pipeline.normalizer.normalize_with_trace(text)
@@ -60,6 +77,8 @@ class FrontendPipelineAdapter:
             "action": input_result["action"],
             "output_category": output_summary["category"],
             "output_action": output_summary["action"],
+            "final_action": final_action,
+            "final_allowed": final_allowed,
             "final_answer": "[REDACTED]",
             "baseline_missed": (
                 baseline["action"] == "pass"
@@ -83,6 +102,8 @@ class FrontendPipelineAdapter:
             "risk": input_summary["risk"],
             "risk_score": input_result["risk_score"],
             "action": input_result["action"],
+            "final_action": final_action,
+            "final_allowed": final_allowed,
             "comparison_note": self._comparison_note(
                 baseline["action"],
                 input_result["action"],
@@ -109,6 +130,7 @@ class FrontendPipelineAdapter:
             ),
             "final_answer": final_answer,
             "allowed": chat_result["allowed"],
+            "final_allowed": final_allowed,
             "service_error": service_error,
             "model_loaded": bool(status.get("model_loaded")),
             "model_degradation": (
