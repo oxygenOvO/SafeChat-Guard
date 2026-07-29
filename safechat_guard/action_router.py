@@ -16,6 +16,9 @@ _ACTION_PRIORITY = {"pass": 0, "sanitize": 1, "block": 2}
 _RULE_ID_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]*$")
 _PRIMARY_CLAUSE_PATTERN = re.compile(r"[^。！？!?；;\r\n]+")
 _SECONDARY_DELIMITER_PATTERN = re.compile(r"[,，:：]")
+_CROSS_CLAUSE_CONTINUITY_TERMS = (
+    "随后", "接着", "然后", "之后", "稍后", "明天", "同时", "并",
+)
 _SCOPE_TRANSITIONS = (
     "完毕之后", "页面下方", "接下来", "结束后", "另一段", "后半段",
     "但是", "不过", "然而", "随后", "然后", "之后", "同时", "另外",
@@ -26,11 +29,34 @@ _SAFETY_NARRATIVE_TERMS = (
     "研究", "提醒", "警示", "警惕", "举报", "查获", "破获", "处置",
     "制止", "下架", "拒绝", "禁止", "不要", "不得", "切勿", "反对", "解释", "列举",
     "拦截", "标记", "脱敏", "审核", "识别", "判断", "培训", "小说", "翻译",
+    "介绍", "引用", "复盘",
     "不会",
 )
 _NEGATION_WINDOW = 10
 _SAFETY_CONTEXT_DISTANCE = 48
-_POSTPOSED_SAFE_HANDLING_TERMS = frozenset({"标记为违规", "脱敏后", "字段脱敏"})
+_POSTPOSED_SAFE_HANDLING_TERMS = frozenset(
+    {
+        "标记为违规",
+        "标记违规",
+        "脱敏后",
+        "字段脱敏",
+        "不要",
+        "不得",
+        "不能",
+        "禁止",
+        "严禁",
+        "切勿",
+        "拒绝",
+        "反对",
+        "举报",
+        "制止",
+        "下架",
+        "拦截",
+        "审核",
+        "识别",
+        "判断",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -141,11 +167,19 @@ class ActionRouter:
 
         routed_text = self._canonicalize(normalized_text or original_text)
         clauses = self._split_clauses(routed_text)
-        clause_results = [self._route_clause(clause) for clause in clauses]
+        clause_results = [
+            self._route_clause(clause) for clause in clauses
+        ]
+        clause_results.extend(self._cross_clause_block_results(clauses))
         winning_priority = max(
             (_ACTION_PRIORITY[result["action"]] for result in clause_results),
             default=0,
         )
+        if winning_priority == _ACTION_PRIORITY["sanitize"]:
+            precedence = self._high_rule_block_precedence(rule_detections)
+            if precedence is not None:
+                return precedence
+
         winning = [
             result for result in clause_results
             if _ACTION_PRIORITY[result["action"]] == winning_priority
@@ -232,14 +266,20 @@ class ActionRouter:
             if family_id in protected_families:
                 continue
             match_evidence = [match["object"], match["implementation"]]
-            if (
-                safety_evidence
-                and not unsafe_override
-                and self._risk_is_safety_protected(
+            explicit_operation = (
+                bool(unsafe_override) or self._match_is_intrinsically_operational(match)
+            )
+            if safety_evidence:
+                safety_protected = self._risk_is_safety_protected(
                     clause, safety_evidence, match_evidence
                 )
-            ):
-                continue
+                safe_handling = self._has_explicit_safe_handling(
+                    safety_evidence
+                )
+                if safety_protected and (
+                    not explicit_operation or safe_handling
+                ):
+                    continue
             if local_insert and not local_block_override:
                 downgraded.append(match)
                 continue
@@ -261,10 +301,15 @@ class ActionRouter:
                 evidence=[selected["object"], selected["implementation"]],
             )
 
+        legal_categories = {
+            self._family_by_id(family_id).category
+            for family_id in protected_families
+        }
         sanitize_evidence = [
             (rule, evidence)
             for rule, evidence in self._match_sanitize_rules(clause)
-            if not (
+            if rule.category not in legal_categories
+            and not (
                 safety_evidence
                 and not unsafe_override
                 and self._risk_is_safety_protected(
@@ -461,6 +506,35 @@ class ActionRouter:
             evidence=[],
         )
 
+    def _high_rule_block_precedence(
+        self, rule_detections: list[Detection]
+    ) -> dict[str, Any] | None:
+        """An independent built-in high-risk signal cannot be downgraded."""
+        candidates = [
+            detection
+            for detection in rule_detections
+            if detection.source in {"keyword", "regex"}
+            and (detection.level == "high" or detection.score >= 80)
+        ]
+        if not candidates:
+            return None
+        selected = sorted(
+            candidates,
+            key=lambda detection: (-detection.score, detection.category),
+        )[0]
+        return self._result(
+            action="block",
+            category=selected.category,
+            risk_level="high",
+            confidence=max(0.8, min(selected.score / 100, 0.99)),
+            reason_codes=["BLOCK_PRECEDENCE_INVARIANT", "RULE_RISK_EVIDENCE"],
+            hard_block=True,
+            risk_score=max(80, selected.score),
+            matched_rule_ids=[],
+            sanitize_matches=[],
+            evidence=[],
+        )
+
     def _locate_detection_clauses(
         self,
         clause_results: list[dict[str, Any]],
@@ -566,11 +640,69 @@ class ActionRouter:
             if any(marker in between for marker in _SCOPE_TRANSITIONS):
                 continue
             local_context_start = context.start - clause.start
-            local_risk_end = risk_end - clause.start
-            scope_text = clause.text[local_context_start:local_risk_end]
+            # Narrative verbs may follow a quoted or discussed risk object
+            # ("教材用‘…’解释…"). Inspect the whole local scope while the
+            # caller's unsafe-override gate still prevents operational intent
+            # from being excused by an educational/news pretext.
+            scope_text = clause.text[local_context_start:]
             if any(term in scope_text for term in _SAFETY_NARRATIVE_TERMS):
                 return True
         return False
+
+    @staticmethod
+    def _match_is_intrinsically_operational(match: dict[str, Any]) -> bool:
+        """Keep inherently actionable instructions above narrative pretexts."""
+        return match["family"].rule_id == "EXPLOSIVE_INSTRUCTION_REQUEST"
+
+    @staticmethod
+    def _has_explicit_safe_handling(
+        contexts: list[_ContextEvidence],
+    ) -> bool:
+        return any(
+            item.term in _POSTPOSED_SAFE_HANDLING_TERMS for item in contexts
+        )
+
+    def _cross_clause_block_results(
+        self, clauses: list[_Clause]
+    ) -> list[dict[str, Any]]:
+        """Pair evidence only across adjacent clauses and the normal distance cap."""
+        results: list[dict[str, Any]] = []
+        for left, right in zip(clauses, clauses[1:]):
+            if right.start - left.end > 2:
+                continue
+            if not right.text.startswith(_CROSS_CLAUSE_CONTINUITY_TERMS):
+                continue
+            bridge = _Clause(
+                index=len(clauses) + left.index,
+                text=left.text + ("。" * (right.start - left.end)) + right.text,
+                start=left.start,
+                end=right.end,
+            )
+            cross_family_ids = {
+                match["family"].rule_id
+                for match in self._match_families(bridge)
+                if self._evidence_in_clause(match["object"], left)
+                != self._evidence_in_clause(match["implementation"], left)
+            }
+            if not cross_family_ids:
+                continue
+            result = self._route_clause(bridge)
+            if (
+                result["action"] == "block"
+                and cross_family_ids.intersection(result["matched_rule_ids"])
+            ):
+                result["reason_codes"] = list(
+                    dict.fromkeys(
+                        [*result["reason_codes"], "ADJACENT_CLAUSE_COMPOUND_MATCH"]
+                    )
+                )
+                results.append(result)
+        return results
+
+    @staticmethod
+    def _evidence_in_clause(evidence: _Evidence, clause: _Clause) -> bool:
+        return clause.start <= evidence.start and evidence.end <= clause.end
+
     def _match_families(self, clause: _Clause) -> list[dict[str, Any]]:
         matches = []
         for family in self.rule_families:

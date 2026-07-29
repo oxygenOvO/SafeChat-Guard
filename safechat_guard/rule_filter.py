@@ -4,8 +4,15 @@ import threading
 from pathlib import Path
 from typing import Any
 
+from .action_router import ActionRouter
 from .models import Detection
 from .rule_manager import RuleManager, RuleManagerError, RuleValidationError
+
+_CONTEXTUAL_SANITIZE_SUBSUMED_KEYWORDS = {
+    "sensitive": {
+        "porn": frozenset({"性伴侣"}),
+    }
+}
 
 
 class _UserOverlayDetection(Detection):
@@ -48,9 +55,11 @@ class RuleFilter:
         regex_path: str,
         *,
         rule_manager: RuleManager | None = None,
+        action_rules_path: str | None = None,
     ):
         self.lexicon_dir = Path(lexicon_dir)
         self.regex_path = Path(regex_path)
+        self.action_rules_path = self._resolve_action_rules_path(action_rules_path)
         self.rule_manager = rule_manager
         self._lock = threading.RLock()
         self._overlay_token = object()
@@ -60,6 +69,7 @@ class RuleFilter:
             (rule, re.compile(rule["pattern"], re.IGNORECASE))
             for rule in self.regex_rules
         )
+        self._generalized_router = self._load_generalized_router()
         self._user_matchers: tuple[dict[str, Any], ...] = ()
         self._user_file_signature: tuple[int, int] | None = None
         self.user_rules_revision = 0
@@ -100,6 +110,87 @@ class RuleFilter:
                 continue
             valid_rules.append(rule)
         return valid_rules
+
+    def _resolve_action_rules_path(self, configured: str | None) -> Path | None:
+        if configured is not None:
+            return Path(configured)
+        try:
+            project_root = self.regex_path.resolve().parents[2]
+        except IndexError:
+            return None
+        candidate = project_root / "config" / "action_rules_v1.json"
+        return candidate if candidate.is_file() else None
+
+    def _load_generalized_router(self) -> ActionRouter | None:
+        if self.action_rules_path is None:
+            return None
+        try:
+            return ActionRouter(self.action_rules_path)
+        except (OSError, TypeError, ValueError):
+            return None
+
+    def _generalized_policy(self, text: str) -> tuple[dict[str, Any] | None, bool]:
+        if self._generalized_router is None:
+            return None, False
+        result = self._generalized_router.route(text, text, [], [])
+        protected = (
+            result["action"] == "pass"
+            and bool(
+                {"SAFE_CONTEXT", "LEGAL_DOMAIN_CONTEXT"}
+                & set(result.get("reason_codes", []))
+            )
+        )
+        return result, protected
+
+    @staticmethod
+    def _policy_detection(result: dict[str, Any]) -> Detection | None:
+        if result["action"] == "pass":
+            return None
+        evidence_terms = [
+            item["term"]
+            for item in result.get("evidence", [])
+            if isinstance(item, dict) and isinstance(item.get("term"), str)
+        ]
+        matches = list(
+            dict.fromkeys(
+                [*result.get("sanitize_matches", []), *evidence_terms]
+            )
+        )
+        return Detection(
+            category=result["category"],
+            level="high" if result["action"] == "block" else "medium",
+            score=int(result["risk_score"]),
+            reason="matched generalized intent/object policy",
+            source="generalized_policy",
+            matches=matches,
+        )
+
+    @staticmethod
+    def _keyword_is_subsumed_by_contextual_sanitize(
+        category: str,
+        matches: list[str],
+        policy_result: dict[str, Any] | None,
+    ) -> bool:
+        if policy_result is None or policy_result["action"] != "sanitize":
+            return False
+        policy_terms = [
+            item["term"]
+            for item in policy_result.get("evidence", [])
+            if isinstance(item, dict) and isinstance(item.get("term"), str)
+        ]
+        if (
+            category == policy_result["category"]
+            and matches
+            and all(
+                any(match in policy_term for policy_term in policy_terms)
+                for match in matches
+            )
+        ):
+            return True
+        allowed = _CONTEXTUAL_SANITIZE_SUBSUMED_KEYWORDS.get(
+            policy_result["category"], {}
+        ).get(category, frozenset())
+        return bool(matches) and set(matches).issubset(allowed)
 
     def reload_if_changed(self) -> bool:
         if self.rule_manager is None or self._reload_blocked:
@@ -206,34 +297,46 @@ class RuleFilter:
     def detect(self, text: str) -> list[Detection]:
         self.reload_if_changed()
         detections: list[Detection] = []
-        for category, words in self.words.items():
-            matched = [word for word in words if word in text]
-            if matched:
-                detections.append(
-                    Detection(
-                        category=category,
-                        level="high" if category in {"porn", "violence"} else "medium",
-                        score=80 if category in {"porn", "violence"} else 55,
-                        reason=f"matched {category} keyword lexicon",
-                        source="keyword",
-                        matches=matched,
+        policy_result, protected = self._generalized_policy(text)
+        if not protected:
+            for category, words in self.words.items():
+                matched = [word for word in words if word in text]
+                if matched and not self._keyword_is_subsumed_by_contextual_sanitize(
+                    category, matched, policy_result
+                ):
+                    detections.append(
+                        Detection(
+                            category=category,
+                            level=(
+                                "high"
+                                if category in {"porn", "violence"}
+                                else "medium"
+                            ),
+                            score=80 if category in {"porn", "violence"} else 55,
+                            reason=f"matched {category} keyword lexicon",
+                            source="keyword",
+                            matches=matched,
+                        )
                     )
+            for rule, compiled in self._compiled_builtin_regex:
+                matches = list(
+                    dict.fromkeys(match.group(0) for match in compiled.finditer(text))
                 )
-        for rule, compiled in self._compiled_builtin_regex:
-            matches = list(
-                dict.fromkeys(match.group(0) for match in compiled.finditer(text))
-            )
-            if matches:
-                detections.append(
-                    Detection(
-                        category=rule.get("category", "unknown"),
-                        level=rule.get("level", "medium"),
-                        score=int(rule.get("score", 60)),
-                        reason=rule.get("reason", "matched regex rule"),
-                        source="regex",
-                        matches=matches,
+                if matches:
+                    detections.append(
+                        Detection(
+                            category=rule.get("category", "unknown"),
+                            level=rule.get("level", "medium"),
+                            score=int(rule.get("score", 60)),
+                            reason=rule.get("reason", "matched regex rule"),
+                            source="regex",
+                            matches=matches,
+                        )
                     )
-                )
+        if policy_result is not None:
+            policy_detection = self._policy_detection(policy_result)
+            if policy_detection is not None:
+                detections.append(policy_detection)
         with self._lock:
             user_matchers = self._user_matchers
             user_rules_revision = self.user_rules_revision

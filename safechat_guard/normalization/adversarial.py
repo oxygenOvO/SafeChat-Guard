@@ -13,7 +13,19 @@ class AdversarialView:
 class AdversarialSeparatorNormalizer:
     """Join separators only inside confirmed high-risk Chinese fragments."""
 
-    FRAGMENTS = frozenset({"炸药", "微信", "加微", "色情", "约炮"})
+    FRAGMENTS = frozenset(
+        {
+            "炸药",
+            "爆炸物",
+            "枪械",
+            "枪械配件",
+            "违禁武器",
+            "微信",
+            "加微",
+            "色情",
+            "约炮",
+        }
+    )
     MAX_SEPARATOR_LENGTH = 8
     EXPLICIT_SEPARATORS = frozenset(
         "\u200b\u200c\u200d\ufeff"
@@ -34,28 +46,40 @@ class AdversarialSeparatorNormalizer:
                 offsets.append(index)
                 index += 1
                 continue
-            fragment, right_index = matched
+            fragment, source_positions, end = matched
             output.extend(fragment)
-            offsets.extend((index, right_index))
-            index = right_index + 1
+            offsets.extend(source_positions)
+            index = end
         offsets.append(len(text))
         return AdversarialView("".join(output), tuple(offsets))
 
     def _match_fragment(
         self, text: str, start: int
-    ) -> tuple[str, int] | None:
+    ) -> tuple[str, tuple[int, ...], int] | None:
         left = text[start]
-        candidates = [term for term in self.FRAGMENTS if term[0] == left]
+        candidates = sorted(
+            (term for term in self.FRAGMENTS if term[0] == left),
+            key=len,
+            reverse=True,
+        )
         if not candidates:
             return None
         for fragment in candidates:
-            right_index = self._separator_end(text, start + 1)
-            if (
-                right_index > start + 1
-                and right_index < len(text)
-                and text[right_index] == fragment[1]
-            ):
-                return fragment, right_index
+            cursor = start
+            positions: list[int] = []
+            saw_separator = False
+            for expected in fragment:
+                if positions:
+                    advanced = self._separator_end(text, cursor)
+                    saw_separator = saw_separator or advanced > cursor
+                    cursor = advanced
+                if cursor >= len(text) or text[cursor] != expected:
+                    break
+                positions.append(cursor)
+                cursor += 1
+            else:
+                if saw_separator:
+                    return fragment, tuple(positions), cursor
         return None
 
     def _separator_end(self, text: str, start: int) -> int:
