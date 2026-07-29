@@ -258,8 +258,15 @@ class SafeChatPipeline:
         )
 
     def _scan_text_layers(self, text: str) -> tuple[str, list, list]:
-        normalized = self.normalizer.normalize(text)
-        rule_detections = self.rule_filter.detect(normalized)
+        view_builder = getattr(self.normalizer, "normalize_views", None)
+        if callable(view_builder):
+            views = view_builder(text)
+            normalized = views.normalized_text
+            adversarial = views.adversarial_text or normalized
+        else:
+            normalized = self.normalizer.normalize(text)
+            adversarial = normalized
+        rule_detections = self.rule_filter.detect(adversarial)
         semantic_detections = self.semantic_classifier.detect(normalized)
         return normalized, rule_detections, semantic_detections
 
@@ -536,7 +543,6 @@ class SafeChatPipeline:
     ) -> bool:
         return (
             routed["action"] == "sanitize"
-            and "RULE_RISK_EVIDENCE" in routed.get("reason_codes", [])
             and "SEMANTIC_RISK_EVIDENCE" not in routed.get("reason_codes", [])
             and any(
                 detection.source in {"keyword", "regex"}

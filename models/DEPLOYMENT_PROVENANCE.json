@@ -1,0 +1,16 @@
+﻿{
+    "manifest_type":  "deployment_provenance",
+    "model_file":  "models/semantic_model_v2.joblib",
+    "git_blob":  "6a54f32263a36111bd002d7d410cb32f88f46cf9",
+    "sha256":  "82D1B4D188844DF7F0670422721A857F6E270CE7AB682859E2E0FD47547FCD7C",
+    "source_repository":  "D:\\Projects\\SafeChat-Guard",
+    "source_commit":  "5d490fc",
+    "restored_for_branch":  "feat/final-delivery-v1",
+    "runtime_validation":  {
+                               "model_loaded":  true,
+                               "manual_adversarial_matrix":  "40/40",
+                               "context_boundary_matrix":  "32/32",
+                               "pytest":  "474 passed"
+                           },
+    "notes":  "Deployment provenance only; this file does not claim to be the original training manifest."
+}

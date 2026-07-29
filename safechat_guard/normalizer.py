@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from .normalization.adversarial import AdversarialSeparatorNormalizer
 from .normalization.base import NormalizationResult
 from .normalization.normalizers.case import CaseNormalizer
 from .normalization.normalizers.mapping import MappingNormalizer, TokenMappingNormalizer
@@ -21,6 +22,7 @@ class TextNormalizer:
         self.homophone_map_path = Path(homophone_map_path)
         self.emoji_map_path = Path(emoji_map_path)
         self.pipeline = self._build_pipeline()
+        self.adversarial_normalizer = AdversarialSeparatorNormalizer()
 
     def _build_pipeline(self) -> NormalizationPipeline:
         map_dir = self.homophone_map_path.parent
@@ -66,9 +68,23 @@ class TextNormalizer:
 
     def reload(self) -> None:
         self.pipeline = self._build_pipeline()
+        self.adversarial_normalizer = AdversarialSeparatorNormalizer()
 
     def normalize(self, text: str) -> str:
         return self.pipeline.normalize(text)
 
     def normalize_with_trace(self, text: str) -> NormalizationResult:
-        return self.pipeline.normalize_with_trace(text)
+        result = self.pipeline.normalize_with_trace(text)
+        adversarial = self.adversarial_normalizer.normalize(
+            result.normalized_text
+        )
+        return NormalizationResult(
+            original_text=result.original_text,
+            normalized_text=result.normalized_text,
+            steps=result.steps,
+            adversarial_text=adversarial.text,
+            adversarial_to_normalized=adversarial.source_offsets,
+        )
+
+    def normalize_views(self, text: str) -> NormalizationResult:
+        return self.normalize_with_trace(text)

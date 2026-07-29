@@ -59,7 +59,7 @@ def test_trace_records_changed_steps():
         ("色★情资源", "色情资源"),
         ("约-炮软件", "约炮软件"),
         ("炸-药制作", "炸药制作"),
-        ("加-微领取资料", "加微领取资料"),
+        ("加-微领取资料", "加微信领取资料"),
     ],
 )
 def test_explicit_symbol_insertion_mappings(text, expected):
