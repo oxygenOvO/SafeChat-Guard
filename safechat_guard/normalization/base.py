@@ -21,6 +21,8 @@ class NormalizationResult:
     original_text: str
     normalized_text: str
     steps: list[NormalizationStep]
+    adversarial_text: str | None = None
+    adversarial_to_normalized: tuple[int, ...] = ()
 
 
 class BaseNormalizer(Protocol):

@@ -26,3 +26,6 @@ wheelhouse/
 data/logs/
 
 .tmp/
+
+# Keep the validated production semantic model.
+!models/semantic_model_v2.joblib

@@ -42,7 +42,7 @@
     "category_hint": "violence"
   },
   "加-微": {
-    "target": "加微",
+    "target": "加微信",
     "type": "symbol_insertion",
     "confidence": "high",
     "rationale": "人工确认：在引流短语‘加微’中插入连字符以规避关键词检测",

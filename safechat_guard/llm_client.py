@@ -14,7 +14,7 @@ class MockLLMClient:
     provider = "mock"
 
     def chat(self, message: str) -> str:
-        return f"Mock model reply: I received your message: {message}"
+        return "Mock model reply: request processed safely."
 
     def status(self) -> dict:
         return {

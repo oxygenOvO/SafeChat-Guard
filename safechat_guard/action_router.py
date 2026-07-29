@@ -25,9 +25,12 @@ _SAFETY_NARRATIVE_TERMS = (
     "报道", "通报", "回顾", "说明", "讲解", "教学", "分析", "讨论",
     "研究", "提醒", "警示", "警惕", "举报", "查获", "破获", "处置",
     "制止", "下架", "拒绝", "禁止", "不要", "不得", "切勿", "反对", "解释", "列举",
+    "拦截", "标记", "脱敏", "审核", "识别", "判断", "培训", "小说", "翻译",
+    "不会",
 )
 _NEGATION_WINDOW = 10
 _SAFETY_CONTEXT_DISTANCE = 48
+_POSTPOSED_SAFE_HANDLING_TERMS = frozenset({"标记为违规", "脱敏后", "字段脱敏"})
 
 
 @dataclass(frozen=True)
@@ -212,7 +215,7 @@ class ActionRouter:
     def _route_clause(self, clause: _Clause) -> dict[str, Any]:
         safety_evidence = self._find_safety_evidence(clause)
         safe_ids = list(dict.fromkeys(item.context_id for item in safety_evidence))
-        unsafe_override = self._matched_terms(clause.text, self.unsafe_override_terms)
+        unsafe_override = self._matched_unsafe_override_terms(clause.text)
         protected_families, legal_ids = self._legal_protections(clause)
         local_insert = self._matched_terms(
             clause.text, self.local_insert_context_terms
@@ -322,6 +325,7 @@ class ActionRouter:
         )
         if (
             safety_evidence
+            and not unsafe_override
             and not unprotected_objects
             and (object_evidence or explicit_safe_narrative)
         ):
@@ -406,10 +410,26 @@ class ActionRouter:
         located_indexes = self._locate_detection_clauses(
             clause_results, rule_detections, semantic_detections
         )
-        if located_indexes and located_indexes.issubset(protected_indexes):
+        concrete_rule_evidence = any(
+            detection.source == "regex"
+            and any(
+                self._looks_like_concrete_value(match)
+                for match in detection.matches
+            )
+            for detection in rule_detections
+        )
+        if (
+            not concrete_rule_evidence
+            and located_indexes
+            and located_indexes.issubset(protected_indexes)
+        ):
             return None
         all_indexes = {result["clause_index"] for result in clause_results}
-        if not located_indexes and protected_indexes == all_indexes:
+        if (
+            not concrete_rule_evidence
+            and not located_indexes
+            and protected_indexes == all_indexes
+        ):
             return None
         category = self._select_risk_category(rule_detections, semantic_detections)
         if category is None:
@@ -524,7 +544,19 @@ class ActionRouter:
         risk_start = min(item.start for item in risk_evidence)
         risk_end = max(item.end for item in risk_evidence)
         for context in contexts:
-            if context.clause_index != clause.index or context.end > risk_start:
+            if context.clause_index != clause.index:
+                continue
+            if (
+                context.term in _POSTPOSED_SAFE_HANDLING_TERMS
+                and context.start >= risk_end
+                and context.start - risk_end <= _SAFETY_CONTEXT_DISTANCE
+            ):
+                between = clause.text[
+                    risk_end - clause.start:context.start - clause.start
+                ]
+                if not any(marker in between for marker in _SCOPE_TRANSITIONS):
+                    return True
+            if context.end > risk_start:
                 continue
             if risk_start - context.end > _SAFETY_CONTEXT_DISTANCE:
                 continue
@@ -1010,6 +1042,33 @@ class ActionRouter:
     @staticmethod
     def _canonicalize(text: str) -> str:
         return unicodedata.normalize("NFKC", text).casefold()
+
+    @staticmethod
+    def _looks_like_concrete_value(value: str) -> bool:
+        if not isinstance(value, str):
+            return False
+        return bool(
+            re.search(r"[0-9]{6,}|@|https?://|www\.", value, re.IGNORECASE)
+            or re.search(
+                r"\b[A-Za-z0-9-]+\.(?:com|cn|net|org|cc|vip|top|xyz|io|co|me)\b",
+                value,
+                re.IGNORECASE,
+            )
+        )
+
+    def _matched_unsafe_override_terms(self, text: str) -> list[str]:
+        matched: list[str] = []
+        for term in self.unsafe_override_terms:
+            start = 0
+            while True:
+                index = text.find(term, start)
+                if index < 0:
+                    break
+                if not self._is_negated(text, index):
+                    matched.append(term)
+                    break
+                start = index + len(term)
+        return matched
 
     @staticmethod
     def _matched_terms(text: str, terms: tuple[str, ...]) -> list[str]:

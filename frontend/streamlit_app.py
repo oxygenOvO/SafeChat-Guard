@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+# SafeChat-Guard project root bootstrap
+from pathlib import Path
+import sys
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+project_root_str = str(PROJECT_ROOT)
+
+if project_root_str not in sys.path:
+    sys.path.insert(0, project_root_str)
+
+
 from datetime import datetime
 from html import escape
 from pathlib import Path
