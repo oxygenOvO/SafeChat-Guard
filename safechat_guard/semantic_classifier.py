@@ -5,6 +5,7 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
+from .action_router import ActionRouter
 from .models import Detection
 
 try:
@@ -89,6 +90,9 @@ class SemanticClassifier:
             raise ValueError("semantic minimum margin must be between 0 and 1")
 
         project_root = Path(__file__).parent.parent
+        self._safety_router = self._load_safety_router(
+            project_root / "config" / "action_rules_v1.json"
+        )
         full_path = project_root / model_path
         if not full_path.is_file():
             self._error = "model file not found"
@@ -129,6 +133,25 @@ class SemanticClassifier:
             "normal": "正常",
         }
 
+    @staticmethod
+    def _load_safety_router(rules_path: Path) -> ActionRouter | None:
+        try:
+            return ActionRouter(rules_path)
+        except (OSError, TypeError, ValueError):
+            return None
+
+    def _is_protected_safety_context(self, text: str) -> bool:
+        if self._safety_router is None:
+            return False
+        result = self._safety_router.route(text, text, [], [])
+        return (
+            result["action"] == "pass"
+            and bool(
+                {"SAFE_CONTEXT", "LEGAL_DOMAIN_CONTEXT"}
+                & set(result.get("reason_codes", []))
+            )
+        )
+
     def status(self) -> dict[str, Any]:
         return {
             "enabled": self.model is not None,
@@ -151,6 +174,8 @@ class SemanticClassifier:
 
     def detect(self, text: str) -> list[Detection]:
         if self.model is None:
+            return []
+        if self._is_protected_safety_context(text):
             return []
 
         probabilities = self.model.predict_proba([text])[0]

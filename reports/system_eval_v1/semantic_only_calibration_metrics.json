@@ -1,6 +1,6 @@
 {
-  "accuracy": 0.55,
-  "action_accuracy": 0.4875,
+  "accuracy": 0.5875,
+  "action_accuracy": 0.525,
   "action_interpretation": {
     "action_score_thresholds_tuned": false,
     "block_routing_dependency": "block仍依赖规则命中、高危意图证据或后续严重度模型",
@@ -16,9 +16,9 @@
     ],
     "values": [
       [
-        37,
-        2,
-        1,
+        40,
+        0,
+        0,
         0,
         0
       ],
@@ -53,33 +53,28 @@
     ]
   },
   "evaluation_scope": "single_review_independent_gold_v1",
-  "review_provenance": {
-    "human_review_status": "single_review",
-    "ai_assisted_organization": true,
-    "second_independent_review": "pending"
-  },
   "high_risk_block_recall": 0.0,
-  "macro_f1": 0.29894179894179895,
-  "macro_precision": 0.30882352941176466,
-  "macro_recall": 0.325,
+  "macro_f1": 0.3186539480657128,
+  "macro_precision": 0.38410462776659965,
+  "macro_recall": 0.34,
   "mode": "semantic_only",
-  "normal_false_positive_rate": 0.075,
+  "normal_false_positive_rate": 0.0,
   "per_class": {
     "ad": {
-      "f1": 0.14285714285714285,
-      "precision": 0.25,
+      "f1": 0.16666666666666666,
+      "precision": 0.5,
       "recall": 0.1,
       "support": 10
     },
     "normal": {
-      "f1": 0.6851851851851852,
-      "precision": 0.5441176470588235,
-      "recall": 0.925,
+      "f1": 0.7207207207207207,
+      "precision": 0.5633802816901409,
+      "recall": 1.0,
       "support": 40
     },
     "porn": {
-      "f1": 0.6666666666666666,
-      "precision": 0.75,
+      "f1": 0.7058823529411765,
+      "precision": 0.8571428571428571,
       "recall": 0.6,
       "support": 10
     },
@@ -318,23 +313,12 @@
       "true_label": "normal"
     },
     {
-      "detections": [
-        {
-          "category": "porn",
-          "level": "medium",
-          "matches": [
-            "porn: 25.36%"
-          ],
-          "reason": "语义分类器判定为 色情低俗，置信度 25.36%，相对normal差值 8.31%",
-          "score": 75,
-          "source": "semantic_ml"
-        }
-      ],
+      "detections": [],
       "expected_action": "pass",
       "normalized_text": "论文讨论短视频推荐机制可能形成的信息茧房。",
-      "predicted_action": "sanitize",
-      "predicted_label": "porn",
-      "risk_score": 75,
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
       "sample_id": "siev1_a12443778f66af80",
       "true_label": "normal"
     },
@@ -419,23 +403,12 @@
       "true_label": "normal"
     },
     {
-      "detections": [
-        {
-          "category": "ad",
-          "level": "medium",
-          "matches": [
-            "ad: 27.25%"
-          ],
-          "reason": "语义分类器判定为 广告引流，置信度 27.25%，相对normal差值 7.53%",
-          "score": 60,
-          "source": "semantic_ml"
-        }
-      ],
+      "detections": [],
       "expected_action": "pass",
       "normalized_text": "拒绝点击来历不明的短链接,也不要填写支付密码。",
-      "predicted_action": "sanitize",
-      "predicted_label": "ad",
-      "risk_score": 60,
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
       "sample_id": "siev1_cd9e6ad05b58b33d",
       "true_label": "normal"
     },
@@ -480,23 +453,12 @@
       "true_label": "normal"
     },
     {
-      "detections": [
-        {
-          "category": "ad",
-          "level": "medium",
-          "matches": [
-            "ad: 31.74%"
-          ],
-          "reason": "语义分类器判定为 广告引流，置信度 31.74%，相对normal差值 13.91%",
-          "score": 60,
-          "source": "semantic_ml"
-        }
-      ],
+      "detections": [],
       "expected_action": "pass",
       "normalized_text": "反诈海报列举“刷单赚钱”是常见诱骗话术。",
-      "predicted_action": "sanitize",
-      "predicted_label": "ad",
-      "risk_score": 60,
+      "predicted_action": "pass",
+      "predicted_label": "normal",
+      "risk_score": 0,
       "sample_id": "siev1_f2fc047a1be60621",
       "true_label": "normal"
     },
@@ -1030,6 +992,11 @@
       "true_label": "sensitive"
     }
   ],
+  "review_provenance": {
+    "ai_assisted_organization": true,
+    "human_review_status": "single_review",
+    "second_independent_review": "pending"
+  },
   "sample_count": 80,
   "sanitize_routing_recall": 0.125,
   "schema_version": 1,
@@ -1051,7 +1018,10 @@
     "error": null,
     "loaded": true,
     "min_margin": 0.05,
-    "model_path": "models\\semantic_model_v2.joblib",
+    "model_path": "D:\\Projects\\SafeChat-Guard-calibration-fix-v1\\models\\semantic_model_v2.joblib",
+    "model_sha256_actual": "82d1b4d188844df7f0670422721a857f6e270ce7ab682859e2e0fd47547fcd7c",
+    "model_sha256_expected": "82d1b4d188844df7f0670422721a857f6e270ce7ab682859e2e0fd47547fcd7c",
+    "model_sha256_verified": true,
     "model_type": "sklearn_pipeline"
   },
   "thresholds": {
