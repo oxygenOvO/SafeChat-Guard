@@ -1,0 +1,6 @@
+SafeChat-Guard V3 holdout execution manifest amendment
+schema_version=1
+execution_count=1
+holdout_run_count=1
+post_holdout_tuning=false
+rerun=false

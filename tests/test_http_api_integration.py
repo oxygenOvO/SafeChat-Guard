@@ -55,6 +55,25 @@ def test_health_ready_and_error_contracts(api_runtime):
     status, health = request_json(base_url, "/health")
     assert status == 200
     assert health["status"] == "ok"
+    assert {
+        "active_filter_version",
+        "v3_enabled",
+        "v3_ready",
+        "risk_model_loaded",
+        "block_model_loaded",
+        "fallback_active",
+        "fallback_reason",
+        "risk_model_sha256",
+        "block_model_sha256",
+        "threshold_config_sha256",
+    } <= health.keys()
+    assert health["active_filter_version"] == "v2"
+    assert health["v3_enabled"] is True
+    assert health["v3_ready"] is False
+    assert health["risk_model_loaded"] is False
+    assert health["block_model_loaded"] is False
+    assert health["fallback_active"] is True
+    assert health["fallback_reason"]
 
     status, ready = request_json(base_url, "/ready")
     assert status == 200

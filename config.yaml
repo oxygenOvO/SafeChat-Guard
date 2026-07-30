@@ -17,6 +17,11 @@
     "config_path": "config/semantic_thresholds_v1.json",
     "required": false
   },
+  "action_v3": {
+    "enabled": true,
+    "required": false,
+    "threshold_config_path": "config/action_thresholds_v3.json"
+  },
   "llm": {
     "provider": "mock",
     "api_key_env": "QWEN_API_KEY",
