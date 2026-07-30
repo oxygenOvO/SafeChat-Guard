@@ -7,6 +7,7 @@ import time
 import warnings
 
 from .action_router import ActionRouter
+from .action_router_v3 import ActionRouterV3
 from .llm_client import LLMClientError, LLMClientFactory
 from .logger import EventLogger
 from .normalizer import TextNormalizer
@@ -81,6 +82,30 @@ class SafeChatPipeline:
             self.action_router = ActionRouter(self._resolve_action_rules_path())
         except Exception:
             self.action_router_error_code = "ROUTER_UNAVAILABLE"
+        self.action_router_v3 = None
+        self.action_router_v3_error_code = None
+        action_v3_options = config.get("action_v3", {})
+        self.action_router_v3_enabled = bool(
+            action_v3_options.get("enabled", False)
+        )
+        if self.action_router_v3_enabled:
+            try:
+                self.action_router_v3 = ActionRouterV3.from_config(
+                    self.project_root,
+                    action_v3_options.get(
+                        "threshold_config_path",
+                        "config/action_thresholds_v3.json",
+                    ),
+                )
+            except Exception as exc:
+                self.action_router_v3_error_code = type(exc).__name__
+                if bool(action_v3_options.get("required", False)):
+                    raise RuntimeError("V3 action router unavailable") from exc
+                warnings.warn(
+                    "V3 action router unavailable; using V2 routing",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
 
     @classmethod
     def from_config(cls, path: str):
@@ -316,7 +341,7 @@ class SafeChatPipeline:
         detections = self._deduplicate_detections(
             [*rule_detections, *semantic_detections]
         )
-        routed, fallback_used = self._route_with_user_overlay_guard(
+        routed, fallback_used = self._route_input_all_versions(
             text,
             normalized,
             rule_detections,
@@ -394,7 +419,7 @@ class SafeChatPipeline:
                         re_detections = self._deduplicate_detections(
                             [*re_rule_detections, *re_semantic_detections]
                         )
-                        re_routed, re_fallback = self._route_with_user_overlay_guard(
+                        re_routed, re_fallback = self._route_input_all_versions(
                             rewritten,
                             re_normalized,
                             re_rule_detections,
@@ -480,6 +505,40 @@ class SafeChatPipeline:
             "model_forwarded": False,
             "latency_ms": max(0, round((time.perf_counter() - started) * 1000)),
         }
+
+    def _route_input_all_versions(
+        self,
+        original_text: str,
+        normalized_text: str,
+        rule_detections: list,
+        semantic_detections: list,
+    ) -> tuple[dict, bool]:
+        routed, fallback_used = self._route_with_user_overlay_guard(
+            original_text,
+            normalized_text,
+            rule_detections,
+            semantic_detections,
+        )
+        if self.action_router_v3 is None:
+            return routed, fallback_used
+        try:
+            return (
+                self.action_router_v3.route(
+                    original_text,
+                    normalized_text,
+                    category_hint=routed.get("category", "normal"),
+                    base_result=routed,
+                ),
+                fallback_used,
+            )
+        except Exception:
+            if bool(self.config.get("action_v3", {}).get("required", False)):
+                return self._router_failure_result(
+                    rule_detections,
+                    semantic_detections,
+                    "ACTION_V3_ROUTER_ERROR",
+                ), True
+            return routed, fallback_used
 
     def _route_with_user_overlay_guard(
         self,

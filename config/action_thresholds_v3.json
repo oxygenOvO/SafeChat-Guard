@@ -1,0 +1,16 @@
+{
+  "block_model_path": "models/block_model_v3.joblib",
+  "block_model_sha256": "412f46781bcba63de8ada1d8781296acdbb25447f303130d0926cff6bd176b21",
+  "calibration_split": "dev",
+  "category_block_thresholds": {
+    "ad": 0.3,
+    "porn": 0.3,
+    "sensitive": 0.3,
+    "violence": 0.3
+  },
+  "evidence_block_threshold": 0.7,
+  "risk_model_path": "models/risk_model_v3.joblib",
+  "risk_model_sha256": "136b9952869c6662eaa77e65d3a22e3cac3eddfe3f751ffa55bc99fd80845785",
+  "risk_sanitize_threshold": 0.7,
+  "schema_version": 1
+}

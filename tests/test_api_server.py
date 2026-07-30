@@ -36,7 +36,20 @@ def test_detect_payload_uses_rule_and_semantic_union(monkeypatch):
 def test_health_payload_has_contract_fields():
     payload = build_health_payload()
 
-    assert payload == {"status": "ok", "service": "SafeChat-Guard"}
+    assert payload == {
+        "status": "ok",
+        "service": "SafeChat-Guard",
+        "active_filter_version": "v3",
+        "v3_enabled": True,
+        "v3_ready": True,
+        "risk_model_loaded": True,
+        "block_model_loaded": True,
+        "fallback_active": False,
+        "fallback_reason": None,
+        "risk_model_sha256": "136b9952869c6662eaa77e65d3a22e3cac3eddfe3f751ffa55bc99fd80845785",
+        "block_model_sha256": "412f46781bcba63de8ada1d8781296acdbb25447f303130d0926cff6bd176b21",
+        "threshold_config_sha256": "5332006befae66475c9e7449d7c48dafd2ed6e5dba3ca6a5f7c0d2179783c3a2",
+    }
 
 
 def test_ready_payload_reports_runtime_state_without_stale_versions():

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import hmac
 import ipaddress
 import json
@@ -461,10 +462,74 @@ def build_detect_payload(text: str) -> dict:
     }
 
 
+def _sha256_if_file(path: Path | None) -> str | None:
+    if path is None or not path.is_file():
+        return None
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _v3_artifact_hashes() -> dict[str, str | None]:
+    configured = pipeline.config.get("action_v3", {}).get(
+        "threshold_config_path", "config/action_thresholds_v3.json"
+    )
+    threshold_path = Path(configured)
+    if not threshold_path.is_absolute():
+        threshold_path = pipeline.project_root / threshold_path
+    threshold_sha256 = _sha256_if_file(threshold_path)
+    try:
+        payload = json.loads(threshold_path.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        payload = {}
+
+    def configured_model_hash(field: str) -> str | None:
+        value = payload.get(field)
+        if not isinstance(value, str) or not value:
+            return None
+        path = Path(value)
+        if not path.is_absolute():
+            path = pipeline.project_root / path
+        return _sha256_if_file(path)
+
+    return {
+        "risk_model_sha256": configured_model_hash("risk_model_path"),
+        "block_model_sha256": configured_model_hash("block_model_path"),
+        "threshold_config_sha256": threshold_sha256,
+    }
+
+
 def build_health_payload() -> dict:
+    router = pipeline.action_router_v3
+    models = getattr(router, "models", None)
+    risk_model_loaded = bool(
+        models is not None and getattr(models, "risk_model", None) is not None
+    )
+    block_model_loaded = bool(
+        models is not None and getattr(models, "block_model", None) is not None
+    )
+    v3_enabled = bool(pipeline.action_router_v3_enabled)
+    v3_ready = bool(
+        v3_enabled and router is not None and risk_model_loaded and block_model_loaded
+    )
+    fallback_active = bool(v3_enabled and not v3_ready)
     return {
         "status": "ok",
         "service": pipeline.config["app"].get("name", "SafeChat-Guard"),
+        "active_filter_version": "v3" if v3_ready else "v2",
+        "v3_enabled": v3_enabled,
+        "v3_ready": v3_ready,
+        "risk_model_loaded": risk_model_loaded,
+        "block_model_loaded": block_model_loaded,
+        "fallback_active": fallback_active,
+        "fallback_reason": (
+            pipeline.action_router_v3_error_code or "v3_unavailable"
+            if fallback_active
+            else None
+        ),
+        **_v3_artifact_hashes(),
     }
 
 
