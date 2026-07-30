@@ -118,3 +118,46 @@ tests/                    # 测试用例
 Rule patterns are redacted by default in rule list/get and mutation responses. Full patterns require an explicit `include_pattern=true` read that passes the same loopback/admin-token policy used by management writes. The Streamlit rule page enables full-pattern editing only after its authorized-management mode succeeds.
 
 Rule changes use candidate compilation followed by atomic persistence and snapshot activation. If activation fails, the previous file, revision, and in-memory RuleFilter snapshot are restored. A rollback failure enters a degraded state that preserves the last trusted in-memory rules and rejects later writes.
+
+## V3正式交付说明
+
+生产链路依次执行文本归一化、关键词与正则检测、语义分类、动作路由、必要的脱敏与复检、LLM调用以及输出二次校验。当前语义层是使用自建训练数据训练的 **TF-IDF + LogisticRegression** 轻量分类器，不是预训练Transformer模型，也不应按预训练模型宣传。
+
+V3冻结版本在自建、一次性运行的330条 `internal_holdout` 上得到：Accuracy 99.39%、Block Recall 100%、Sanitize Recall 100%、Normal FPR 1.54%。这些是项目内部留出集指标，不是官方隐藏测试结果；该留出集仅正式运行一次，运行后未调参、未重跑。
+
+默认 [config.yaml](config.yaml) 始终使用 `mock`，保证离线演示和测试不产生外部调用。真实LLM示例位于 [config.real_llm.example.yaml](config.real_llm.example.yaml)，密钥只由其中 `api_key_env` 指向的进程环境变量读取，配置文件不保存密钥。
+
+### 真实LLM启动
+
+先通过操作系统、CI或密钥管理平台向进程环境注入 `DASHSCOPE_API_KEY`，不要把真实值写入命令历史、`.env.example`、日志或截图。随后在PowerShell会话中选择示例配置：
+
+```powershell
+$env:SAFECHAT_CONFIG_PATH = "config.real_llm.example.yaml"
+python api_server.py
+```
+
+检查运行状态：
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/ready
+```
+
+`llm.ready` 应为 `true`，`provider` 应为 `qwen`。示例使用阿里云百炼OpenAI-compatible HTTPS endpoint；区域、模型权限和计费以供应商账号为准。
+
+### 真实LLM安全冒烟
+
+以下脚本会产生两次真实上游调用：一次正常放行输入、一次脱敏后的输入。高风险不调用、上游异常安全失败和违规输出拦截使用本地受控注入验证，因此不会诱导真实模型生成违规内容。
+
+```powershell
+python scripts/smoke_real_llm.py --config config.real_llm.example.yaml
+```
+
+脚本只输出布尔验收结果、provider、model和调用次数，不输出API key、请求正文或模型回复。成功条件包括：
+
+- pass输入确实调用上游；
+- block输入不调用上游；
+- sanitize输入仅把脱敏后的文本传给上游；
+- 上游异常返回安全的 `llm_unavailable`；
+- 上游违规输出被OutputGuard拦截。
+
+完整运行、运维和故障处理见 [docs/OPERATIONS.md](docs/OPERATIONS.md)，需求证据见 [docs/REQUIREMENT_TRACEABILITY.md](docs/REQUIREMENT_TRACEABILITY.md)。

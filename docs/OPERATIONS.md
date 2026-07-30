@@ -88,3 +88,59 @@ python api_server.py
 A rule mutation is successful only after disk persistence and RuleFilter activation agree on the same revision. Candidate compilation failure does not write the file. Activation failure rolls back the prior file and retains the last-good memory snapshot. Failed transactions emit a `stage=rule_management` audit event with `result=failed` and no pattern or exception text.
 
 If rollback itself fails, rule management enters degraded mode: automatic rule reload is frozen on the last trusted snapshot and subsequent writes are rejected. Repair the user-rule storage from a trusted backup and restart the service before re-enabling management operations.
+
+## 真实LLM运行手册
+
+### 配置边界
+
+- `config.yaml` 是默认离线配置，`llm.provider` 必须继续保持 `mock`。
+- `config.real_llm.example.yaml` 是无密钥的真实上游示例。
+- `SAFECHAT_CONFIG_PATH` 仅选择启动配置；未设置时API继续加载仓库根目录的 `config.yaml`。
+- `DASHSCOPE_API_KEY` 必须由进程环境或密钥管理平台注入。应用不会读取配置中的明文key，也不会自动加载 `.env`。
+- 真实配置缺失、provider未知、endpoint不是HTTPS或密钥未配置时不回退mock；`/ready` 降级或启动显式失败。
+
+供应商官方OpenAI-compatible HTTP endpoint参考：`https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions`。部署到其他区域时必须使用对应区域endpoint和API key，并重新做网络连通性验收。
+
+### 启动和检查
+
+先通过部署平台注入 `DASHSCOPE_API_KEY`，再执行：
+
+```powershell
+$env:SAFECHAT_CONFIG_PATH = "config.real_llm.example.yaml"
+python api_server.py
+```
+
+另开终端检查：
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health
+Invoke-RestMethod http://127.0.0.1:8000/ready
+```
+
+验收要点：`/health` 的V3模型状态保持ready且无fallback；`/ready` 的 `llm.ready=true`、provider和model符合配置。返回中只能出现 `key_configured` 布尔值，不能出现凭据。
+
+### 冒烟脚本
+
+```powershell
+python scripts/smoke_real_llm.py --config config.real_llm.example.yaml
+```
+
+脚本只执行两次真实上游请求并验证五项安全性质：pass转发、block不转发、sanitize后转发、上游异常安全失败、输出违规拦截。后两项通过本地受控客户端注入，不额外请求上游。脚本不打印输入、回复或密钥。运行可能产生供应商调用费用，必须由获授权人员执行。
+
+### API调用示例
+
+```powershell
+$body = @{ message = "请给出一份一周阅读计划" } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8000/api/chat -ContentType "application/json; charset=utf-8" -Body $body
+```
+
+不要在生产请求中使用 `raw_reply_override`；该兼容字段仅用于受控演示和测试。API出现 `service_error=llm_unavailable` 时按安全失败处理，不要绕过过滤器直接调用上游。
+
+### 凭据和故障处置
+
+- 不在工单、日志、截图或Git中粘贴key；`.env.example`只说明变量名。
+- 怀疑泄漏时立即在供应商控制台撤销并轮换，再检查Git历史和CI日志。
+- 401/403：检查key所属区域、模型权限和账户状态，不打印Authorization头。
+- 连接超时：检查HTTPS出口、DNS和供应商状态；不得临时改为HTTP。
+- 上游返回结构变化：客户端会返回安全503；先在隔离环境更新兼容性测试。
+- 演示结束后由部署平台撤销临时凭据或关闭会话，不把key持久化到工作树。

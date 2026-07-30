@@ -13,6 +13,7 @@ from api_server import (
     build_ready_payload,
     error_payload,
     parse_since,
+    resolve_runtime_config_path,
 )
 from safechat_guard.models import Detection
 
@@ -61,6 +62,21 @@ def test_health_payload_has_contract_fields():
             ROOT / "config/action_thresholds_v3.json"
         ),
     }
+
+
+def test_runtime_config_path_keeps_default_mock_config(monkeypatch):
+    monkeypatch.delenv("SAFECHAT_CONFIG_PATH", raising=False)
+
+    assert resolve_runtime_config_path() == api_server.ROOT / "config.yaml"
+    assert api_server.pipeline.config["llm"]["provider"] == "mock"
+
+
+def test_runtime_config_path_accepts_explicit_relative_example(monkeypatch):
+    monkeypatch.setenv("SAFECHAT_CONFIG_PATH", "config.real_llm.example.yaml")
+
+    assert resolve_runtime_config_path() == (
+        api_server.ROOT / "config.real_llm.example.yaml"
+    ).resolve()
 
 
 def test_ready_payload_reports_runtime_state_without_stale_versions():
