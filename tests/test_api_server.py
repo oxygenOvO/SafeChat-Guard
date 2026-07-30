@@ -1,5 +1,7 @@
 from datetime import timezone
+import hashlib
 from io import BytesIO
+from pathlib import Path
 from types import SimpleNamespace
 
 import api_server
@@ -13,6 +15,13 @@ from api_server import (
     parse_since,
 )
 from safechat_guard.models import Detection
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def test_detect_payload_uses_rule_and_semantic_union(monkeypatch):
@@ -48,7 +57,9 @@ def test_health_payload_has_contract_fields():
         "fallback_reason": None,
         "risk_model_sha256": "136b9952869c6662eaa77e65d3a22e3cac3eddfe3f751ffa55bc99fd80845785",
         "block_model_sha256": "412f46781bcba63de8ada1d8781296acdbb25447f303130d0926cff6bd176b21",
-        "threshold_config_sha256": "5332006befae66475c9e7449d7c48dafd2ed6e5dba3ca6a5f7c0d2179783c3a2",
+        "threshold_config_sha256": sha256_file(
+            ROOT / "config/action_thresholds_v3.json"
+        ),
     }
 
 

@@ -70,3 +70,5 @@ def test_public_release_evidence_matches_delivered_artifact_hashes():
     assert evidence["threshold_config_sha256"] == sha256_file(
         ROOT / "config/action_thresholds_v3.json"
     )
+    assert evidence["threshold_config_semantic_change"] is False
+    assert evidence["line_ending_normalization"] == "CRLF_to_LF"

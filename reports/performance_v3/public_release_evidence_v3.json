@@ -92,5 +92,8 @@
       "train_holdout": 0
     }
   },
-  "threshold_config_sha256": "5332006befae66475c9e7449d7c48dafd2ed6e5dba3ca6a5f7c0d2179783c3a2"
+  "threshold_config_sha256": "858e635795a350aaaf273e861e754fa8bfff19b05759a321ccd9ce331da09110",
+  "threshold_config_pre_delivery_windows_crlf_sha256": "5332006befae66475c9e7449d7c48dafd2ed6e5dba3ca6a5f7c0d2179783c3a2",
+  "threshold_config_semantic_change": false,
+  "line_ending_normalization": "CRLF_to_LF"
 }

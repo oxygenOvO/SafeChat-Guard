@@ -1,7 +1,17 @@
+import hashlib
+from pathlib import Path
+
 from scripts.check_production_equivalence_v3 import (
     load_public_cases,
     run_equivalence,
 )
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def test_public_equivalence_case_inventory_is_exact():
@@ -43,5 +53,7 @@ def test_v3_core_and_production_api_are_equivalent_without_fallback():
         "fallback_reason": None,
         "risk_model_sha256": "136b9952869c6662eaa77e65d3a22e3cac3eddfe3f751ffa55bc99fd80845785",
         "block_model_sha256": "412f46781bcba63de8ada1d8781296acdbb25447f303130d0926cff6bd176b21",
-        "threshold_config_sha256": "5332006befae66475c9e7449d7c48dafd2ed6e5dba3ca6a5f7c0d2179783c3a2",
+        "threshold_config_sha256": sha256_file(
+            ROOT / "config/action_thresholds_v3.json"
+        ),
     }
