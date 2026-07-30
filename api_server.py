@@ -435,7 +435,18 @@ def _one(params: dict[str, list[str]], name: str) -> str | None:
 
 
 ROOT = Path(__file__).resolve().parent
-pipeline = SafeChatPipeline.from_config(str(ROOT / "config.yaml"))
+
+def resolve_runtime_config_path() -> Path:
+    """Resolve an explicit runtime config without changing the offline default."""
+    configured = os.getenv("SAFECHAT_CONFIG_PATH", "").strip()
+    if not configured:
+        return ROOT / "config.yaml"
+    path = Path(configured).expanduser()
+    if not path.is_absolute():
+        path = ROOT / path
+    return path.resolve()
+
+pipeline = SafeChatPipeline.from_config(str(resolve_runtime_config_path()))
 API_CONFIG = pipeline.config.get("api", {})
 MAX_REQUEST_BYTES = int(API_CONFIG.get("max_request_bytes", 64 * 1024))
 MAX_TEXT_CHARS = int(API_CONFIG.get("max_text_chars", 4096))
