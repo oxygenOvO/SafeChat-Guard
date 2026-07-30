@@ -31,3 +31,7 @@ data/logs/
 !models/semantic_model_v2.joblib
 !models/risk_model_v3.joblib
 !models/block_model_v3.joblib
+
+# Never publish private V3 holdout inputs or per-run internal metrics.
+data/evaluation/performance_v3_internal_holdout.csv
+reports/performance_v3/internal_holdout_metrics.json

@@ -1,0 +1,96 @@
+{
+  "accuracy": 0.9939,
+  "action_accuracy": 0.9939,
+  "action_confusion_matrix": {
+    "labels": [
+      "pass",
+      "sanitize",
+      "block"
+    ],
+    "values": [
+      [
+        128,
+        2,
+        0
+      ],
+      [
+        0,
+        90,
+        0
+      ],
+      [
+        0,
+        0,
+        110
+      ]
+    ]
+  },
+  "block_model_sha256": "412f46781bcba63de8ada1d8781296acdbb25447f303130d0926cff6bd176b21",
+  "block_recall": 1.0,
+  "dev_validation": {
+    "block_recall": 1.0,
+    "evaluation_split": "dev",
+    "normal_fpr": 0.0,
+    "sample_count": 270,
+    "sanitize_recall": 1.0,
+    "thresholds_frozen": true
+  },
+  "evaluation_scope": "single_frozen_internal_holdout_aggregate_only",
+  "execution_count": 1,
+  "holdout_dataset_sha256": "45ff79a075c7556de5e75295ec9f8c158e4aad5ae7b79b309d4074aee95a447d",
+  "holdout_rerun": false,
+  "holdout_run_count": 1,
+  "holdout_text_included": false,
+  "macro_f1": 0.9946,
+  "macro_precision": 0.9925,
+  "macro_recall": 0.9969,
+  "normal_fpr": 0.0154,
+  "per_record_predictions_included": false,
+  "post_holdout_tuning": false,
+  "provenance": {
+    "calibration_split": "dev",
+    "calibration_used_holdout": false,
+    "calibration_used_retired_test": false,
+    "training_sample_count": 900,
+    "training_split": "train",
+    "training_used_holdout": false,
+    "training_used_retired_test": false
+  },
+  "risk_model_sha256": "136b9952869c6662eaa77e65d3a22e3cac3eddfe3f751ffa55bc99fd80845785",
+  "sample_count": 330,
+  "sanitize_recall": 1.0,
+  "schema_version": 1,
+  "source_documents": [
+    "INTERNAL_HOLDOUT_FINAL_REPORT.md",
+    "V3_RELEASE_READINESS_REPORT.md",
+    "holdout_execution_manifest_amendment.txt",
+    "freeze_manifest.txt",
+    "dataset_audit.json",
+    "dev_metrics.json",
+    "training_metrics.json"
+  ],
+  "split_counts": {
+    "dev": 270,
+    "holdout": 330,
+    "train": 900
+  },
+  "split_isolation": {
+    "high_similarity_cross_split_pair_count": 0,
+    "normalized_text_hash_intersection_counts": {
+      "dev_holdout": 0,
+      "train_dev": 0,
+      "train_holdout": 0
+    },
+    "raw_text_hash_intersection_counts": {
+      "dev_holdout": 0,
+      "train_dev": 0,
+      "train_holdout": 0
+    },
+    "template_family_intersection_counts": {
+      "dev_holdout": 0,
+      "train_dev": 0,
+      "train_holdout": 0
+    }
+  },
+  "threshold_config_sha256": "5332006befae66475c9e7449d7c48dafd2ed6e5dba3ca6a5f7c0d2179783c3a2"
+}
