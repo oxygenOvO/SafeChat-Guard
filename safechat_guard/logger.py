@@ -132,7 +132,7 @@ class EventLogger:
                 event.get("result"),
             ]
             for result in results:
-                if not result:
+                if not isinstance(result, dict):
                     continue
                 stage = result.get("stage") or event.get("stage") or "unknown"
                 stage_counter[stage] += 1
