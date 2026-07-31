@@ -281,6 +281,28 @@ def test_adapter_user_rule_crud_reloads_filter(make_adapter):
     assert adapter.rule_catalog()["user_count"] == 0
 
 
+def test_pipeline_stats_survives_rule_create_and_delete_audits(make_adapter):
+    adapter = make_adapter()
+    payload = {
+        "id": "stats-audit-rule",
+        "pattern": "stats-audit-pattern",
+        "pattern_type": "phrase",
+        "category": "ad",
+        "action": "sanitize",
+        "risk_level": "medium",
+        "enabled": True,
+        "description": "stats regression",
+    }
+
+    created = adapter.add_user_rule(payload, 0)
+    assert adapter.pipeline.stats(portable_paths=True)["total_events"] == 1
+
+    adapter.delete_user_rule("stats-audit-rule", created["revision"])
+    stats = adapter.pipeline.stats(portable_paths=True)
+    assert stats["total_events"] == 2
+    assert stats["action_counts"] == {}
+
+
 def test_adapter_daily_stats_zero_state(make_adapter):
     stats = make_adapter().daily_stats()
     assert stats["request_count"] == 0

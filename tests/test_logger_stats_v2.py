@@ -4,6 +4,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from safechat_guard.logger import EventLogger
 
 
@@ -56,6 +58,41 @@ def test_stats_counts_rule_semantic_joint_and_stages(tmp_path):
     assert stats["output_detection_count"] == 0
     assert stats["input_action_counts"]["sanitize"] == 1
     assert stats["output_action_counts"]["pass"] == 1
+
+
+@pytest.mark.parametrize("field", ["input_filter", "output_filter", "result"])
+@pytest.mark.parametrize("value", ["success", "failed", None, [], 42])
+def test_stats_skips_non_dict_filter_candidates(tmp_path, field, value):
+    logger = EventLogger(str(tmp_path / "events.jsonl"))
+    logger.write({"stage": "rule_management", field: value})
+
+    stats = logger.stats()
+
+    assert stats["total_events"] == 1
+    assert stats["action_counts"] == {}
+    assert stats["category_counts"] == {}
+
+
+def test_stats_still_counts_valid_dict_result(tmp_path):
+    logger = EventLogger(str(tmp_path / "events.jsonl"))
+    logger.write(
+        {
+            "stage": "chat",
+            "result": {
+                "stage": "input",
+                "action": "block",
+                "risk_score": 90,
+                "risk_categories": ["violence"],
+                "detections": [],
+            },
+        }
+    )
+
+    stats = logger.stats()
+
+    assert stats["blocked"] == 1
+    assert stats["input_action_counts"] == {"block": 1}
+    assert stats["category_counts"] == {"violence": 1}
 
 
 def test_concurrent_writes_remain_valid_jsonl(tmp_path):

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
+from streamlit.testing.v1 import AppTest
 
 import frontend.streamlit_app as frontend_app
 from frontend.adapter import FrontendPipelineAdapter
@@ -101,6 +102,37 @@ def test_frontend_init_does_not_call_llm(monkeypatch):
 
     assert session_state.last_result is None
     assert session_state.last_run_signature is None
+
+
+def test_home_renders_with_rule_management_audit(
+    production_config_without_model,
+):
+    pipeline = SafeChatPipeline.from_config(str(production_config_without_model))
+    pipeline.logger.write(
+        {
+            "stage": "rule_management",
+            "operation": "rule_created",
+            "result": "success",
+        }
+    )
+    adapter = FrontendPipelineAdapter(pipeline)
+
+    def render_test_app(test_adapter):
+        import frontend.streamlit_app as app_module
+
+        app_module.get_adapter = lambda: test_adapter
+        app_module.main()
+
+    app = AppTest.from_function(
+        render_test_app,
+        args=(adapter,),
+        default_timeout=20,
+    ).run()
+
+    assert not app.exception
+    rendered_errors = " ".join(str(item.value) for item in app.error)
+    assert "Traceback" not in rendered_errors
+    assert "D:\\Projects" not in rendered_errors
 
 
 def test_overview_does_not_call_real_llm(no_real_llm_adapter, monkeypatch):
