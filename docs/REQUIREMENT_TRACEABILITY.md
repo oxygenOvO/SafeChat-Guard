@@ -2,38 +2,29 @@
 
 ## 证据说明
 
-下表把题目能力映射到代码、API/界面和自动测试。“截图编号”是最终答辩截图清单编号；仓库当前不提交截图二进制，采集时不得包含API key、用户隐私、holdout文本或逐条预测。自动测试是当前主要可重复证据。
+下表使用最终统一截图编号 S01-S16，把题目能力映射到实现文件、API/界面和自动测试。S12、S13 已按 2026-07-31 验收事实采集，其余截图仍待人工采集。截图不得包含 API key、管理员 token、`Authorization` 头、提示词、模型原始回答、用户隐私、internal holdout 文本或逐条预测。
 
-| 题目要求 | 实现模块 | API/界面 | 测试文件 | 截图编号 | 当前状态 |
+| 截图编号 | 题目要求 | 实现文件 | API/界面 | 测试或公开证据 | 截图状态 |
 |---|---|---|---|---|---|
-| 四类违规词库 | `data/lexicons/{ad,porn,violence,sensitive}.txt`、`RuleFilter` | 检测页、`POST /api/detect` | `tests/test_rule_filter.py`、`tests/test_final_delivery_adversarial.py` | S01 | 已实现并测试；截图待采集 |
-| 规则CRUD和导入 | `RuleManager`、`dispatch_management_*` | Streamlit规则页、`/api/rules*` | `tests/test_rule_management_api.py`、`tests/test_rule_manager.py` | S02 | 已实现并测试；截图待采集 |
-| 关键词+正则第一层 | `RuleFilter`、`data/rules/regex_rules.json` | `POST /api/detect` detections | `tests/test_rule_filter.py`、`tests/test_pipeline.py` | S03 | 已实现并测试；截图待采集 |
-| 语义分类第二层 | `SemanticClassifier`、`semantic_config.py` | `/ready`、检测结果中的 `semantic_ml` | `tests/test_semantic_classifier.py`、`tests/test_semantic_runtime_config.py` | S04 | 已实现；TF-IDF+LogisticRegression，非预训练Transformer |
-| pass/sanitize/block | `ActionRouter`、`ActionRouterV3` | 聊天页、`POST /api/chat` | `tests/test_pipeline_action_router.py`、`tests/test_action_models_v3.py` | S05 | 已实现并测试；截图待采集 |
-| 高风险不调用LLM | `SafeChatPipeline.handle_chat` block短路 | `/api/chat` 的 `model_forwarded=false` | `tests/test_pipeline_action_router.py`、`tests/test_real_llm_smoke.py` | S06 | 已实现并测试；截图待采集 |
-| sanitize后复检 | `Sanitizer`、`SafeChatPipeline._filter_text` | `/api/chat` 的 `rewrite_recheck` | `tests/test_pipeline.py`、`tests/test_pipeline_action_router.py` | S07 | 已实现并测试；截图待采集 |
-| 输出二次校验 | `OutputGuard`、`SafeChatPipeline._filter_output` | `/api/chat` 的 `output_filter` | `tests/test_output_guard.py`、`tests/test_security_invariants.py` | S08 | 已实现并测试；截图待采集 |
-| 日志记录 | `EventLogger`、`request_summary` | 日志页、`data/logs/events.jsonl` | `tests/test_output_guard.py`、`tests/test_pipeline_action_router.py` | S09 | 已实现并测试；截图待采集 |
-| 每日统计和类别占比 | `EventLogger.daily_stats` | 统计页、`/api/stats/summary`、`/api/stats/daily` | `tests/test_logger_stats_v2.py`、`tests/test_rule_management_api.py` | S10 | 已实现并测试；截图待采集 |
-| 真实LLM调用 | `OpenAICompatibleLLMClient`、`config.real_llm.example.yaml`、`smoke_real_llm.py` | `/ready`、`POST /api/chat` | `tests/test_llm_client.py`、`tests/test_real_llm_smoke.py` | S11 | 可演示；需授权key和网络，截图待采集 |
-| 测试和运行说明 | `README.md`、`docs/OPERATIONS.md` | 命令行、API、Streamlit | 全量 `tests/` | S12 | 文档已补齐；576 passed，compileall与diff-check通过 |
-
-## 截图采集清单
-
-- S01：四类词库命中概览，不展示私有文本。
-- S02：规则列表与dry-run导入结果，隐藏pattern和管理员token。
-- S03：关键词/正则detections及风险动作。
-- S04：`/ready`语义模型已加载、类型如实标注为sklearn pipeline。
-- S05：pass、sanitize、block三联结果。
-- S06：block结果中的 `model_forwarded=false`。
-- S07：sanitize改写与复检状态，不展示原始隐私值。
-- S08：违规模型输出被OutputGuard拦截。
-- S09：脱敏后的请求摘要日志。
-- S10：每日数量与类别占比图。
-- S11：真实provider ready及冒烟脚本成功摘要，不含请求、回复或key。
-- S12：pytest、compileall、diff-check最终通过摘要。
+| S01 | 系统主页 | `frontend/streamlit_app.py`、`api_server.py`、`templates/`、`static/` | 系统主页、Streamlit 首页 | `tests/test_frontend_smoke.py`、`tests/test_frontend_adapter.py`、`tests/test_http_api_integration.py` | 待人工采集 |
+| S02 | 正常内容 pass | `safechat_guard/pipeline.py`、`safechat_guard/action_router_v3.py` | 聊天页、`POST /api/chat` | `tests/test_pipeline.py`、`tests/test_pipeline_action_router.py`、`tests/test_action_router_v3.py` | 待人工采集 |
+| S03 | 低风险 sanitize | `safechat_guard/sanitizer.py`、`safechat_guard/pipeline.py` | 聊天页、`POST /api/chat` 的改写与复检结果 | `tests/test_pipeline.py`、`tests/test_pipeline_action_router.py` | 待人工采集 |
+| S04 | 高风险 block 且不转发模型 | `safechat_guard/pipeline.py`、`safechat_guard/action_router_v3.py` | `POST /api/chat` 的 `model_forwarded=false` | `tests/test_pipeline_action_router.py`、`tests/test_real_llm_smoke.py` | 待人工采集 |
+| S05 | 模型输出二次校验 | `safechat_guard/output_guard.py`、`safechat_guard/pipeline.py` | `POST /api/chat` 的 `output_filter` | `tests/test_output_guard.py`、`tests/test_security_invariants.py` | 待人工采集 |
+| S06 | 规则新增 | `safechat_guard/rule_manager.py`、`api_server.py` | 规则管理页、`POST /api/rules` | `tests/test_rule_manager.py`、`tests/test_rule_management_api.py` | 待人工采集 |
+| S07 | 规则删除 | `safechat_guard/rule_manager.py`、`api_server.py` | 规则管理页、`DELETE /api/rules/{id}` | `tests/test_rule_manager.py`、`tests/test_rule_management_api.py` | 待人工采集 |
+| S08 | 规则批量导入 | `safechat_guard/rule_manager.py`、`api_server.py` | 规则导入页、`POST /api/rules/import` | `tests/test_rule_manager.py`、`tests/test_rule_management_api.py` | 待人工采集 |
+| S09 | 每日违规统计 | `safechat_guard/logger.py`、`api_server.py` | 统计页、`GET /api/stats/daily` | `tests/test_logger_stats_v2.py`、`tests/test_rule_management_api.py` | 待人工采集 |
+| S10 | 违规类型占比 | `safechat_guard/logger.py`、`frontend/streamlit_app.py` | 统计页、`GET /api/stats/summary` | `tests/test_logger_stats_v2.py`、`tests/test_frontend_adapter.py` | 待人工采集 |
+| S11 | health/ready 状态 | `api_server.py`、`safechat_guard/semantic_classifier.py` | `GET /health`、`GET /ready` | `tests/test_http_api_integration.py`、`tests/test_semantic_runtime_config.py` | 待人工采集 |
+| S12 | 真实 LLM 正常调用 | `safechat_guard/llm_client.py`、`config.real_llm.example.yaml`、`scripts/smoke_real_llm.py` | `GET /ready`、`POST /api/chat`、冒烟脚本摘要 | 2026-07-31：provider=`qwen`、model=`qwen-plus`、真实调用 2 次、status=`passed`、`pass_forwarded=true`、`sanitize_forwarded_after_redaction=true`；`credentials_printed=false`，运行后已清除 `DASHSCOPE_API_KEY` | 已采集（真实 Qwen 联网成功） |
+| S13 | 真实 LLM 上游异常安全处理 | `safechat_guard/llm_client.py`、`safechat_guard/pipeline.py`、`scripts/smoke_real_llm.py` | `POST /api/chat` 的安全 503/`llm_unavailable`、冒烟脚本受控异常摘要 | `block_not_forwarded=true`、`upstream_failure_closed_safely=true`、`unsafe_output_blocked=true`；上游异常和违规输出均为本地注入式安全路径测试，不代表 DashScope 真实故障 | 已采集（注入式安全处理） |
+| S14 | 576 项公开测试通过 | `tests/`、`requirements-dev.txt` | pytest 终端汇总 | 修复前代码基准：`576 passed`，不包含重新运行 internal holdout | 待人工采集 |
+| S15 | V3 公开聚合指标 | `reports/performance_v3/public_release_evidence_v3.json` | 公开聚合证据的只读视图 | `tests/test_filter_effect_constraints_v3.py`、`tests/test_performance_dataset_v3.py` | 待人工采集 |
+| S16 | 生产一致性 170/170 | `scripts/check_production_equivalence_v3.py`、`reports/performance_v3/PRODUCTION_EQUIVALENCE_REPORT.md` | 生产一致性报告的只读视图 | `tests/test_production_equivalence_v3.py` | 待人工采集 |
 
 ## 指标口径
 
-V3的Accuracy 99.39%、Block Recall 100%、Sanitize Recall 100%、Normal FPR 1.54%来自330条自建一次性内部留出集，不是官方隐藏测试结果。internal_holdout只运行一次，运行后未调参。生产一致性170/170说明冻结V3直接入口与生产入口在公开矩阵上一致，不等同于泛化性能证明。
+V3 的 Accuracy 99.39%、Block Recall 100%、Sanitize Recall 100%、Normal FPR 1.54% 来自 330 条自建、一次性运行的内部留出集，不是官方隐藏测试结果。internal holdout 只正式运行一次，运行后未调参、未重跑。生产一致性 170/170 说明冻结 V3 直接入口与生产入口在公开矩阵上一致，不等同于泛化性能证明。
+
+默认 mock 模式只用于离线演示和自动测试，不构成真实联网证据。2026-07-31 已完成 provider=`qwen`、model=`qwen-plus` 的真实联网验收，真实调用 2 次且 status=`passed`；S12、S13 已采集。S13 只证明本地注入条件下的安全关闭和输出拦截路径，不表示 DashScope 发生过真实故障。

@@ -1,11 +1,14 @@
 # SafeChat-Guard Operations
 
+本文所有命令均从项目根目录执行，不依赖开发者本机的绝对路径。
+
 ## 安装与验证
 
 ```powershell
 python -m pip install -r requirements.txt -r requirements-dev.txt
 python scripts/security_scan.py
 python -m pytest -q --basetemp=.test_tmp
+# 预期汇总：576 passed
 python scripts/verify_runtime.py --iterations 20
 python -m compileall app.py api_server.py safechat_guard scripts tests
 ```
@@ -13,16 +16,13 @@ python -m compileall app.py api_server.py safechat_guard scripts tests
 运行验证报告默认写入 `.test_tmp/runtime_verification.json`，不会记录开发者本机
 绝对路径，也不应提交缓存或临时报告。
 
-## 启动
+## 默认 mock 模式启动
 
 ```powershell
 python api_server.py
 ```
 
-默认 `llm.provider=mock`，可离线运行。远程 OpenAI-compatible/Qwen 模式只从
-`api_key_env` 指定的环境变量读取密钥，要求 HTTPS endpoint；未知 provider 会
-启动失败，不会静默回退为 mock。远程服务失败时 `/api/chat` 返回安全 503，不
-暴露上游正文或凭据。
+默认 `config.yaml` 使用 `llm.provider=mock`，可离线运行且不会产生外部调用。真实 Qwen 模式必须显式选择 `config.real_llm.example.yaml`，API key 只从进程环境变量 `DASHSCOPE_API_KEY` 读取；应用不从 YAML、`.env` 或命令行参数读取真实 key。真实模式要求 HTTPS endpoint；配置或远程服务失败时不静默回退为 mock，`/api/chat` 安全返回 503 且不暴露上游正文或凭据。
 
 启动后检查：
 
@@ -55,13 +55,13 @@ Invoke-RestMethod http://127.0.0.1:8000/ready
 
 `api_server.py` 是唯一正式HTTP API实现。`app.py` 仅为兼容启动包装器，直接复用正式服务器，不维护独立路由、Pipeline或请求校验。
 
-从非仓库当前目录启动时可使用绝对路径：
+从项目根目录启动正式入口：
 
 ```powershell
-python D:\Projects\SafeChat-Guard-system-integration-v1\api_server.py
+python api_server.py
 ```
 
-配置始终相对于脚本所在项目根目录解析。两个入口均提供相同的 `/health`、`/ready` 和 `/api/*` 行为。
+如需兼容入口，同样从项目根目录执行 `python app.py`。配置相对于项目根目录解析；两个入口均提供相同的 `/health`、`/ready` 和 `/api/*` 行为。
 
 每个持久化聊天请求结束后产生一条 `request_summary`。该摘要不包含完整输入或完整模型输出；日志写入失败只产生不含敏感原文的内部warning，不改变API安全结果。
 
@@ -90,6 +90,8 @@ A rule mutation is successful only after disk persistence and RuleFilter activat
 If rollback itself fails, rule management enters degraded mode: automatic rule reload is frozen on the last trusted snapshot and subsequent writes are rejected. Repair the user-rule storage from a trusted backup and restart the service before re-enabling management operations.
 
 ## 真实LLM运行手册
+
+2026-07-31 已完成真实 Qwen 联网验证：provider=`qwen`、model=`qwen-plus`、status=`passed`，真实上游调用 2 次；pass 转发、block 不转发、sanitize 脱敏后转发、上游异常安全关闭、违规输出拦截五项均通过。验收输出满足 `credentials_printed=false`，运行后已清除进程环境变量 `DASHSCOPE_API_KEY`。其中上游异常与违规输出使用本地注入式安全路径测试，不代表 DashScope 发生过真实故障。以下步骤供获授权人员后续复验；仍须具备供应商账号、模型权限、网络和计费授权。
 
 ### 配置边界
 
@@ -125,7 +127,7 @@ Invoke-RestMethod http://127.0.0.1:8000/ready
 python scripts/smoke_real_llm.py --config config.real_llm.example.yaml
 ```
 
-脚本只执行两次真实上游请求并验证五项安全性质：pass转发、block不转发、sanitize后转发、上游异常安全失败、输出违规拦截。后两项通过本地受控客户端注入，不额外请求上游。脚本不打印输入、回复或密钥。运行可能产生供应商调用费用，必须由获授权人员执行。
+脚本只执行两次真实上游请求并验证五项安全性质：pass 转发、block 不转发、sanitize 后转发、上游异常安全失败、输出违规拦截。后两项通过本地受控客户端注入，不额外请求上游。脚本不打印输入、回复或密钥。运行可能产生供应商调用费用，必须由获授权人员执行。成功后还应重新检查 `/health` 和 `/ready`，并只留存不含 key、请求正文或模型回复的验收摘要。
 
 ### API调用示例
 
