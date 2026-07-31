@@ -65,6 +65,8 @@ ACTION_LABELS = {
     "service_error": "服务不可用",
 }
 
+NAVIGATION_PAGES = ["首页", "安全对话", "内容检测", "规则管理", "统计审计"]
+
 RISK_COLORS = {
     "low": "#16A34A",
     "medium": "#F59E0B",
@@ -116,7 +118,7 @@ def configure_page() -> None:
             --sg-bg: #f5f7fb;
         }
         .stApp { background: var(--sg-bg); }
-        .main .block-container { padding-top: 1.2rem; padding-bottom: 2.2rem; max-width: 1440px; }
+        .main .block-container { padding-top: 0.75rem; padding-bottom: 1.5rem; max-width: 1440px; }
         h1, h2, h3 { letter-spacing: 0 !important; }
         [data-testid="stSidebar"] {
             background: linear-gradient(180deg, #0f172a 0%, #111827 100%);
@@ -136,9 +138,9 @@ def configure_page() -> None:
         .hero {
             background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 58%, #0891b2 100%);
             border-radius: 14px;
-            padding: 22px 24px;
+            padding: 16px 20px;
             color: white;
-            margin-bottom: 16px;
+            margin-bottom: 10px;
             box-shadow: 0 14px 34px rgba(15, 23, 42, 0.18);
         }
         .hero h2 { margin: 0 0 8px 0; color: white; }
@@ -205,18 +207,14 @@ def configure_page() -> None:
             white-space: pre-wrap;
         }
 
-        /* Selected D-group presentation improvements; no backend behavior lives here. */
-        :root { --sg-shadow: 0 8px 22px rgba(23,32,51,.06); --sg-ease: cubic-bezier(.22,1,.36,1); }
-        .main .block-container { animation: sg-page-enter 280ms var(--sg-ease) both; }
+        /* Presentation-only refinements; no backend behavior lives here. */
+        :root { --sg-shadow: 0 8px 22px rgba(23,32,51,.06); }
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
-            border: 1px solid transparent; transition: background-color 180ms ease, transform 180ms ease;
+            border: 1px solid transparent;
         }
-        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover { background: #1e293b; transform: translateX(2px); }
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover { background: #1e293b; }
         div[data-testid="stMetric"], .panel, .panel-muted, .step, [data-testid="stPlotlyChart"] {
-            border-radius: 8px; box-shadow: var(--sg-shadow); transition: transform 180ms ease, box-shadow 180ms ease;
-        }
-        div[data-testid="stMetric"]:hover, .panel:hover, .panel-muted:hover, .step:hover, [data-testid="stPlotlyChart"]:hover {
-            transform: translateY(-2px); box-shadow: 0 12px 28px rgba(23,32,51,.10);
+            border-radius: 8px; box-shadow: var(--sg-shadow);
         }
         .hero { border-radius: 8px; background: #172033; border-left: 4px solid #22c55e; }
         .section-title { display: flex; align-items: center; gap: 8px; }
@@ -228,10 +226,14 @@ def configure_page() -> None:
         .result-meta { color: #334155; font-size: 14px; line-height: 1.7; }
         .result-empty { min-height: 168px; display: flex; flex-direction: column; justify-content: center; padding: 18px; background: #f8fafc; border: 1px dashed #b8c4d3; border-radius: 8px; color: var(--sg-muted); }
         .result-empty b { color: var(--sg-ink); font-size: 17px; margin-bottom: 6px; }
+        .capability-card { min-height: 82px; padding: 13px 15px; background: #fff; border: 1px solid var(--sg-border); border-top: 3px solid var(--sg-blue); border-radius: 8px; box-shadow: var(--sg-shadow); }
+        .capability-card b { color: var(--sg-ink); font-size: 16px; }
+        .capability-card span { display: block; margin-top: 5px; color: var(--sg-muted); font-size: 12px; line-height: 1.45; }
+        .result-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 16px; margin-top: 8px; }
+        .result-fact { color: #334155; font-size: 13px; line-height: 1.5; }
+        .result-fact b { color: var(--sg-muted); font-size: 12px; }
         .step { min-height: 122px; text-align: left; margin-bottom: 12px; }
         .step-index { color: var(--sg-cyan); font-size: 11px; font-weight: 800; margin-bottom: 5px; }
-        @keyframes sg-page-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-        @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
         </style>
         """,
         unsafe_allow_html=True,
@@ -327,7 +329,7 @@ def render_hero() -> None:
         """
         <div class="hero">
           <h2>SafeChat-Guard 大模型内容安全风控控制台</h2>
-          <p>真实接入输入归一化、双层检测、分级处理、输出校验、日志审计与批量评测。</p>
+          <p>面向中文对话的输入检测、分级处置、输出复检与安全审计。</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -474,29 +476,60 @@ def render_metric_row(df: pd.DataFrame) -> None:
     c3.metric("高风险拦截", blocked)
     c4.metric("输出侧拦截", output_block)
     c5.metric("基线漏检修复", baseline_missed)
-    st.caption("内置样例仅用于功能演示，不代表正式独立评估结果。正式指标以冻结的 single_review_independent_gold_v1 记录为准。")
+    st.caption("内置样例仅用于界面功能演示。")
+
+
+def render_capability_cards() -> None:
+    cards = [
+        ("安全对话", "输入过滤、分级处置与输出复检"),
+        ("内容检测", "关键词、正则与语义联合识别"),
+        ("规则管理", "内置规则查看与用户规则维护"),
+        ("统计审计", "每日违规数量与类别分布"),
+    ]
+    columns = st.columns(4)
+    for column, (title, description) in zip(columns, cards):
+        column.markdown(
+            f'<div class="capability-card"><b>{title}</b><span>{description}</span></div>',
+            unsafe_allow_html=True,
+        )
+
+
+def render_runtime_status() -> None:
+    adapter = get_adapter()
+    status = adapter.stats()
+    semantic_ready = bool(status.get("semantic_classifier", {}).get("loaded"))
+    v3_ready = bool(
+        adapter.pipeline.action_router_v3_enabled
+        and adapter.pipeline.action_router_v3 is not None
+    )
+    provider = str(status.get("llm", {}).get("provider", "mock")).lower()
+    columns = st.columns(4)
+    columns[0].metric("API服务", "正常")
+    columns[1].metric("语义模型", "已加载" if semantic_ready else "规则层可用")
+    columns[2].metric("V3过滤器", "已就绪" if v3_ready else "安全降级")
+    columns[3].metric(
+        "LLM模式", "离线演示模式" if provider == "mock" else "在线模型"
+    )
 
 
 def render_overview_page() -> None:
     render_hero()
-    df = dashboard_df()
-    render_metric_row(df)
-
-    chart1, chart2, chart3 = st.columns(3)
-    chart1.plotly_chart(plot_baseline_comparison(df), use_container_width=True)
-    chart2.plotly_chart(plot_donut(df, "risk", "风险等级分布", RISK_LABELS), use_container_width=True)
-    chart3.plotly_chart(plot_donut(df, "action", "处理方式分布", ACTION_LABELS), use_container_width=True)
-
-    st.markdown('<div class="section-title">系统模块状态</div>', unsafe_allow_html=True)
-    status_rows = [
-        ["输入侧过滤", "真实模块", "关键词、正则与模块化中文归一化"],
-        ["语义二次判定", "真实模块", "中文规则分类器与可选轻量模型"],
-        ["分级处理", "真实模块", "高风险拦截、中风险脱敏、正常放行"],
-        ["输出侧校验", "真实模块", "输出违规检测、隐私脱敏与安全回复"],
-        ["日志审计", "真实模块", "统一读取 JSONL 审计日志"],
-        ["批量页面回归", "真实模块", "确定性 override 经 SafeChatPipeline 输出复检"],
-    ]
-    st.dataframe(pd.DataFrame(status_rows, columns=["模块", "状态", "说明"]), use_container_width=True, hide_index=True)
+    render_capability_cards()
+    st.markdown('<div class="section-title">运行状态</div>', unsafe_allow_html=True)
+    render_runtime_status()
+    with st.expander("演示数据概览", expanded=False):
+        df = dashboard_df()
+        render_metric_row(df)
+        chart1, chart2, chart3 = st.columns(3)
+        chart1.plotly_chart(plot_baseline_comparison(df), use_container_width=True)
+        chart2.plotly_chart(
+            plot_donut(df, "risk", "风险等级分布", RISK_LABELS),
+            use_container_width=True,
+        )
+        chart3.plotly_chart(
+            plot_donut(df, "action", "处理方式分布", ACTION_LABELS),
+            use_container_width=True,
+        )
 
 
 def render_steps(result: dict[str, Any]) -> None:
@@ -558,28 +591,52 @@ def render_detection_workspace() -> None:
         else:
             st.markdown(
                 risk_pill(result["risk"])
-                + action_pill(result["action"])
                 + action_pill(result["final_action"])
-                + label_pill(CATEGORY_LABELS.get(result["category"], result["category"]), "blue"),
+                + label_pill(
+                    CATEGORY_LABELS.get(result["category"], result["category"]),
+                    "blue",
+                ),
                 unsafe_allow_html=True,
             )
-            error_note = "<br>模型服务不可用，已安全降级。" if result["service_error"] else ""
-            model_note = f'<br>{escape(result["model_degradation"])}' if result["model_degradation"] else ""
+            error_note = (
+                "<br>模型服务不可用，已安全降级。"
+                if result["service_error"]
+                else ""
+            )
+            model_note = (
+                f'<br>{escape(result["model_degradation"])}'
+                if result["model_degradation"]
+                else ""
+            )
             st.markdown(
                 f"""
                 <div class="result-panel result-{escape(str(result["risk"]))}">
-                    <div class="result-eyebrow">FINAL DECISION · 最终结论</div>
+                    <div class="result-eyebrow">最终结论</div>
                     <div class="result-verdict">{escape(ACTION_LABELS[result["final_action"]])}</div>
                     <div class="result-meta">
-                        风险：{escape(RISK_LABELS[result["risk"]])} · {result["risk_score"]}/100<br>
-                        类别：{escape(CATEGORY_LABELS.get(result["category"], result["category"]))}<br>
-                        说明：{escape(str(result["comparison_note"]))}{error_note}{model_note}<br>
-                        FINAL ALLOWED: {escape(str(result["final_allowed"]))}
+                        <div class="result-grid">
+                          <div class="result-fact"><b>最终动作</b><br>{escape(ACTION_LABELS[result["final_action"]])}</div>
+                          <div class="result-fact"><b>是否允许</b><br>{"是" if result["final_allowed"] else "否"}</div>
+                          <div class="result-fact"><b>风险等级</b><br>{escape(RISK_LABELS[result["risk"]])} · {result["risk_score"]}/100</div>
+                          <div class="result-fact"><b>风险类别</b><br>{escape(CATEGORY_LABELS.get(result["category"], result["category"]))}</div>
+                          <div class="result-fact"><b>是否转发模型</b><br>{"是" if result["model_forwarded"] else "否"}</div>
+                          <div class="result-fact"><b>输出复检结果</b><br>{escape(ACTION_LABELS.get(result["output_guard_action"], result["output_guard_action"]))}</div>
+                        </div>
+                        <br>处理结果：{escape(str(result["comparison_note"]))}{error_note}{model_note}
                     </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
+            with st.expander("详细信息", expanded=False):
+                st.json(
+                    {
+                        "final_action": result["final_action"],
+                        "final_allowed": result["final_allowed"],
+                        "model_forwarded": result["model_forwarded"],
+                        "output_guard_action": result["output_guard_action"],
+                    }
+                )
     if result_is_stale:
         return
     st.markdown('<div class="section-title">检测链路</div>', unsafe_allow_html=True)
@@ -667,8 +724,8 @@ def render_output_block(result: dict[str, Any]) -> None:
     )
 
 def render_compare_page() -> None:
-    st.subheader("基线对比中心")
-    st.caption("用于展示方案第一条：未归一化基线 vs 中文对抗归一化增强版。")
+    st.subheader("内容检测")
+    st.caption("对比原始文本与中文归一化后的联合检测结果。")
     text = st.text_input("对抗样例", value="加 V-X 领取优 惠 券，名额有限")
     result = run_pipeline(text, raw_reply_override=SAFE_DEMO_REPLY)
     render_compare_block(result)
@@ -924,8 +981,8 @@ def render_batch_page() -> None:
     )
 
 def render_logs_page() -> None:
-    st.subheader("请求级审计与每日统计")
-    st.caption("所有指标只基于 stage=request_summary；不展示输入、模型原始输出或日志路径。")
+    st.subheader("统计审计")
+    st.caption("统计基于脱敏后的请求摘要，不展示输入、模型输出或日志路径。")
     stats = get_adapter().daily_stats()
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("请求数", stats["request_count"])
@@ -935,7 +992,7 @@ def render_logs_page() -> None:
     m5, m6, m7 = st.columns(3)
     m5.metric("模型转发", stats["model_forwarded_count"])
     m6.metric("安全降级", stats["fallback_count"])
-    m7.metric("统计来源", stats["source"])
+    m7.metric("数据状态", "请求摘要")
     daily = pd.DataFrame([{"日期": day, "违规请求": count} for day, count in stats["daily_violation_counts"].items()])
     categories = pd.DataFrame([{"类别": CATEGORY_LABELS.get(category, category), "违规请求": count} for category, count in stats["category_distribution"].items()])
     if daily.empty and categories.empty:
@@ -943,75 +1000,40 @@ def render_logs_page() -> None:
     else:
         left, right = st.columns(2)
         if not daily.empty:
+            left.markdown("#### 每日违规数量")
             left.line_chart(daily.set_index("日期"))
         if not categories.empty:
+            right.markdown("#### 违规类别分布")
             right.bar_chart(categories.set_index("类别"))
     st.dataframe(
         pd.DataFrame([
-            {"动作": "pass", "请求数": stats["pass_count"]},
-            {"动作": "sanitize", "请求数": stats["sanitize_count"]},
-            {"动作": "block", "请求数": stats["block_count"]},
+            {"动作": ACTION_LABELS["pass"], "请求数": stats["pass_count"]},
+            {"动作": ACTION_LABELS["sanitize"], "请求数": stats["sanitize_count"]},
+            {"动作": ACTION_LABELS["block"], "请求数": stats["block_count"]},
         ]),
         use_container_width=True,
         hide_index=True,
     )
-
-def render_report_page() -> None:
-    st.subheader("报告素材与答辩截图")
-    checklist = [
-        ["安全总览", "演示统计、类别分布、风险分布、系统模块状态"],
-        ["实时检测工作台", "完整链路步骤条，展示输入到输出的闭环"],
-        ["基线对比", "未归一化基线漏检，中文归一化增强版识别成功"],
-        ["语义二次判定", "真实规则分类器或轻量模型结果"],
-        ["分级处理", "正常放行、中风险脱敏和高风险拦截"],
-        ["输出侧校验", "模型输出状态提示风险，最终仅展示合规话术"],
-        ["批量页面回归", "演示动作匹配、输出复检匹配、基线漏检修复和类别对照矩阵"],
-        ["日志审计", "请求记录、筛选、导出"],
-    ]
-    st.dataframe(pd.DataFrame(checklist, columns=["截图位置", "报告用途"]), use_container_width=True, hide_index=True)
-    st.markdown(
-        """
-        <div class="codebox">推荐答辩演示顺序：
-1. 安全总览：说明系统完整性和演示统计。
-2. 实时检测工作台：跑“基线漏检”样例。
-3. 基线对比：证明中文对抗归一化有效。
-4. 分级处理：展示放行、脱敏和拦截三种动作。
-5. 输出侧校验：勾选模拟输出违规，展示二次拦截。
-6. 批量页面回归：展示演示动作匹配和类别对照矩阵。
-7. 日志审计：展示可追溯、可导出的工程能力。</div>
-        """,
-        unsafe_allow_html=True,
-    )
-
 
 def main() -> None:
     configure_page()
     init_state()
     st.sidebar.markdown("### SafeChat-Guard")
     st.sidebar.caption("大模型内容安全风控控制台")
-    page = st.sidebar.radio(
-        "导航",
-        ["安全总览", "实时检测工作台", "基线对比", "分级处理", "批量页面回归", "日志审计", "规则配置", "报告素材"],
-    )
+    page = st.sidebar.radio("导航", NAVIGATION_PAGES)
     st.sidebar.markdown("---")
-    st.sidebar.caption("当前页面已接入整体项目真实检测、输出保护和日志模块。")
+    st.sidebar.caption("输入检测、分级处置、输出复检与审计统一呈现。")
 
-    if page == "安全总览":
+    if page == "首页":
         render_overview_page()
-    elif page == "实时检测工作台":
+    elif page == "安全对话":
         render_detection_workspace()
-    elif page == "基线对比":
+    elif page == "内容检测":
         render_compare_page()
-    elif page == "分级处理":
-        render_rewrite_page()
-    elif page == "批量页面回归":
-        render_batch_page()
-    elif page == "日志审计":
-        render_logs_page()
-    elif page == "规则配置":
+    elif page == "规则管理":
         render_rules_page()
     else:
-        render_report_page()
+        render_logs_page()
 
 
 if __name__ == "__main__":
