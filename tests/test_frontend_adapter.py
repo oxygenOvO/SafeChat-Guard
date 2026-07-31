@@ -219,6 +219,8 @@ def test_adapter_prefers_pipeline_final_fields(make_adapter, monkeypatch):
     assert result["action"] == "pass"
     assert result["final_action"] == "block"
     assert result["final_allowed"] is False
+    assert result["model_forwarded"] is pipeline_result["model_forwarded"]
+    assert result["output_guard_action"] == pipeline_result["output_guard_action"]
     assert result["record"]["final_action"] == "block"
 
 

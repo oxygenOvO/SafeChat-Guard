@@ -128,6 +128,9 @@ class FrontendPipelineAdapter:
             "output_category": output_summary["category"],
             "output_risk": output_summary["risk"],
             "output_action": output_summary["action"],
+            "output_guard_action": (
+                chat_result.get("output_guard_action") or output_summary["action"]
+            ),
             "output_hits": output_summary["hits"],
             "output_recheck": (
                 output_result.get("rewrite_recheck") if output_result else None
@@ -135,6 +138,7 @@ class FrontendPipelineAdapter:
             "final_answer": final_answer,
             "allowed": chat_result["allowed"],
             "final_allowed": final_allowed,
+            "model_forwarded": bool(chat_result.get("model_forwarded", False)),
             "service_error": service_error,
             "model_loaded": bool(status.get("model_loaded")),
             "model_degradation": (

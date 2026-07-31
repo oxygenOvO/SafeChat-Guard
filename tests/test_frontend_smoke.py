@@ -52,6 +52,10 @@ def test_frontend_module_imports_with_expected_pages():
     assert callable(frontend_app.render_detection_workspace)
     assert callable(frontend_app.render_batch_page)
     assert callable(frontend_app.render_logs_page)
+    assert frontend_app.NAVIGATION_PAGES == [
+        "首页", "安全对话", "内容检测", "规则管理", "统计审计"
+    ]
+    assert not hasattr(frontend_app, "render_report_page")
 
 
 def test_frontend_demo_dataset_is_portable_and_formal():
@@ -70,6 +74,15 @@ def test_frontend_source_never_renders_pipeline_raw_reply():
 
     assert 'result["raw_reply"]' not in source
     assert "模型原始输出</b>" not in source
+    assert "报告素材" not in source
+    assert "internal_holdout" not in source
+    assert r"D:\Projects" not in source
+    assert "离线演示模式" in source
+    assert 'with st.expander("详细信息", expanded=False)' in source
+    for field in (
+        "final_action", "final_allowed", "model_forwarded", "output_guard_action"
+    ):
+        assert f'"{field}": result["{field}"]' in source
 
 
 def test_frontend_init_does_not_call_llm(monkeypatch):
@@ -222,7 +235,7 @@ def test_frontend_source_contains_rule_crud_import_and_request_stats_controls():
     assert "保存规则内容" in source
     assert "删除用户规则" in source
     assert "仅校验（dry-run）" in source
-    assert "stage=request_summary" in source
+    assert "统计基于脱敏后的请求摘要" in source
     assert "内置规则只读" in source
 
 def test_rule_page_requires_authorized_mode_before_full_pattern_editing():
