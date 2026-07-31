@@ -4,6 +4,8 @@
 
 本项目用于人工智能安全竞赛定向题目：面向对话场景的大模型输入/输出违规内容过滤系统。
 
+本次纯文档修复以提交 `93105e56195ec4be338b58780147e65f88c9b8c9`（短哈希 `93105e5`）为修复前代码基准；除本文档及指定交付文档外，不改变源码、模型、阈值、规则、配置或评估结果。
+
 ## 核心功能
 
 - 输入侧过滤：关键词、正则、归一化后的违规内容检测。
@@ -70,8 +72,10 @@ http://127.0.0.1:8000
 如果已安装 pytest：
 
 ```powershell
-python -m pytest tests
+python -m pytest -q --basetemp=.test_tmp
 ```
+
+修复前代码基准的最终公开测试结果为 `576 passed`。该结果不包含重新运行 internal holdout。
 
 如果没有 pytest，也可以直接做语法检查：
 
@@ -125,7 +129,9 @@ Rule changes use candidate compilation followed by atomic persistence and snapsh
 
 V3冻结版本在自建、一次性运行的330条 `internal_holdout` 上得到：Accuracy 99.39%、Block Recall 100%、Sanitize Recall 100%、Normal FPR 1.54%。这些是项目内部留出集指标，不是官方隐藏测试结果；该留出集仅正式运行一次，运行后未调参、未重跑。
 
-默认 [config.yaml](config.yaml) 始终使用 `mock`，保证离线演示和测试不产生外部调用。真实LLM示例位于 [config.real_llm.example.yaml](config.real_llm.example.yaml)，密钥只由其中 `api_key_env` 指向的进程环境变量读取，配置文件不保存密钥。
+默认 [config.yaml](config.yaml) 始终使用 `mock`，用于离线演示和自动测试，不产生外部调用，也不能作为真实联网证据。真实LLM模式必须显式选择 [config.real_llm.example.yaml](config.real_llm.example.yaml)；该示例使用 `qwen` provider，密钥只从进程环境变量 `DASHSCOPE_API_KEY` 读取，配置文件不保存密钥。
+
+2026-07-31 已完成真实 Qwen 联网验证：provider=`qwen`、model=`qwen-plus`、status=`passed`，真实上游调用 2 次。五项验收均通过：`pass_forwarded=true`、`block_not_forwarded=true`、`sanitize_forwarded_after_redaction=true`、`upstream_failure_closed_safely=true`、`unsafe_output_blocked=true`。验收输出未打印凭据（`credentials_printed=false`），运行后已清除进程环境变量 `DASHSCOPE_API_KEY`；文档不记录 API key、Authorization 头、提示词或模型原始回答。上游异常和违规输出两项使用本地注入式安全路径测试，不表示 DashScope 发生过真实故障。
 
 ### 真实LLM启动
 
@@ -146,7 +152,7 @@ Invoke-RestMethod http://127.0.0.1:8000/ready
 
 ### 真实LLM安全冒烟
 
-以下脚本会产生两次真实上游调用：一次正常放行输入、一次脱敏后的输入。高风险不调用、上游异常安全失败和违规输出拦截使用本地受控注入验证，因此不会诱导真实模型生成违规内容。
+获授权人员执行以下脚本时会产生两次真实上游调用：一次正常放行输入、一次脱敏后的输入。高风险不调用、上游异常安全失败和违规输出拦截使用本地受控注入验证，因此不会诱导真实模型生成违规内容。未配置授权密钥和网络时不要执行，也不得把离线测试结果表述为真实联网成功。
 
 ```powershell
 python scripts/smoke_real_llm.py --config config.real_llm.example.yaml

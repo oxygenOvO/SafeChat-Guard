@@ -2,7 +2,7 @@
 
 ## 1. 交付范围
 
-正式代码基线为合并提交 `dbd849bca25d53f8a7b4e3e603a9d1fd5a9834e3`。本轮仅完善真实LLM启动与冒烟验收、运行文档、需求追踪和预训练模型合规说明；没有修改V3模型、阈值、规则、Normalizer、ActionRouter或Pipeline决策逻辑。
+本次纯文档修复前的正式代码基线为合并提交 `93105e56195ec4be338b58780147e65f88c9b8c9`（短哈希 `93105e5`）。本轮仅修复交付文档口径；没有修改V3模型、阈值、规则、Normalizer、ActionRouter、Pipeline决策逻辑、测试或评估文件。
 
 ## 2. 系统能力
 
@@ -30,22 +30,23 @@
 | Sanitize Recall | 100% |
 | Normal FPR | 1.54% |
 | 生产一致性矩阵 | 170/170 |
-| 合并前测试基线 | 573 passed |
-| 本轮最终测试 | 576 passed |
+| 修复前代码基准最终公开测试 | 576 passed |
 
 这些指标来自项目自建 `internal_holdout`，只用于内部冻结验收，不代表官方隐藏测试结果。该holdout只正式运行一次，运行后未调整模型、阈值、规则或评估代码，也未重跑。
 
 ## 4. 真实LLM交付
 
-默认 `config.yaml` 仍使用mock，不产生网络请求。真实上游使用独立的 `config.real_llm.example.yaml`，API通过 `SAFECHAT_CONFIG_PATH` 显式选择配置；密钥只从 `DASHSCOPE_API_KEY` 环境变量读取。
+默认 `config.yaml` 仍使用 mock，不产生网络请求。真实上游使用独立的 `config.real_llm.example.yaml`，API 通过 `SAFECHAT_CONFIG_PATH` 显式选择配置；密钥只从 `DASHSCOPE_API_KEY` 环境变量读取。
 
-`scripts/smoke_real_llm.py`用于获授权环境的真实链路演示。它验证：
+2026-07-31 已完成真实 Qwen 联网验证：provider=`qwen`、model=`qwen-plus`、status=`passed`，真实上游调用 2 次。验收结果为 `pass_forwarded=true`、`block_not_forwarded=true`、`sanitize_forwarded_after_redaction=true`、`upstream_failure_closed_safely=true`、`unsafe_output_blocked=true`。验收输出未打印凭据（`credentials_printed=false`），运行后已清除进程环境变量 `DASHSCOPE_API_KEY`。报告不记录 API key、Authorization 头、提示词或模型原始回答。
+
+`scripts/smoke_real_llm.py` 已用于本次获授权环境的真实链路验收。验收场景包括：
 
 - pass请求调用真实上游；
 - block请求调用计数不增加；
 - sanitize请求发送内容等于Pipeline脱敏结果，且不含原手机号；
-- 注入上游异常时返回安全服务错误；
-- 注入违规模型输出时OutputGuard拦截且不回传原文。
+- 本地注入式上游异常返回安全服务错误（该场景不是 DashScope 真实故障）；
+- 本地注入式违规模型输出由 OutputGuard 拦截且不回传原文。
 
 脚本成功输出不包含prompt、response或key。真实调用需要供应商账号、网络、模型权限，且可能计费；本仓库不包含任何凭据。
 
@@ -82,4 +83,4 @@ Streamlit默认仍使用mock配置，适合离线答辩；真实LLM演示使用H
 
 ## 8. 发布建议
 
-V3可作为当前规则+轻量语义基线和真实LLM安全代理交付。答辩和报告必须准确标注轻量分类器性质及内部指标来源。不要在冻结V3分支仓促加入预训练模型；建议将其作为V4可选适配器，完成许可证、离线制品、资源预算和独立验证后再启用。
+V3可作为当前规则+轻量语义基线及已完成真实 Qwen 联网验收的安全接入代码交付。答辩和报告必须准确标注轻量分类器性质、内部指标来源及联网验收边界；S13 是本地注入式安全路径测试，不是 DashScope 真实故障。不要在冻结V3分支仓促加入预训练模型；建议将其作为V4可选适配器，完成许可证、离线制品、资源预算和独立验证后再启用。
