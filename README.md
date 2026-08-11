@@ -4,7 +4,7 @@
 
 本项目用于人工智能安全竞赛定向题目：面向对话场景的大模型输入/输出违规内容过滤系统。
 
-本次纯文档修复以提交 `93105e56195ec4be338b58780147e65f88c9b8c9`（短哈希 `93105e5`）为修复前代码基准；除本文档及指定交付文档外，不改变源码、模型、阈值、规则、配置或评估结果。
+最终竞赛提交冻结版本为 `1286f3db3e5e73f6ad7543cdbd47ed9227235b5c`（短哈希 `1286f3d`）。`93105e5` 是 earlier/pre-final delivery baseline，不是最终竞赛提交版本。本次仅对齐交付文档；不改变源码、模型、阈值、规则、配置或评估结果。
 
 ## 核心功能
 
@@ -14,6 +14,8 @@
 - 输出侧二次校验：对大模型回复再次检测，命中违规内容时拦截或脱敏改写。
 - 日志统计：记录每次请求的检测结果、处理动作、风险类别、风险等级和命中规则。
 - Web Demo：提供 Streamlit 安全控制台，以及 `/api/chat`、`/api/detect`、`/api/stats` 接口。
+
+V3 正式启用的对抗归一化能力主要覆盖 Unicode/控制字符、符号插入、Emoji、同音、拼音、缩写、重复噪声及受控拆分恢复。系统预留 `variant_char` 形近字扩展接口，但冻结版本的 `data/maps/variant_char_map.json` 为空，未将形近字恢复作为正式启用能力。
 
 ## 成员 C 交付内容
 
@@ -35,6 +37,10 @@ tests/test_output_guard.py
 - 违法违规
 - 自伤自杀
 - 隐私泄露
+
+输入侧与输出侧使用不同的动作边界。输入侧由 RuleFilter、SemanticClassifier 和结构化证据进入 ActionRouterV3；输入 sanitize 后，Sanitizer 对 normalized text 中已定位的 match 做局部改写并重新扫描、重新路由。该 Sanitizer 不是完整的结构化隐私字段正则系统。输出侧由独立 OutputGuard 使用基础扫描证据、自有 80/40 阈值、privacy regex 和 extra high-risk rules 进行 sanitize 或安全拒绝；它不会把模型输出重新完整送入 ActionRouterV3。
+
+核心训练/输入风险标签空间仍为 `normal`、`ad`、`porn`、`violence`、`sensitive`。OutputGuard 的 `privacy`、`illegal`、`self_harm` 等属于输出安全运行时扩展类别；`abuse` 具有输出侧标签和安全响应支持，不与核心五分类训练标签混为一谈。
 
 日志采用输入、输出、最终动作分阶段记录；用户输入、模型原始输出和最终文本统一脱敏，仅保留安全审计所需的时间、阶段、类别、风险、动作与命中统计。
 
@@ -75,7 +81,7 @@ http://127.0.0.1:8000
 python -m pytest -q --basetemp=.test_tmp
 ```
 
-修复前代码基准的最终公开测试结果为 `576 passed`。该结果不包含重新运行 internal holdout。
+最终竞赛冻结提交 `1286f3d` 在干净 frozen clone 中收集到 `594 collected`，实测为 `594 passed, 1297 warnings in 79.27s`。`576 passed` 是 earlier/pre-final delivery baseline，不再是 final submission test count。上述测试均不包含重新运行 internal holdout。
 
 如果没有 pytest，也可以直接做语法检查：
 
@@ -128,6 +134,8 @@ Rule changes use candidate compilation followed by atomic persistence and snapsh
 生产链路依次执行文本归一化、关键词与正则检测、语义分类、动作路由、必要的脱敏与复检、LLM调用以及输出二次校验。当前语义层是使用自建训练数据训练的 **TF-IDF + LogisticRegression** 轻量分类器，不是预训练Transformer模型，也不应按预训练模型宣传。
 
 V3冻结版本在自建、一次性运行的330条 `internal_holdout` 上得到：Accuracy 99.39%、Block Recall 100%、Sanitize Recall 100%、Normal FPR 1.54%。这些是项目内部留出集指标，不是官方隐藏测试结果；该留出集仅正式运行一次，运行后未调参、未重跑。
+
+生产一致性 `170/170` 证明冻结 V3 的直接检测入口与生产对话入口在公开非 holdout 矩阵上的动作和标签一致，不等同于真实世界泛化准确率。200 条人工复核 Gold 当前口径为 provisional single-review gold；第二 reviewer 的 40 条 blind sample 尚未完成时，不称已完成双人独立审核。
 
 默认 [config.yaml](config.yaml) 始终使用 `mock`，用于离线演示和自动测试，不产生外部调用，也不能作为真实联网证据。真实LLM模式必须显式选择 [config.real_llm.example.yaml](config.real_llm.example.yaml)；该示例使用 `qwen` provider，密钥只从进程环境变量 `DASHSCOPE_API_KEY` 读取，配置文件不保存密钥。
 
