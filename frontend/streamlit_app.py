@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 # SafeChat-Guard project root bootstrap
+import os
 from pathlib import Path
 import sys
 
@@ -91,7 +92,15 @@ DEMO_CASES = {
 
 @st.cache_resource
 def get_adapter() -> FrontendPipelineAdapter:
-    pipeline = SafeChatPipeline.from_config(str(PROJECT_ROOT / "config.yaml"))
+    configured = os.getenv("SAFECHAT_CONFIG_PATH", "").strip()
+    if configured:
+        config_path = Path(configured).expanduser()
+        if not config_path.is_absolute():
+            config_path = PROJECT_ROOT / config_path
+    else:
+        config_path = PROJECT_ROOT / "config.yaml"
+
+    pipeline = SafeChatPipeline.from_config(str(config_path.resolve()))
     return FrontendPipelineAdapter(pipeline)
 
 
@@ -413,7 +422,10 @@ def build_case_results(cases: pd.DataFrame) -> pd.DataFrame:
                 "actual_category": result["category"],
                 "actual_risk": result["risk"],
                 "actual_action": result["action"],
-                "semantic_score": round(result["semantic_score"], 3),
+                "semantic_score": (
+                    round(result["semantic_score"], 3)
+                    if result["semantic_score"] is not None else None
+                ),
                 "actual_output_action": result["output_action"],
                 "category_match": result["category"] == row.get("expected_category"),
                 "action_match": result["action"] == row.get("expected_action"),
@@ -532,11 +544,24 @@ def render_overview_page() -> None:
         )
 
 
+def semantic_step_content(result: dict[str, Any]) -> tuple[str, str]:
+    if not result.get("semantic_available", False):
+        return "语义模型：不可用", "已回退规则检测"
+    if not result.get("semantic_gate_triggered", False):
+        return "最终语义类别：正常", "风险门控：未触发｜风险证据：不足"
+    category = CATEGORY_LABELS.get(
+        result.get("semantic_category"),
+        result.get("semantic_category", "unknown"),
+    )
+    return f"最终语义类别：{category}", "风险门控：已触发｜风险证据：充分"
+
+
 def render_steps(result: dict[str, Any]) -> None:
+    semantic_subtitle, semantic_description = semantic_step_content(result)
     step_data = [
         ("输入归一化", "info", "中文变体清洗", result["normalized_text"]),
         ("规则检测", "warn" if result["hits"] else "ok", "规则与语义联合命中", format_hits(result["hits"]).replace("<br>", "；")),
-        ("语义判定", "info", CATEGORY_LABELS.get(result["semantic_category"], result["semantic_category"]), f'{result["semantic_score"]:.2f}'),
+        ("语义判定", "info", semantic_subtitle, semantic_description),
         ("分级处理", "stop" if result["action"] == "block" else "warn" if result["action"] == "sanitize" else "ok", ACTION_LABELS[result["action"]], RISK_LABELS[result["risk"]]),
         ("模型阶段", "stop" if result["service_error"] else "info", "仅展示安全状态", result["model_response"]),
         ("输出复检", "stop" if result["output_action"] == "block" else "warn" if result["output_action"] == "sanitize" else "ok", ACTION_LABELS.get(result["output_action"], result["output_action"]), CATEGORY_LABELS.get(result["output_category"], result["output_category"])),
@@ -680,26 +705,103 @@ def render_compare_block(result: dict[str, Any]) -> None:
 
 
 def render_semantic_block(result: dict[str, Any]) -> None:
-    scores = pd.DataFrame(
-        [{"类别": CATEGORY_LABELS[k], "分数": round(v, 3)} for k, v in result["semantic_scores"].items()]
-    ).sort_values("分数", ascending=True)
     c1, c2 = st.columns([0.9, 1.1])
-    c1.metric("语义分类结果", CATEGORY_LABELS.get(result["semantic_category"], result["semantic_category"]))
-    c1.metric("语义风险分数", f'{result["semantic_score"]:.2f}')
-    c1.info(result["semantic_note"])
-    fig = px.bar(scores, x="分数", y="类别", orientation="h", text="分数", color="分数", color_continuous_scale="Blues")
+    if not result.get("semantic_available", False):
+        c1.metric("语义模型", "不可用")
+        c1.warning("已回退规则检测")
+        c2.info("模型概率不可用；未将“无 Detection”伪装为 normal=100%。")
+        return
+
+    scores = pd.DataFrame(
+        [
+            {"类别": CATEGORY_LABELS[k], "模型概率": float(v)}
+            for k, v in result["semantic_scores"].items()
+        ]
+    ).sort_values("模型概率", ascending=True)
+    raw_category = result["semantic_category"]
+    gate_triggered = bool(result["semantic_gate_triggered"])
+    final_category = result.get("semantic_final_category") or (
+        raw_category if gate_triggered else "normal"
+    )
+    c1.metric(
+        "最终语义类别",
+        CATEGORY_LABELS.get(final_category, final_category),
+    )
+    c1.metric("风险门控", "已触发" if gate_triggered else "未触发")
+    c1.metric("风险证据", "充分" if gate_triggered else "不足")
+    c1.caption(f"原始最高概率类别：{raw_category}")
+    c1.caption(f'原始最高概率：{result["semantic_score"]:.2%}')
+    c1.info("原始概率仅用于诊断，不直接决定最终语义类别。")
+    fig = px.bar(scores, x="模型概率", y="类别", orientation="h", text="模型概率", color="模型概率", color_continuous_scale="Blues")
+    fig.update_traces(texttemplate="%{text:.0%}")
+    fig.update_xaxes(tickformat=".0%", range=[0, 1])
     fig.update_layout(height=340, margin=dict(l=8, r=8, t=8, b=8), coloraxis_showscale=False)
     c2.plotly_chart(fig, use_container_width=True)
 
 
+def judge_error_stage_label(stage: str | None) -> str:
+    return {
+        "initialization": "初始化",
+        "http": "HTTP 请求",
+        "response_text": "返回文本",
+        "json_parse": "JSON 解析",
+        "schema_validation": "结果校验",
+    }.get(stage, "未知")
+
+
+def judge_failure_message(
+    stage: str | None,
+    validation_error_code: str | None = None,
+    *,
+    output: bool = False,
+) -> str:
+    prefix = "Output Judge" if output else "Judge"
+    if stage == "schema_validation":
+        code = f"（错误码：{validation_error_code}）" if validation_error_code else ""
+        return f"{prefix}结果未通过格式校验{code}；已采用本地安全策略。"
+    if stage == "http":
+        return f"{prefix}服务调用失败；已采用本地安全策略。"
+    if stage == "initialization":
+        return f"{prefix}服务未就绪；已采用本地安全策略。"
+    if stage == "response_text":
+        return f"{prefix}返回文本不可用；已采用本地安全策略。"
+    if stage == "json_parse":
+        return f"{prefix}返回内容无法解析；已采用本地安全策略。"
+    return f"{prefix}处理失败；已采用本地安全策略。"
+
+
 def render_rewrite_block(result: dict[str, Any]) -> None:
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
     c1.markdown(f'<div class="panel"><b>原始输入</b><br>{escape(str(result["original_text"]))}</div>', unsafe_allow_html=True)
     c2.markdown(
-        f'<div class="panel"><b>处理动作</b><br>{ACTION_LABELS[result["action"]]}<br><br><b>处理策略</b><br>{escape(str(result["rewrite_strategy"]))}</div>',
+        f'<div class="panel"><b>处理动作</b><br>{ACTION_LABELS[result["action"]]}<br><br><b>处理策略</b><br>{escape(str(result["rewrite_strategy"]))}<br><br><b>是否改写</b><br>{"是" if result["rewrite_changed"] else "否"}</div>',
         unsafe_allow_html=True,
     )
-    c3.markdown(f'<div class="panel"><b>送入模型文本</b><br>{escape(str(result["processed_text"]))}</div>', unsafe_allow_html=True)
+    masked_text = result.get("masked_text")
+    c3.markdown(
+        f'<div class="panel"><b>脱敏文本</b><br>{escape(str(masked_text)) if masked_text else "不适用"}</div>',
+        unsafe_allow_html=True,
+    )
+    c4.markdown(
+        f'<div class="panel"><b>实际发送文本</b><br>{escape(str(result["processed_text"]))}</div>',
+        unsafe_allow_html=True,
+    )
+    if result.get("decision_note"):
+        st.info(f'判定说明：{result["decision_note"]}')
+    st.caption(f'语义仲裁：{result["semantic_arbitration_status"]}')
+    if result.get("input_judge_used") and result.get("input_judge_action"):
+        action = result.get("input_judge_action")
+        reason = result.get("input_judge_reason") or "未提供说明"
+        st.info(
+            "输入仲裁动作："
+            f"{ACTION_LABELS.get(action, action)}；"
+            f"仲裁说明：{reason}；"
+            f"判定来源：{result['judge_decision_source_label']}"
+        )
+    elif result.get("judge_decision_source") == "local_fallback":
+        st.warning(
+            judge_failure_message(result.get("judge_error_stage"), result.get("validation_error_code"))
+        )
 
 
 def render_output_block(result: dict[str, Any]) -> None:
@@ -722,6 +824,23 @@ def render_output_block(result: dict[str, Any]) -> None:
         """,
         unsafe_allow_html=True,
     )
+    if result.get("output_judge_used") and result.get("output_judge_action"):
+        action = result.get("output_judge_action")
+        reason = result.get("output_judge_reason") or "未提供说明"
+        st.info(
+            "输出仲裁动作："
+            f"{ACTION_LABELS.get(action, action)}；"
+            f"仲裁说明：{reason}；"
+            f"判定来源：{result['judge_decision_source_label']}"
+        )
+    elif result.get("judge_decision_source") == "local_fallback":
+        st.warning(
+            judge_failure_message(
+                result.get("judge_error_stage"),
+                result.get("validation_error_code"),
+                output=True,
+            )
+        )
 
 def render_compare_page() -> None:
     st.subheader("内容检测")

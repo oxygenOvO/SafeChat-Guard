@@ -9,6 +9,7 @@ import warnings
 from .action_router import ActionRouter
 from .action_router_v3 import ActionRouterV3
 from .llm_client import LLMClientError, LLMClientFactory
+from .llm_safety_judge import LLMSafetyJudge
 from .logger import EventLogger
 from .normalizer import TextNormalizer
 from .output_guard import OutputGuard
@@ -106,6 +107,44 @@ class SafeChatPipeline:
                     RuntimeWarning,
                     stacklevel=2,
                 )
+        judge_options = config.get("llm_judge", {})
+        if not isinstance(judge_options, dict):
+            judge_options = {}
+        self.llm_judge_enabled = judge_options.get("enabled") is True
+        self.llm_judge_input_enabled = bool(
+            judge_options.get("input_enabled", True)
+        )
+        self.llm_judge_output_enabled = bool(
+            judge_options.get("output_enabled", True)
+        )
+        self.llm_judge_fallback = str(
+            judge_options.get("fallback", "local")
+        )
+        self.llm_judge_json_mode = judge_options.get("json_mode") is True
+        self.llm_judge = None
+        self.llm_judge_error_code = None
+        if self.llm_judge_enabled:
+            try:
+                reuse = bool(judge_options.get("reuse_llm_config", True))
+                client_config = (
+                    config.get("llm", {})
+                    if reuse
+                    else judge_options.get("llm", {})
+                )
+                self.llm_judge = LLMSafetyJudge(
+                    LLMClientFactory.create(client_config),
+                    input_enabled=self.llm_judge_input_enabled,
+                    output_enabled=self.llm_judge_output_enabled,
+                    fallback=self.llm_judge_fallback,
+                    json_mode=self.llm_judge_json_mode,
+                )
+            except Exception as exc:
+                self.llm_judge_error_code = type(exc).__name__
+                warnings.warn(
+                    "LLM safety judge unavailable; using local safety policy",
+                    RuntimeWarning,
+                    stacklevel=2,
+                )
 
     @classmethod
     def from_config(cls, path: str):
@@ -156,6 +195,7 @@ class SafeChatPipeline:
                     final_action="block",
                     final_allowed=False,
                     started=started,
+                    output_result=None,
                 )
             )
             self._write_event(
@@ -207,6 +247,7 @@ class SafeChatPipeline:
                     final_action="block",
                     final_allowed=False,
                     started=started,
+                    output_result=None,
                 )
             )
             self._write_event(
@@ -253,6 +294,7 @@ class SafeChatPipeline:
                 ),
                 final_allowed=output_result["action"] != "block",
                 started=started,
+                output_result=output_result,
             )
         )
         self._write_event(
@@ -300,6 +342,106 @@ class SafeChatPipeline:
             raise TypeError("output text must be a string")
         normalized, detections = self._scan_text(text)
         result = self.output_guard.process(text, normalized, detections)
+        result.update(
+            {
+                "output_judge_used": False,
+                "output_judge_action": None,
+                "output_judge_reason": None,
+                "output_judge_error_stage": None,
+                "output_judge_error_code": None,
+                "output_decision_source": "local_only",
+            }
+        )
+        if self._should_call_output_judge(result, normalized):
+            result["output_judge_used"] = True
+            try:
+                judged = self.llm_judge.judge_output(text)
+            except Exception as exc:
+                result["output_decision_source"] = "local_fallback"
+                stage, code = self._judge_failure(exc)
+                result["output_judge_error_stage"] = stage
+                result["output_judge_error_code"] = code
+            else:
+                result["output_judge_action"] = judged["action"]
+                result["output_judge_reason"] = judged["reason"]
+                result["output_decision_source"] = "llm_judge"
+                if judged["action"] == "pass":
+                    result.update(
+                        {
+                            "action": "pass",
+                            "blocked": False,
+                            "rewritten": False,
+                            "sanitized_text": None,
+                            "final_text": text,
+                            "rewrite_recheck": None,
+                        }
+                    )
+                    return result
+                if judged["action"] == "block":
+                    categories = sorted(
+                        set(result.get("risk_categories", []))
+                        | (
+                            {judged["category"]}
+                            if judged["category"] != "normal"
+                            else set()
+                        )
+                    )
+                    refusal = self.output_guard._refusal(categories)
+                    result.update(
+                        {
+                            "action": "block",
+                            "blocked": True,
+                            "rewritten": True,
+                            "risk_level": "high",
+                            "risk_categories": categories,
+                            "final_text": refusal,
+                            "sanitized_text": refusal,
+                            "rewrite_recheck": None,
+                        }
+                    )
+                    return result
+                rewritten = judged["sanitized_text"]
+                if rewritten != text:
+                    re_normalized, re_detections = self._scan_text(rewritten)
+                    rechecked = self.output_guard.process(
+                        rewritten, re_normalized, re_detections
+                    )
+                    result["rewrite_recheck"] = {
+                        "normalized_text": re_normalized,
+                        "action": rechecked["action"],
+                        "detections": rechecked["detections"],
+                    }
+                    if rechecked["action"] == "pass":
+                        result.update(
+                            {
+                                "action": "sanitize",
+                                "blocked": False,
+                                "rewritten": True,
+                                "final_text": rewritten,
+                                "sanitized_text": rewritten,
+                            }
+                        )
+                        return result
+                    categories = sorted(
+                        set(result.get("risk_categories", []))
+                        | set(rechecked.get("risk_categories", []))
+                    )
+                    refusal = self.output_guard._refusal(categories)
+                    result.update(
+                        {
+                            "action": "block",
+                            "blocked": True,
+                            "rewritten": True,
+                            "risk_level": "high",
+                            "risk_categories": categories,
+                            "final_text": refusal,
+                            "sanitized_text": refusal,
+                        }
+                    )
+                    return result
+                result["output_decision_source"] = "local_fallback"
+                result["output_judge_error_stage"] = "schema_validation"
+                result["output_judge_error_code"] = "SANITIZED_TEXT_UNCHANGED"
         if result["action"] != "sanitize":
             result["rewrite_recheck"] = None
             return result
@@ -330,6 +472,40 @@ class SafeChatPipeline:
                 }
             )
         return result
+
+    def _should_call_output_judge(self, result: dict, normalized: str) -> bool:
+        if (
+            self.llm_judge is None
+            or not self.llm_judge_output_enabled
+            or result["action"] != "sanitize"
+            or int(result.get("risk_score", 0))
+            >= int(self.config["risk"].get("block_threshold", 80))
+        ):
+            return False
+        sources = {
+            detection.get("source")
+            for detection in result.get("detections", [])
+        }
+        if "output_privacy_regex" in sources or "output_high_risk" in sources:
+            return False
+        if self.action_router_v3 is not None:
+            evidence = self.action_router_v3.extractor.extract(normalized)
+            if evidence["severe_direct_evidence"]:
+                return False
+            evidence_score = self.action_router_v3._evidence_score(
+                normalized, evidence
+            )
+            if evidence_score >= self.action_router_v3.thresholds.evidence_block_threshold:
+                return False
+        return True
+
+    @staticmethod
+    def _has_deterministic_sensitive_rule(rule_detections: list) -> bool:
+        return any(
+            detection.source in {"keyword", "regex"}
+            and detection.category in {"sensitive", "privacy"}
+            for detection in rule_detections
+        )
 
     def _filter_text(self, text: str, stage: str) -> dict:
         started = time.perf_counter()
@@ -362,6 +538,75 @@ class SafeChatPipeline:
                 max(detection.score for detection in rule_detections),
             )
             reason_codes.append("LEGACY_EXPLICIT_HARD_BLOCK")
+        confidence = routed.get("confidence", 0.0)
+        deterministic_sensitive = self._has_deterministic_sensitive_rule(
+            rule_detections
+        )
+        input_judge_used = False
+        input_judge_action = None
+        input_judge_reason = None
+        input_judge_error_stage = None
+        input_judge_error_code = None
+        input_decision_source = (
+            "local_hard_block" if action == "block" or hard_block else "local_only"
+        )
+        judge_rewritten = None
+        if (
+            self.llm_judge is not None
+            and self.llm_judge_input_enabled
+            and action != "block"
+            and not hard_block
+        ):
+            input_judge_used = True
+            try:
+                judged = self.llm_judge.judge_input(text)
+            except Exception as exc:
+                input_decision_source = "local_fallback"
+                fallback_used = True
+                input_judge_error_stage, input_judge_error_code = (
+                    self._judge_failure(exc)
+                )
+            else:
+                input_judge_action = judged["action"]
+                input_judge_reason = judged["reason"]
+                confidence = max(float(confidence), judged["confidence"])
+                if judged["action"] == "block":
+                    action = "block"
+                    category = judged["category"]
+                    risk_level = "high"
+                    risk_score = max(risk_score, 80)
+                    reason_codes.append("LLM_JUDGE_BLOCK")
+                    input_decision_source = "llm_judge"
+                elif judged["action"] == "sanitize":
+                    action = "sanitize"
+                    category = judged["category"]
+                    risk_level = judged["risk_level"]
+                    risk_score = max(risk_score, 40)
+                    judge_rewritten = judged["sanitized_text"]
+                    reason_codes.append("LLM_JUDGE_SANITIZE")
+                    input_decision_source = "llm_judge"
+                elif deterministic_sensitive:
+                    selected = max(
+                        (
+                            detection for detection in rule_detections
+                            if detection.source in {"keyword", "regex"}
+                            and detection.category in {"sensitive", "privacy"}
+                        ),
+                        key=lambda detection: detection.score,
+                    )
+                    action = "sanitize"
+                    category = selected.category
+                    risk_level = "medium"
+                    risk_score = max(risk_score, 40)
+                    reason_codes.append("LLM_JUDGE_PASS_LOCAL_CONSTRAINT")
+                    input_decision_source = "local_only"
+                else:
+                    action = "pass"
+                    category = "normal"
+                    risk_level = "none"
+                    risk_score = 0
+                    reason_codes.append("LLM_JUDGE_PASS")
+                    input_decision_source = "llm_judge"
         sanitized = None
         rewrite_called = False
         rewrite_changed = False
@@ -378,7 +623,11 @@ class SafeChatPipeline:
                 if match and match in normalized
             )
             try:
-                rewritten = self.sanitizer.sanitize(normalized, matches)
+                rewritten = (
+                    judge_rewritten
+                    if judge_rewritten is not None
+                    else self.sanitizer.sanitize(normalized, matches)
+                )
             except Exception:
                 action = "block"
                 risk_level = "high"
@@ -390,7 +639,7 @@ class SafeChatPipeline:
                     risk_level = "high"
                     risk_score = max(risk_score, 60)
                     reason_codes.append("SANITIZER_EMPTY")
-                elif rewritten == normalized:
+                elif rewritten == normalized or rewritten == text:
                     action = "block"
                     risk_level = "high"
                     risk_score = max(risk_score, 60)
@@ -492,7 +741,7 @@ class SafeChatPipeline:
             "risk_categories": categories,
             "reason_codes": list(dict.fromkeys(reason_codes)),
             "hard_block": hard_block,
-            "confidence": routed.get("confidence", 0.0),
+            "confidence": confidence,
             "matched_rule_ids": list(routed.get("matched_rule_ids", [])),
             "sanitized_text": sanitized,
             "rewrite_called": rewrite_called,
@@ -503,6 +752,12 @@ class SafeChatPipeline:
             "semantic_model_status": self._semantic_model_status(),
             "fallback_used": fallback_used,
             "model_forwarded": False,
+            "input_judge_used": input_judge_used,
+            "input_judge_action": input_judge_action,
+            "input_judge_reason": input_judge_reason,
+            "input_judge_error_stage": input_judge_error_stage,
+            "input_judge_error_code": input_judge_error_code,
+            "input_decision_source": input_decision_source,
             "latency_ms": max(0, round((time.perf_counter() - started) * 1000)),
         }
 
@@ -723,6 +978,7 @@ class SafeChatPipeline:
         final_action: str,
         final_allowed: bool,
         started: float,
+        output_result: dict | None,
     ) -> dict:
         return {
             "action": input_result["action"],
@@ -740,6 +996,16 @@ class SafeChatPipeline:
             "output_guard_action": output_guard_action,
             "semantic_model_status": input_result["semantic_model_status"],
             "fallback_used": input_result["fallback_used"],
+            "input_judge_used": input_result.get("input_judge_used", False),
+            "input_judge_action": input_result.get("input_judge_action"),
+            "input_judge_reason": input_result.get("input_judge_reason"),
+            "input_judge_error_stage": input_result.get("input_judge_error_stage"),
+            "input_judge_error_code": input_result.get("input_judge_error_code"),
+            "input_decision_source": input_result.get("input_decision_source", "local_only"),
+            "output_judge_used": bool((output_result or {}).get("output_judge_used", False)),
+            "output_judge_action": (output_result or {}).get("output_judge_action"),
+            "output_judge_reason": (output_result or {}).get("output_judge_reason"),
+            "output_decision_source": (output_result or {}).get("output_decision_source", "local_only"),
             "latency_ms": max(0, round((time.perf_counter() - started) * 1000)),
         }
 
@@ -817,7 +1083,39 @@ class SafeChatPipeline:
         stats["model_loaded"] = semantic_status.get("loaded", False)
         stats["model_error"] = semantic_status.get("error")
         stats["llm"] = self.llm.status()
+        stats["llm_judge"] = self._llm_judge_status()
         return stats
+
+    @staticmethod
+    def _judge_failure(exc: Exception) -> tuple[str, str]:
+        stage = getattr(exc, "stage", None)
+        if stage not in {
+            "initialization",
+            "http",
+            "response_text",
+            "json_parse",
+            "schema_validation",
+        }:
+            stage = "http" if isinstance(exc, LLMClientError) else "unknown"
+        code = getattr(exc, "code", None)
+        if not isinstance(code, str) or not code:
+            code = type(exc).__name__
+        return stage, code
+
+    def _llm_judge_status(self) -> dict:
+        if self.llm_judge is None:
+            return {
+                "enabled": self.llm_judge_enabled,
+                "available": False,
+                "input_enabled": self.llm_judge_input_enabled,
+                "output_enabled": self.llm_judge_output_enabled,
+                "fallback": self.llm_judge_fallback,
+                "error": self.llm_judge_error_code,
+            }
+        status = self.llm_judge.status()
+        client_status = status.get("client", {})
+        available = bool(client_status.get("ready", True))
+        return {**status, "available": available, "error": None}
 
     @staticmethod
     def _public_output_result(result: dict) -> dict:

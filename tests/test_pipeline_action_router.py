@@ -216,7 +216,11 @@ def test_unchanged_sanitizer_result_never_calls_llm(pipeline):
     assert result["action"] == "block"
     assert "SANITIZER_UNCHANGED" in result["reason_codes"]
     assert result["input_filter"]["rewrite_recheck"]["action"] == "block"
+    assert result["sanitized_text"] is None
+    assert result["input_filter"]["rewrite_called"] is True
+    assert result["input_filter"]["rewrite_changed"] is False
     assert result["input_filter"]["rewrite_recheck"]["detections"] == []
+    assert result["model_forwarded"] is False
     assert pipeline.llm.calls == []
 
 

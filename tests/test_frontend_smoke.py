@@ -48,6 +48,63 @@ def fake_pipeline_result():
     }
 
 
+@pytest.mark.parametrize("raw_top", ["violence", "porn"])
+def test_semantic_step_content_does_not_present_ungated_raw_top_as_decision(
+    raw_top,
+):
+    subtitle, description = frontend_app.semantic_step_content(
+        {
+            "semantic_available": True,
+            "semantic_category": raw_top,
+            "semantic_score": 0.2349,
+            "semantic_gate_triggered": False,
+        }
+    )
+
+    assert subtitle == "最终语义类别：正常"
+    assert description == "风险门控：未触发｜风险证据：不足"
+
+
+def test_semantic_step_content_presents_category_only_when_gate_triggers():
+    subtitle, description = frontend_app.semantic_step_content(
+        {
+            "semantic_available": True,
+            "semantic_category": "violence",
+            "semantic_score": 0.72,
+            "semantic_gate_triggered": True,
+        }
+    )
+
+    assert subtitle == "最终语义类别：暴力"
+    assert description == "风险门控：已触发｜风险证据：充分"
+
+
+def test_semantic_step_content_marks_unavailable_without_fake_normal_score():
+    subtitle, description = frontend_app.semantic_step_content(
+        {"semantic_available": False, "semantic_score": None}
+    )
+
+    assert subtitle == "语义模型：不可用"
+    assert description == "已回退规则检测"
+
+
+@pytest.mark.parametrize(
+    ("stage", "label"),
+    [
+        ("initialization", "初始化"),
+        ("http", "HTTP 请求"),
+        ("response_text", "返回文本"),
+        ("json_parse", "JSON 解析"),
+        ("schema_validation", "结果校验"),
+    ],
+)
+def test_judge_error_stage_has_non_sensitive_display(stage, label):
+    rendered = frontend_app.judge_error_stage_label(stage)
+
+    assert rendered == label
+    assert rendered != "未知"
+
+
 def test_frontend_module_imports_with_expected_pages():
     assert callable(frontend_app.main)
     assert callable(frontend_app.render_detection_workspace)

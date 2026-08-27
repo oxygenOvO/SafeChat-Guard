@@ -65,6 +65,9 @@ def test_frontend_blocked_input_never_calls_llm(make_adapter, monkeypatch):
     assert result["action"] == "block"
     assert result["output_action"] == "not_run"
     assert result["model_response"] == "输入已拦截，未调用模型"
+    assert result["masked_text"] is None
+    assert result["processed_text"] == "未转发给模型"
+    assert result["model_forwarded"] is False
 
 
 def test_frontend_never_exposes_risky_raw_reply(make_adapter):
@@ -109,7 +112,156 @@ def test_rewritten_input_is_rechecked(make_adapter):
     assert result["action"] == "sanitize"
     assert result["rewrite_recheck"] is not None
     assert result["rewrite_recheck"]["detections"] == []
+    assert result["masked_text"] == result["processed_text"]
+    assert result["masked_text"] != result["original_text"]
+    assert result["rewrite_changed"] is True
+    assert result["recheck_action"] == "pass"
     assert "重新归一化" in result["rewrite_strategy"]
+
+def test_frontend_judge_not_triggered_is_explicit(make_adapter):
+    result = make_adapter().analyze(
+        "普通输入",
+        output_override="安全回复",
+        persist=False,
+    )
+
+    assert result["semantic_arbitration_status"] == "未触发"
+    assert result["input_judge_used"] is False
+    assert result["output_judge_used"] is False
+    assert result["judge_decision_source_label"] == "本地安全策略"
+
+
+def test_frontend_judge_fallback_and_reason_are_non_sensitive(
+    make_adapter, monkeypatch
+):
+    adapter = make_adapter()
+    pipeline_result = adapter.pipeline.handle_chat(
+        "ordinary",
+        raw_reply_override="safe reply",
+        persist=False,
+    )
+    pipeline_result.update(
+        {
+            "input_judge_used": True,
+            "input_judge_action": None,
+            "input_judge_reason": None,
+            "input_decision_source": "local_fallback",
+            "input_judge_error_stage": "json_parse",
+            "input_judge_error_code": "INVALID_JSON",
+        }
+    )
+    monkeypatch.setattr(
+        adapter.pipeline,
+        "handle_chat",
+        lambda *args, **kwargs: pipeline_result,
+    )
+
+    result = adapter.analyze("ordinary", persist=False)
+    serialized = json.dumps(result, ensure_ascii=False).lower()
+
+    assert result["semantic_arbitration_status"] == "不可用，已回退本地安全策略"
+    assert result["judge_decision_source_label"] == "Judge不可用，采用本地安全策略"
+    assert result["judge_error_stage"] == "json_parse"
+    assert result["judge_error_code"] == "INVALID_JSON"
+    assert "authorization" not in serialized
+    assert "system prompt" not in serialized
+
+
+def test_frontend_uses_raw_distribution_when_gate_emits_no_detection(
+    make_adapter, monkeypatch
+):
+    adapter = make_adapter()
+    monkeypatch.setattr(
+        adapter.pipeline.semantic_classifier,
+        "predict_distribution",
+        lambda _text: {
+            "available": True,
+            "top_category": "normal",
+            "top_probability": 0.46,
+            "probabilities": {
+                "normal": 0.46,
+                "ad": 0.07,
+                "porn": 0.04,
+                "sensitive": 0.12,
+                "violence": 0.31,
+            },
+            "risk_detection_emitted": False,
+        },
+    )
+
+    result = adapter.analyze(
+        "安全测试文本", output_override="安全回复", persist=False
+    )
+
+    assert result["semantic_available"] is True
+    assert result["semantic_category"] == "normal"
+    assert result["semantic_final_category"] == "normal"
+    assert result["semantic_score"] == 0.46
+    assert result["semantic_scores"] == {
+        "normal": 0.46,
+        "ad": 0.07,
+        "porn": 0.04,
+        "sensitive": 0.12,
+        "violence": 0.31,
+    }
+    assert result["semantic_scores"]["normal"] != 1.0
+    assert result["semantic_gate_triggered"] is False
+
+
+def test_frontend_semantic_unavailable_is_explicit(make_adapter, monkeypatch):
+    adapter = make_adapter()
+    monkeypatch.setattr(
+        adapter.pipeline.semantic_classifier,
+        "predict_distribution",
+        lambda _text: {"available": False, "error": "model unavailable"},
+    )
+
+    result = adapter.analyze(
+        "安全测试文本", output_override="安全回复", persist=False
+    )
+
+    assert result["semantic_available"] is False
+    assert result["semantic_category"] is None
+    assert result["semantic_score"] is None
+    assert result["semantic_note"] == "语义模型不可用，已回退规则检测。"
+    assert result["semantic_error"] == "model unavailable"
+    assert all(score == 0.0 for score in result["semantic_scores"].values())
+
+
+def test_frontend_semantic_detection_display_matches_distribution(
+    make_adapter, monkeypatch
+):
+    adapter = make_adapter()
+    monkeypatch.setattr(
+        adapter.pipeline.semantic_classifier,
+        "predict_distribution",
+        lambda _text: {
+            "available": True,
+            "top_category": "violence",
+            "top_probability": 0.72,
+            "probabilities": {
+                "normal": 0.08,
+                "ad": 0.06,
+                "porn": 0.05,
+                "sensitive": 0.09,
+                "violence": 0.72,
+            },
+            "risk_detection_emitted": True,
+        },
+    )
+
+    result = adapter.analyze(
+        "安全测试文本", output_override="安全回复", persist=False
+    )
+
+    assert result["semantic_category"] == "violence"
+    assert result["semantic_final_category"] == "violence"
+    assert result["semantic_score"] == 0.72
+    assert result["semantic_scores"]["violence"] == 0.72
+    assert result["semantic_gate_triggered"] is True
+    assert result["action"] == "pass"
+    assert result["final_action"] == "pass"
+
 
 def test_rewritten_input_blocks_if_risk_remains(make_adapter, monkeypatch):
     adapter = make_adapter()

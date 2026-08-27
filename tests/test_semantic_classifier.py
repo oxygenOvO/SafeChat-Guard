@@ -34,6 +34,10 @@ def test_missing_model_has_explicit_status(tmp_path):
     assert classifier.status()["error"] == "model file not found"
     assert classifier.detect("测试文本") == []
 
+    distribution = classifier.predict_distribution("测试文本")
+    assert distribution["available"] is False
+    assert distribution["error"] == "model file not found"
+
 
 def test_loaded_model_status_lists_classes_and_threshold_configuration(tmp_path):
     classifier = _classifier(tmp_path, ("normal", "ad"), (0.1, 0.9))
@@ -47,6 +51,47 @@ def test_loaded_model_status_lists_classes_and_threshold_configuration(tmp_path)
     assert status["category_thresholds"] == DEFAULT_CATEGORY_THRESHOLDS
     assert status["min_margin"] == DEFAULT_MIN_MARGIN
     assert classifier.detect("需要模型判断的文本")[0].source == "semantic_ml"
+
+
+def test_predict_distribution_matches_raw_predict_proba(tmp_path):
+    classes = ("ad", "normal", "porn", "sensitive", "violence")
+    probabilities = (0.07, 0.46, 0.04, 0.12, 0.31)
+    classifier = _classifier(tmp_path, classes, probabilities)
+
+    distribution = classifier.predict_distribution("安全测试文本")
+    raw = classifier.model.predict_proba(["安全测试文本"])[0]
+
+    assert distribution == {
+        "available": True,
+        "top_category": "normal",
+        "top_probability": 0.46,
+        "probabilities": {
+            "normal": 0.46,
+            "ad": 0.07,
+            "porn": 0.04,
+            "sensitive": 0.12,
+            "violence": 0.31,
+        },
+        "risk_detection_emitted": False,
+    }
+    assert distribution["probabilities"] == dict(zip(classes, raw, strict=True))
+
+
+def test_distribution_reports_detection_gate_without_changing_detect(tmp_path):
+    classifier = _classifier(
+        tmp_path,
+        ("normal", "violence"),
+        (0.20, 0.80),
+    )
+
+    before = classifier.detect("合成风险文本")
+    distribution = classifier.predict_distribution("合成风险文本")
+    after = classifier.detect("合成风险文本")
+
+    assert distribution["top_category"] == "violence"
+    assert distribution["top_probability"] == 0.80
+    assert distribution["risk_detection_emitted"] is True
+    assert [item.__dict__ for item in before] == [item.__dict__ for item in after]
 
 
 def test_normal_top_label_never_falls_back_to_second_risk_class(tmp_path):

@@ -14,6 +14,7 @@ except ImportError:
     joblib = None
 
 
+DISPLAY_CATEGORIES = ("normal", "ad", "porn", "sensitive", "violence")
 DEFAULT_CATEGORY_THRESHOLDS = {
     "ad": 0.65,
     "porn": 0.55,
@@ -170,6 +171,58 @@ class SemanticClassifier:
             "category_thresholds": dict(self.category_thresholds),
             "min_margin": self.min_margin,
             "error": self._error,
+        }
+
+    def predict_distribution(self, text: str) -> dict[str, Any]:
+        """Return raw model probabilities for diagnostics without changing routing."""
+        if self.model is None:
+            return {
+                "available": False,
+                "error": self._error or "semantic model unavailable",
+            }
+        if not isinstance(text, str):
+            return {
+                "available": False,
+                "error": "semantic text must be a string",
+            }
+        try:
+            probabilities = self.model.predict_proba([text])[0]
+            pairs = [
+                (str(label), float(probability))
+                for label, probability in zip(
+                    self.model.classes_, probabilities, strict=True
+                )
+            ]
+        except Exception as exc:
+            return {
+                "available": False,
+                "error": f"semantic prediction failed: {type(exc).__name__}",
+            }
+        if not pairs:
+            return {
+                "available": False,
+                "error": "semantic prediction returned no classes",
+            }
+
+        probability_map = dict(pairs)
+        top_category, top_probability = max(pairs, key=lambda item: item[1])
+        selected = None
+        if not self._is_protected_safety_context(text):
+            selected = select_risk_prediction(
+                self.model.classes_,
+                probabilities,
+                self.category_thresholds,
+                self.min_margin,
+            )
+        return {
+            "available": True,
+            "top_category": top_category,
+            "top_probability": top_probability,
+            "probabilities": {
+                category: probability_map.get(category, 0.0)
+                for category in DISPLAY_CATEGORIES
+            },
+            "risk_detection_emitted": selected is not None,
         }
 
     def detect(self, text: str) -> list[Detection]:

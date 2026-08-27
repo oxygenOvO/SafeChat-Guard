@@ -55,17 +55,34 @@ class FrontendPipelineAdapter:
         trace = self.pipeline.normalizer.normalize_with_trace(text)
         baseline_detections = self.pipeline.rule_filter.detect(text.lower())
         baseline = self._summarize_detections(baseline_detections)
-        semantic = self._semantic_summary(input_result.get("detections", []))
+        semantic = self._semantic_summary(
+            input_result.get("normalized_text", text)
+        )
         normalization_steps = [
             f"{step.normalizer}: {step.before} -> {step.after}"
             for step in trace.steps
         ] or ["文本无需归一化"]
 
-        processed_text = chat_result.get("safe_input") or "未转发给大模型"
+        rewrite_changed = bool(input_result.get("rewrite_changed", False))
+        recheck_action = input_result.get("recheck_action")
+        sanitized_text = input_result.get("sanitized_text")
+        verified_sanitize = (
+            input_result["action"] == "sanitize"
+            and isinstance(sanitized_text, str)
+            and bool(sanitized_text.strip())
+            and rewrite_changed
+            and recheck_action == "pass"
+        )
+        processed_text = chat_result.get("safe_input") or "未转发给模型"
         service_error = chat_result.get("service_error")
         model_status = self._model_status(chat_result, output_summary["action"])
         status = self.pipeline.stats(portable_paths=True)
         final_answer = chat_result["reply"]
+        judge_view = self._judge_view(
+            chat_result,
+            status.get("llm_judge", {}),
+            output_result,
+        )
         strategy = self._processing_strategy(
             input_result["action"],
             input_result.get("rewrite_recheck"),
@@ -116,12 +133,20 @@ class FrontendPipelineAdapter:
             "semantic_score": semantic["score"],
             "semantic_scores": semantic["scores"],
             "semantic_note": semantic["note"],
+            "semantic_final_category": semantic["final_category"],
+            "semantic_available": semantic["available"],
+            "semantic_gate_triggered": semantic["gate_triggered"],
+            "semantic_error": semantic["error"],
             "sentiment": "未评估",
-            "masked_text": input_result.get("sanitized_text") or text,
+            "masked_text": sanitized_text if verified_sanitize else None,
             "rewrite_text": processed_text,
             "rewrite_strategy": strategy,
             "rewrite_recheck": input_result.get("rewrite_recheck"),
+            "rewrite_called": bool(input_result.get("rewrite_called", False)),
+            "rewrite_changed": rewrite_changed,
+            "recheck_action": recheck_action,
             "processed_text": processed_text,
+            **judge_view,
             # Never place model raw text in a frontend view model.
             "model_response": model_status,
             "model_output_hidden": True,
@@ -459,34 +484,58 @@ class FrontendPipelineAdapter:
 
     def _semantic_summary(
         self,
-        detections: list[dict[str, Any]],
+        text: str,
     ) -> dict[str, Any]:
-        semantic = [
-            item
-            for item in detections
-            if str(item.get("source", "")).startswith("semantic")
-        ]
-        categories = {"normal", "porn", "violence", "ad", "sensitive"}
-        scores = {category: 0.0 for category in categories}
-        if not semantic:
-            scores["normal"] = 1.0
+        categories = ("normal", "ad", "porn", "sensitive", "violence")
+        unavailable = {
+            "category": None,
+            "final_category": None,
+            "score": None,
+            "scores": {category: 0.0 for category in categories},
+            "note": "语义模型不可用，已回退规则检测。",
+            "available": False,
+            "gate_triggered": False,
+            "error": "semantic distribution unavailable",
+        }
+        predictor = getattr(
+            self.pipeline.semantic_classifier, "predict_distribution", None
+        )
+        if not callable(predictor):
+            return unavailable
+        try:
+            distribution = predictor(text)
+        except Exception as exc:
             return {
-                "category": "normal",
-                "score": 1.0,
-                "scores": scores,
-                "note": "语义层未发现额外风险。",
+                **unavailable,
+                "error": f"semantic display failed: {type(exc).__name__}",
+            }
+        if not isinstance(distribution, dict) or not distribution.get("available"):
+            return {
+                **unavailable,
+                "error": (
+                    distribution.get("error", unavailable["error"])
+                    if isinstance(distribution, dict)
+                    else unavailable["error"]
+                ),
             }
 
-        primary = self._primary_detection(semantic)
-        category = primary.get("category", "normal")
-        score = float(primary.get("score", 0)) / 100
-        scores["normal"] = max(0.0, 1.0 - score)
-        scores[category] = score
+        raw_scores = distribution.get("probabilities", {})
+        scores = {
+            category: float(raw_scores.get(category, 0.0))
+            for category in categories
+        }
+        category = str(distribution.get("top_category", "normal"))
+        score = float(distribution.get("top_probability", 0.0))
+        gate_triggered = bool(distribution.get("risk_detection_emitted", False))
         return {
             "category": category,
+            "final_category": category if gate_triggered else "normal",
             "score": score,
             "scores": scores,
-            "note": primary.get("reason", "语义分类器检测结果"),
+            "note": f"风险门控：{'已触发' if gate_triggered else '未触发'}。",
+            "available": True,
+            "gate_triggered": gate_triggered,
+            "error": None,
         }
 
     @staticmethod
@@ -551,6 +600,78 @@ class FrontendPipelineAdapter:
         if action == "sanitize":
             return "脱敏后重新归一化并通过规则、语义复检，再转发给模型。"
         return "无需处理，原文正常放行。"
+    @staticmethod
+    def _judge_view(
+        chat_result: dict[str, Any],
+        judge_status: dict[str, Any],
+        output_result: dict[str, Any] | None,
+    ) -> dict[str, Any]:
+        input_used = bool(chat_result.get("input_judge_used", False))
+        output_used = bool(chat_result.get("output_judge_used", False))
+        input_source = chat_result.get("input_decision_source", "local_only")
+        output_source = chat_result.get("output_decision_source", "local_only")
+        fallback = "local_fallback" in {input_source, output_source}
+        configured_unavailable = bool(judge_status.get("enabled", False)) and not bool(
+            judge_status.get("available", False)
+        )
+        if fallback or configured_unavailable:
+            arbitration_status = "不可用，已回退本地安全策略"
+        elif input_used or output_used:
+            arbitration_status = "已启用"
+        else:
+            arbitration_status = "未触发"
+        selected_action = (
+            chat_result.get("output_judge_action")
+            if output_used
+            else chat_result.get("input_judge_action")
+        )
+        selected_reason = (
+            chat_result.get("output_judge_reason")
+            if output_used
+            else chat_result.get("input_judge_reason")
+        )
+        selected_error_stage = (
+            (output_result or {}).get("output_judge_error_stage")
+            if output_used
+            else chat_result.get("input_judge_error_stage")
+        )
+        selected_error_code = (
+            (output_result or {}).get("output_judge_error_code")
+            if output_used
+            else chat_result.get("input_judge_error_code")
+        )
+        if configured_unavailable and selected_error_stage is None:
+            selected_error_stage = "initialization"
+            selected_error_code = judge_status.get("error") or "CLIENT_NOT_READY"
+        selected_source = output_source if output_used else input_source
+        source_labels = {
+            "local_hard_block": "本地确定性安全规则",
+            "local_only": "本地安全策略",
+            "llm_judge": "LLM语义仲裁 + 本地安全约束",
+            "local_fallback": "Judge不可用，采用本地安全策略",
+        }
+        return {
+            "semantic_arbitration_enabled": bool(judge_status.get("enabled", False)),
+            "semantic_arbitration_status": arbitration_status,
+            "judge_action": selected_action,
+            "judge_reason": selected_reason,
+            "judge_decision_source": selected_source,
+            "judge_error_stage": selected_error_stage,
+            "judge_error_code": selected_error_code,
+            "validation_error_code": (
+                selected_error_code
+                if selected_error_stage == "schema_validation" else None
+            ),
+            "judge_decision_source_label": source_labels.get(
+                selected_source, "本地安全策略"
+            ),
+            "input_judge_used": input_used,
+            "input_judge_action": chat_result.get("input_judge_action"),
+            "input_judge_reason": chat_result.get("input_judge_reason"),
+            "output_judge_used": output_used,
+            "output_judge_action": chat_result.get("output_judge_action"),
+            "output_judge_reason": chat_result.get("output_judge_reason"),
+        }
 
     @staticmethod
     def _model_status(chat_result: dict[str, Any], output_action: str) -> str:

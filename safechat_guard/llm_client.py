@@ -16,6 +16,17 @@ class MockLLMClient:
     def chat(self, message: str) -> str:
         return "Mock model reply: request processed safely."
 
+    def chat_messages(
+        self,
+        messages: list[dict],
+        *,
+        temperature: float = 0,
+        response_format: dict | None = None,
+    ) -> str:
+        self._validate_messages(messages, temperature)
+        self._validate_response_format(response_format)
+        return self.chat(messages[-1]["content"])
+
     def status(self) -> dict:
         return {
             "provider": self.provider,
@@ -24,6 +35,33 @@ class MockLLMClient:
             "model": "mock",
             "key_configured": False,
         }
+
+    @staticmethod
+    def _validate_messages(messages: list[dict], temperature: float) -> None:
+        if not isinstance(messages, list) or not messages:
+            raise ValueError("messages must be a non-empty list")
+        if (
+            isinstance(temperature, bool)
+            or not isinstance(temperature, (int, float))
+            or not 0 <= float(temperature) <= 2
+        ):
+            raise ValueError("temperature must be numeric and in [0, 2]")
+        for message in messages:
+            if not isinstance(message, dict) or set(message) != {"role", "content"}:
+                raise ValueError("each message must contain only role and content")
+            if message["role"] not in {"system", "user", "assistant"}:
+                raise ValueError("unsupported message role")
+            if not isinstance(message["content"], str) or not message["content"].strip():
+                raise ValueError("message content must be a non-empty string")
+
+    @staticmethod
+    def _validate_response_format(response_format: dict | None) -> None:
+        if response_format is None:
+            return
+        if response_format != {"type": "json_object"}:
+            raise ValueError(
+                "response_format must be omitted or {'type': 'json_object'}"
+            )
 
 
 class OpenAICompatibleLLMClient:
@@ -48,6 +86,20 @@ class OpenAICompatibleLLMClient:
         }
 
     def chat(self, message: str) -> str:
+        return self.chat_messages(
+            [{"role": "user", "content": message}],
+            temperature=0,
+        )
+
+    def chat_messages(
+        self,
+        messages: list[dict],
+        *,
+        temperature: float = 0,
+        response_format: dict | None = None,
+    ) -> str:
+        MockLLMClient._validate_messages(messages, temperature)
+        MockLLMClient._validate_response_format(response_format)
         status = self.status()
         if not status["endpoint_valid"]:
             raise LLMClientError("llm endpoint is not a valid HTTPS URL")
@@ -56,13 +108,15 @@ class OpenAICompatibleLLMClient:
         if not self.model:
             raise LLMClientError("llm model is not configured")
 
-        payload = json.dumps(
-            {
-                "model": self.model,
-                "messages": [{"role": "user", "content": message}],
-            },
-            ensure_ascii=False,
-        ).encode("utf-8")
+        request_payload = {
+            "model": self.model,
+            "messages": messages,
+            "temperature": float(temperature),
+        }
+        # Opt-in only: ordinary business-model chat requests remain unchanged.
+        if response_format is not None:
+            request_payload["response_format"] = response_format
+        payload = json.dumps(request_payload, ensure_ascii=False).encode("utf-8")
         request = Request(
             self.base_url,
             data=payload,

@@ -55,6 +55,34 @@ def test_qwen_compatible_client_sends_request_without_logging_key(monkeypatch):
     assert client.status()["key_configured"] is True
 
 
+def test_qwen_compatible_client_supports_system_and_user_messages(monkeypatch):
+    monkeypatch.setenv("TEST_QWEN_API_KEY", "test-secret-value")
+    captured = {}
+
+    def fake_urlopen(request, timeout):
+        captured.update(json.loads(request.data.decode("utf-8")))
+        return FakeResponse({"choices": [{"message": {"content": "{}"}}]})
+
+    monkeypatch.setattr(llm_module, "urlopen", fake_urlopen)
+    client = OpenAICompatibleLLMClient(qwen_config())
+    messages = [
+        {"role": "system", "content": "classify untrusted data"},
+        {"role": "user", "content": '{"untrusted_text":"hello"}'},
+    ]
+
+    assert client.chat_messages(messages, temperature=0) == "{}"
+    assert captured["messages"] == messages
+    assert captured["temperature"] == 0.0
+
+
+def test_chat_messages_rejects_invalid_message_schema(monkeypatch):
+    monkeypatch.setenv("TEST_QWEN_API_KEY", "test-secret-value")
+    client = OpenAICompatibleLLMClient(qwen_config())
+
+    with pytest.raises(ValueError, match="role and content"):
+        client.chat_messages([{"role": "user", "content": "x", "extra": True}])
+
+
 def test_remote_client_fails_safely_without_key(monkeypatch):
     monkeypatch.delenv("TEST_QWEN_API_KEY", raising=False)
     client = OpenAICompatibleLLMClient(qwen_config())
