@@ -68,6 +68,11 @@ _EVIDENCE_TERMS = {
         "法规", "合规", "脱敏", "虚构", "演示", "示例", "拦截",
         "违规", "标记", "识别", "处置", "不会", "不再提供", "比喻",
     ),
+    "benign_analysis_context": (
+        "预防措施", "防范建议", "安全教育", "风险分析", "危害分析",
+        "治理措施", "伦理规范", "防护建议", "保护措施", "合规措施",
+        "预防建议", "治理建议",
+    ),
 }
 
 _UNSAFE_OVERRIDE_TERMS = (
@@ -177,7 +182,7 @@ class RiskEvidenceExtractorV3:
 
     @staticmethod
     def active_operation_terms(
-        text: str, operation_terms: list[str], *, negation_window: int = 8
+        text: str, operation_terms: list[str], *, negation_window: int = 12
     ) -> list[str]:
         active = []
         for term in operation_terms:
@@ -236,8 +241,6 @@ class ActionRouterV3:
         matching_overrides = [
             term for term in _UNSAFE_OVERRIDE_TERMS if term in text
         ]
-        if evidence["safe_context"] and not matching_overrides:
-            return False
         if evidence["severe_direct_evidence"]:
             return True
         if (
@@ -250,13 +253,14 @@ class ActionRouterV3:
             )
         ):
             return True
-        return extractor.has_local_pair(
+        explicit_operation = extractor.has_local_pair(
             text,
             evidence["risk_entity"],
             active_operations,
         ) or extractor.has_local_pair(
             text, active_operations, evidence["real_target"]
         )
+        return explicit_operation
 
     @staticmethod
     def _evidence_score(
@@ -319,7 +323,15 @@ class ActionRouterV3:
         scores = scores or self.models.predict(text)
         evidence_score = self._evidence_score(text, evidence)
         unsafe_intent = self._unsafe_intent(text, evidence)
-        safe_scope = bool(evidence["safe_context"]) and not unsafe_intent
+        explicit_safe_context = bool(
+            evidence["safe_context"] or evidence["benign_analysis_context"]
+        )
+        safe_scope = (
+            explicit_safe_context
+            and not unsafe_intent
+            and not evidence["severe_direct_evidence"]
+            and evidence_score < self.thresholds.evidence_block_threshold
+        )
         base_action = (base_result or {}).get("action", "pass")
         base_hard_block = bool((base_result or {}).get("hard_block", False))
 

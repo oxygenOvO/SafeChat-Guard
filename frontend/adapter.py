@@ -86,6 +86,7 @@ class FrontendPipelineAdapter:
         strategy = self._processing_strategy(
             input_result["action"],
             input_result.get("rewrite_recheck"),
+            input_result.get("reason_codes", []),
         )
 
         record = {
@@ -141,6 +142,9 @@ class FrontendPipelineAdapter:
             "masked_text": sanitized_text if verified_sanitize else None,
             "rewrite_text": processed_text,
             "rewrite_strategy": strategy,
+            "decision_note": self._decision_note(
+                input_result.get("reason_codes", [])
+            ),
             "rewrite_recheck": input_result.get("rewrite_recheck"),
             "rewrite_called": bool(input_result.get("rewrite_called", False)),
             "rewrite_changed": rewrite_changed,
@@ -592,6 +596,7 @@ class FrontendPipelineAdapter:
     def _processing_strategy(
         action: str,
         rewrite_recheck: dict[str, Any] | None,
+        reason_codes: list[str],
     ) -> str:
         if action == "block" and rewrite_recheck:
             return "改写后已重新归一化并复检；仍有风险，因此拦截。"
@@ -599,7 +604,19 @@ class FrontendPipelineAdapter:
             return "高风险内容被拦截，未转发给大模型。"
         if action == "sanitize":
             return "脱敏后重新归一化并通过规则、语义复检，再转发给模型。"
-        return "无需处理，原文正常放行。"
+        if "V3_SAFE_CONTEXT" in reason_codes:
+            return "安全语境放行"
+        return "正常放行"
+
+    @staticmethod
+    def _decision_note(reason_codes: list[str]) -> str | None:
+        if "V3_SAFE_CONTEXT" in reason_codes:
+            return (
+                "检测到局部风险语义，但上下文属于预防、教育或治理讨论，"
+                "无需脱敏。"
+            )
+        return None
+
     @staticmethod
     def _judge_view(
         chat_result: dict[str, Any],

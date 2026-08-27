@@ -118,6 +118,25 @@ def test_rewritten_input_is_rechecked(make_adapter):
     assert result["recheck_action"] == "pass"
     assert "重新归一化" in result["rewrite_strategy"]
 
+
+def test_safe_context_pass_is_not_presented_as_sanitized():
+    text = "请分析网络欺凌给同学带来的影响，并提出学校预防措施。"
+    adapter = FrontendPipelineAdapter(
+        SafeChatPipeline.from_config(str(PROJECT_ROOT / "config.yaml"))
+    )
+
+    result = adapter.analyze(text, persist=False)
+
+    assert result["action"] == "pass"
+    assert result["masked_text"] is None
+    assert result["rewrite_called"] is False
+    assert result["rewrite_changed"] is False
+    assert result["processed_text"] == text
+    assert result["model_forwarded"] is True
+    assert result["rewrite_strategy"] == "安全语境放行"
+    assert result["decision_note"]
+
+
 def test_frontend_judge_not_triggered_is_explicit(make_adapter):
     result = make_adapter().analyze(
         "普通输入",
