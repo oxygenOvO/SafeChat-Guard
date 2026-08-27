@@ -888,9 +888,16 @@ def render_rewrite_page() -> None:
     )
 
 
+def pop_rule_import_success() -> str | None:
+    return st.session_state.pop("rule_import_success", None)
+
+
 def render_rules_page() -> None:
     st.subheader("规则管理")
     st.caption("内置规则只读；用户规则作为独立 overlay 保存，成功更新后立即重载。")
+    import_success = pop_rule_import_success()
+    if import_success:
+        st.success(import_success)
     adapter = get_adapter()
     authorized_mode = st.checkbox("授权管理模式", value=False)
     admin_token = (
@@ -1029,7 +1036,7 @@ def render_rules_page() -> None:
                 elif dry_run:
                     st.success("校验通过，未写入文件。")
                 else:
-                    st.success("整批规则已原子导入并重载。")
+                    st.session_state["rule_import_success"] = "文件批量导入成功"
                     st.rerun()
             except Exception as exc:
                 st.error(f"导入失败：{str(exc)}")
