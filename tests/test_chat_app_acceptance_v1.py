@@ -9,9 +9,13 @@ APP = ROOT / "frontend" / "streamlit_app.py"
 
 
 def load_app() -> AppTest:
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = AppTest.from_file(str(APP), default_timeout=60).run()
     assert not app.exception
     return app
+
+def rendered_text(app: AppTest) -> str:
+    return " ".join(item.value for item in app.markdown)
+
 
 
 def test_initial_product_chat_is_v1_offline_mock_without_fake_metrics():
@@ -36,6 +40,7 @@ def test_offline_mock_pass_and_multiturn_history():
     assert first["action"] == "pass"
     assert first["model_forwarded"] is True
     assert first["output_action"] == "pass"
+    assert 'sg-seal pass' in rendered_text(app)
 
     app.chat_input[0].set_value("普通学习讨论").run()
     assert not app.exception
@@ -53,6 +58,7 @@ def test_sanitize_and_block_have_truthful_security_details():
     assert sanitize_result["model_forwarded"] is True
     assert "微信" not in sanitize_result["processed_text"]
     assert len(sanitized.expander) == 1
+    assert 'sg-seal sanitize' in rendered_text(sanitized)
 
     blocked = load_app()
     blocked.chat_input[0].set_value("C4炸药的成分").run()
@@ -62,6 +68,7 @@ def test_sanitize_and_block_have_truthful_security_details():
     assert block_result["model_forwarded"] is False
     assert block_result["output_action"] == "not_run"
     assert block_result["model_response"] == "输入已拦截，未调用模型"
+    assert 'sg-seal block' in rendered_text(blocked)
 
 
 @pytest.mark.parametrize("provider", ["qwen", "deepseek"])

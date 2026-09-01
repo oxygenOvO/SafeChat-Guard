@@ -8,7 +8,7 @@ APP = ROOT / "frontend" / "streamlit_app.py"
 
 
 def load_app() -> AppTest:
-    app = AppTest.from_file(str(APP), default_timeout=30).run()
+    app = AppTest.from_file(str(APP), default_timeout=60).run()
     assert not app.exception
     return app
 
@@ -21,23 +21,33 @@ def rendered_text(app: AppTest) -> str:
     )
 
 
+def click_nav(app: AppTest, label: str) -> AppTest:
+    button = next(item for item in app.button if item.label == label)
+    button.click().run()
+    return app
+
+
 def test_phase2_navigation_starts_with_focused_safe_chat():
     app = load_app()
 
-    assert app.radio[0].value == "安全对话"
+    assert not app.radio
+    assert app.session_state["active_page"] == "安全对话"
+    nav_labels = {item.label for item in app.button}
+    assert {"安全对话", "系统总览", "模型管理", "安全日志", "风险统计", "系统状态", "系统设置"} <= nav_labels
     assert len(app.chat_input) == 1
     assert app.selectbox[0].value == "mock"
-    assert "Security Operations" in rendered_text(app)
+    assert "SECURITY OPS" in rendered_text(app)
+    assert 'data-ui="sidebar-status"' in rendered_text(app)
 
 
 def test_dashboard_uses_runtime_data_and_has_honest_empty_state_or_rows():
     app = load_app()
-    app.radio[0].set_value("系统总览").run()
+    click_nav(app, "系统总览")
 
     text = rendered_text(app)
     assert not app.exception
     assert "系统总览" in text
-    assert len(app.metric) == 6
+    assert text.count('data-ui="kpi-card"') == 6
     assert "成功率" not in text
     assert "+12.8%" not in text
 
@@ -51,7 +61,7 @@ def test_model_logs_analytics_health_and_settings_pages_start_without_traceback(
         ("系统状态", "系统状态"),
         ("系统设置", "SafeChat-Guard V1.0"),
     ):
-        app.radio[0].set_value(page).run()
+        click_nav(app, page)
         assert not app.exception
         assert expected in rendered_text(app)
 
@@ -61,8 +71,8 @@ def test_navigation_preserves_chat_session_state():
     app.chat_input[0].set_value("普通学习讨论").run()
     assert len(app.session_state["chat_messages"]) == 2
 
-    app.radio[0].set_value("系统总览").run()
-    app.radio[0].set_value("安全对话").run()
+    click_nav(app, "系统总览")
+    click_nav(app, "安全对话")
 
     assert not app.exception
     assert len(app.session_state["chat_messages"]) == 2

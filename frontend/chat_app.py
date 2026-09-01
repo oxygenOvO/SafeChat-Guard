@@ -10,6 +10,7 @@ from typing import Any
 import streamlit as st
 
 from frontend.adapter import FrontendPipelineAdapter
+from frontend.styles import apply_global_styles
 from safechat_guard.llm_adapters import LLMAdapterFactory, PROVIDER_LABELS
 from safechat_guard.model_registry import ModelRegistry
 from safechat_guard.pipeline import SafeChatPipeline
@@ -61,40 +62,7 @@ def configure_product_page() -> None:
         layout="wide",
         initial_sidebar_state="expanded",
     )
-    st.markdown(
-        """
-        <style>
-        :root { --navy:#10233f; --blue:#1f65d6; --sky:#eaf2ff; --line:#dce5f1;
-                --ink:#132238; --muted:#68788e; --safe:#207a55; --warn:#a86713; --stop:#b63b45; }
-        .stApp { background:#f7f9fc; color:var(--ink); }
-        .main .block-container { max-width:850px; padding-top:1.4rem; padding-bottom:6rem; }
-        [data-testid="stSidebar"] { background:#f0f5fb; border-right:1px solid var(--line); }
-        .sg-header { border-bottom:1px solid var(--line); padding:0 0 1.15rem; margin-bottom:1.2rem; }
-        .sg-kicker { color:var(--blue); font:700 .72rem/1.2 ui-monospace,Consolas,monospace;
-                     letter-spacing:.12em; text-transform:uppercase; }
-        .sg-title { color:var(--navy); font-size:2rem; font-weight:760; letter-spacing:-.035em; margin:.3rem 0 .2rem; }
-        .sg-subtitle { color:var(--muted); font-size:.95rem; }
-        .sg-runtime { display:flex; gap:.5rem; flex-wrap:wrap; margin-top:.75rem; }
-        .sg-chip { border:1px solid var(--line); border-radius:999px; background:white; color:#43536a;
-                   font-size:.75rem; padding:.28rem .65rem; }
-        .sg-chip.ready { border-color:#b9ddce; background:#f1faf6; color:var(--safe); }
-        .sg-seal { border:1px solid var(--line); border-left:3px solid var(--safe); border-radius:10px;
-                   background:#fbfdff; margin:.65rem 0 .2rem; padding:.62rem .75rem; }
-        .sg-seal.sanitize { border-left-color:var(--warn); }
-        .sg-seal.block { border-left-color:var(--stop); }
-        .sg-seal-row { display:flex; flex-wrap:wrap; gap:.45rem .9rem; color:#4d5d72; font-size:.78rem; }
-        .sg-seal-row b { color:var(--ink); font-weight:650; }
-        [data-testid="stChatMessage"] { background:white; border:1px solid var(--line); border-radius:14px;
-                                        padding:.25rem .55rem; box-shadow:0 3px 12px rgba(16,35,63,.035); }
-        [data-testid="stChatInput"] { border-color:#cbd8e7; }
-        .sg-empty { color:var(--muted); text-align:center; padding:3.6rem 1rem 2.6rem; }
-        .sg-empty b { display:block; color:var(--navy); font-size:1.1rem; margin-bottom:.35rem; }
-        @media (max-width:640px) { .main .block-container{padding-top:.75rem}.sg-title{font-size:1.55rem} }
-        @media (prefers-reduced-motion:reduce) { * { scroll-behavior:auto !important; transition:none !important; } }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
+    apply_global_styles()
 
 
 def init_chat_state(default_provider: str) -> None:

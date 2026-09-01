@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from html import escape
+
 import streamlit as st
 
 from frontend.chat_app import (
@@ -11,14 +13,7 @@ from frontend.chat_app import (
     load_config,
     render_chat,
 )
-from frontend.management_console import (
-    render_audit_logs,
-    render_dashboard,
-    render_model_management,
-    render_risk_analytics,
-    render_settings,
-    render_system_health,
-)
+from frontend.ui_components import icon
 from safechat_guard.audit_service import AuditService
 from safechat_guard.health_service import HealthService
 from safechat_guard.llm_adapters import LLMAdapterFactory
@@ -34,6 +29,16 @@ NAVIGATION = (
     "系统状态",
     "系统设置",
 )
+NAV_ICONS = {
+    "安全对话": ":material/forum:",
+    "系统总览": ":material/dashboard:",
+    "模型管理": ":material/memory:",
+    "安全日志": ":material/receipt_long:",
+    "风险统计": ":material/monitoring:",
+    "系统状态": ":material/health_and_safety:",
+    "系统设置": ":material/settings:",
+}
+
 
 
 @st.cache_resource(show_spinner=False)
@@ -45,44 +50,63 @@ def get_operations_pipeline(default_provider: str) -> SafeChatPipeline:
     return pipeline
 
 
-def apply_phase2_styles() -> None:
-    st.markdown(
-        """
-        <style>
-        .main .block-container { max-width:1180px; }
-        .sg-ops-head { display:flex; align-items:flex-start; justify-content:space-between; gap:2rem;
-                       border-bottom:1px solid var(--line); padding:.25rem 0 1.15rem; margin-bottom:1.25rem; }
-        .sg-ops-head h1 { color:var(--navy); font-size:1.8rem; letter-spacing:-.035em;
-                          margin:.28rem 0 .28rem; font-weight:760; }
-        .sg-ops-head p { color:var(--muted); max-width:690px; margin:0; font-size:.92rem; }
-        .sg-ops-status { display:flex; align-items:center; gap:.48rem; border:1px solid var(--line);
-                         border-radius:999px; background:#fff; color:#43536a; padding:.38rem .72rem;
-                         font:650 .76rem/1.2 ui-monospace,Consolas,monospace; white-space:nowrap; }
-        .sg-ops-status i { display:block; width:.52rem; height:.52rem; border-radius:50%;
-                           background:var(--safe); box-shadow:0 0 0 4px rgba(32,122,85,.11); }
-        .sg-section-label { margin:1.45rem 0 .65rem; color:var(--navy); font-size:.82rem;
-                            font-weight:750; letter-spacing:.04em; border-left:3px solid var(--blue);
-                            padding-left:.62rem; }
-        [data-testid="stMetric"] { background:#fff; border:1px solid var(--line); border-radius:10px;
-                                   padding:.75rem .85rem; min-height:92px; }
-        [data-testid="stMetricLabel"] { color:var(--muted); }
-        [data-testid="stDataFrame"] { border:1px solid var(--line); border-radius:10px; overflow:hidden; }
-        [data-testid="stSidebar"] [role="radiogroup"] { gap:.16rem; }
-        [data-testid="stSidebar"] [role="radiogroup"] label { border-radius:8px; padding:.24rem .4rem; }
-        @media (max-width:760px) {
-          .sg-ops-head { display:block; }
-          .sg-ops-status { display:inline-flex; margin-top:.85rem; }
-          [data-testid="stHorizontalBlock"] { flex-wrap:wrap; }
-        }
-        </style>
-        """,
+def _status_tone(status: str) -> str:
+    if status == "normal":
+        return "success"
+    if status in {"degraded", "unknown", "unloaded"}:
+        return "warning"
+    return "danger"
+
+
+def _render_sidebar() -> str:
+    st.sidebar.markdown(
+        f'<div class="sg-brand"><div class="sg-brand-mark">{icon("shield", 22)}</div>'
+        '<div><div class="sg-brand-name">SafeChat-Guard</div>'
+        '<div class="sg-brand-meta">V1.0 · SECURITY OPS</div></div></div>'
+        '<div class="sg-nav-label">工作区导航</div>',
+        unsafe_allow_html=True,
+    )
+    st.session_state.setdefault("active_page", "安全对话")
+    for label in NAVIGATION:
+        if st.sidebar.button(
+            label,
+            key=f"nav_{label}",
+            icon=NAV_ICONS[label],
+            type="primary" if st.session_state.active_page == label else "secondary",
+            use_container_width=True,
+        ):
+            st.session_state.active_page = label
+            st.rerun()
+
+    return str(st.session_state.active_page)
+
+
+def _render_sidebar_status(snapshot: dict, health_snapshot: dict) -> None:
+    default_provider = str(snapshot.get("default_provider") or "暂无")
+    provider = next(
+        (item for item in snapshot.get("providers", []) if item.get("provider") == default_provider),
+        {},
+    )
+    config_ready = default_provider == "mock" or bool(provider.get("key_configured"))
+    system_status = str(health_snapshot.get("status") or "unknown")
+    system_label = {
+        "normal": "链路正常",
+        "degraded": "链路降级",
+        "abnormal": "链路异常",
+    }.get(system_status, "未检测")
+    tone = _status_tone(system_status)
+    st.sidebar.markdown(
+        '<div class="sg-sidebar-status" data-ui="sidebar-status"><h4>运行摘要</h4>'
+        f'<div class="sg-status-line"><span>系统状态</span><b><i class="sg-dot {tone}"></i>{escape(system_label)}</b></div>'
+        f'<div class="sg-status-line"><span>当前模型</span><b title="{escape(default_provider)}">{escape(default_provider)}</b></div>'
+        f'<div class="sg-status-line"><span>配置状态</span><b>{"已配置" if config_ready else "未配置"}</b></div>'
+        '</div>',
         unsafe_allow_html=True,
     )
 
 
 def main() -> None:
     configure_product_page()
-    apply_phase2_styles()
     registry = get_model_registry()
     snapshot = registry.snapshot()
     default_provider = str(snapshot.get("default_provider") or "mock")
@@ -90,10 +114,8 @@ def main() -> None:
     audit = AuditService(pipeline.logger)
     health = HealthService(pipeline, registry)
 
-    st.sidebar.markdown("### SafeChat-Guard")
-    st.sidebar.caption("V1.0 · Security Operations")
-    page = st.sidebar.radio("功能导航", NAVIGATION, index=0)
-    st.sidebar.markdown("---")
+    health_snapshot = health.snapshot()
+    page = _render_sidebar()
 
     try:
         if page == "安全对话":
@@ -105,20 +127,25 @@ def main() -> None:
                     unsafe_allow_html=True,
                 )
                 render_chat()
-        elif page == "系统总览":
-            render_dashboard(audit, health, registry)
-        elif page == "模型管理":
-            render_model_management(registry)
-        elif page == "安全日志":
-            render_audit_logs(audit)
-        elif page == "风险统计":
-            render_risk_analytics(audit)
-        elif page == "系统状态":
-            render_system_health(health)
         else:
-            render_settings(registry, pipeline)
+            from frontend import management_views
+
+            if page == "系统总览":
+                management_views.render_dashboard(audit, health, registry)
+            elif page == "模型管理":
+                management_views.render_model_management(registry)
+            elif page == "安全日志":
+                management_views.render_audit_logs(audit)
+            elif page == "风险统计":
+                management_views.render_risk_analytics(audit)
+            elif page == "系统状态":
+                management_views.render_system_health(health)
+            else:
+                management_views.render_settings(registry, pipeline)
     except Exception:
         st.error("当前管理数据无法读取，请检查运行配置和审计日志。")
+
+    _render_sidebar_status(snapshot, health_snapshot)
 
 
 if __name__ == "__main__":
