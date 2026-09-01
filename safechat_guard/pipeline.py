@@ -4,6 +4,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 import time
+import uuid
 import warnings
 
 from .action_router import ActionRouter
@@ -124,10 +125,19 @@ class SafeChatPipeline:
             raise TypeError("message must be a string")
         if raw_reply_override is not None and not isinstance(raw_reply_override, str):
             raise TypeError("raw_reply_override must be a string or None")
+        try:
+            llm_status = self.llm.status()
+        except Exception:
+            llm_status = {}
+        audit_context = {
+            "request_id": uuid.uuid4().hex,
+            "provider": str(llm_status.get("provider") or "unknown"),
+            "model": str(llm_status.get("model") or "unknown"),
+        }
 
         input_result = self._filter_text(message, stage="input")
         self._write_event(
-            {"stage": "input", "input": message, "result": input_result}, persist
+            {**audit_context, "stage": "input", "input": message, "result": input_result}, persist
         )
         if "USER_RULE_BLOCK" in input_result.get("reason_codes", []):
             input_result = dict(input_result)
@@ -159,7 +169,7 @@ class SafeChatPipeline:
                 )
             )
             self._write_event(
-                {"stage": "final", "action": "block", "reason": "input_block"},
+                {**audit_context, "stage": "final", "action": "block", "reason": "input_block"},
                 persist,
             )
             return self._complete_request(
@@ -167,6 +177,7 @@ class SafeChatPipeline:
                 input_result,
                 started=started,
                 persist=persist,
+                audit_context=audit_context,
             )
 
         safe_message = input_result.get("sanitized_text") or message
@@ -211,6 +222,7 @@ class SafeChatPipeline:
             )
             self._write_event(
                 {
+                    **audit_context,
                     "stage": "final",
                     "action": "service_error",
                     "reason": "llm_unavailable",
@@ -222,12 +234,13 @@ class SafeChatPipeline:
                 input_result,
                 started=started,
                 persist=persist,
+                audit_context=audit_context,
             )
 
         output_result = self._filter_output(raw_reply)
         input_result["model_forwarded"] = model_forwarded
         self._write_event(
-            {"stage": "output", "raw_reply": raw_reply, "result": output_result},
+            {**audit_context, "stage": "output", "raw_reply": raw_reply, "result": output_result},
             persist,
         )
         final_reply = output_result["final_text"]
@@ -257,6 +270,7 @@ class SafeChatPipeline:
         )
         self._write_event(
             {
+                **audit_context,
                 "stage": "final",
                 "action": result["final_action"],
                 "allowed": result["allowed"],
@@ -269,6 +283,7 @@ class SafeChatPipeline:
             input_result,
             started=started,
             persist=persist,
+            audit_context=audit_context,
         )
 
     def detect_text(self, text: str) -> dict:
@@ -758,10 +773,14 @@ class SafeChatPipeline:
         *,
         started: float,
         persist: bool,
+        audit_context: dict,
     ) -> dict:
         result["latency_ms"] = max(
             0, round((time.perf_counter() - started) * 1000)
         )
+        result["request_id"] = audit_context["request_id"]
+        result["provider"] = audit_context["provider"]
+        result["model"] = audit_context["model"]
         output_filter = result.get("output_filter") or {}
         output_action = result.get("output_guard_action") or "not_run"
         category = result["category"]
@@ -780,6 +799,7 @@ class SafeChatPipeline:
 
         self._write_event(
             {
+                **audit_context,
                 "stage": "request_summary",
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "input_action": input_result["action"],

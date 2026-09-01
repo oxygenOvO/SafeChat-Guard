@@ -1039,7 +1039,7 @@ def main() -> None:
 # V1.0 defaults to the focused product chat. Legacy console helpers above remain
 # importable for evaluation and rule-management compatibility, but are not part
 # of the ordinary-user navigation.
-from frontend.chat_app import main as main
+from frontend.phase2_app import main as main
 
 
 if __name__ == "__main__":

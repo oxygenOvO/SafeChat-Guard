@@ -139,6 +139,9 @@ class FrontendPipelineAdapter:
             "allowed": chat_result["allowed"],
             "final_allowed": final_allowed,
             "model_forwarded": bool(chat_result.get("model_forwarded", False)),
+            "request_id": chat_result.get("request_id", "unavailable"),
+            "provider": chat_result.get("provider", "unknown"),
+            "model": chat_result.get("model", "unknown"),
             "service_error": service_error,
             "model_loaded": bool(status.get("model_loaded")),
             "model_degradation": (

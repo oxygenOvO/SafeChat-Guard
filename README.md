@@ -57,6 +57,27 @@ data/logs/events.jsonl
 
 默认网页入口位于 `frontend/streamlit_app.py`，呈现 V1.0 安全聊天界面与真实模型状态。旧竞赛控制台辅助函数保留用于回归评测和规则管理兼容，但不再出现在普通用户导航。适配层以 `SafeChatPipeline.handle_chat` 的公开结果作为唯一最终安全结论：高风险输入不会调用 LLM，服务不可用时显示安全降级状态，风险模型输出不会进入前端视图模型或导出日志。
 
+## 第二阶段运维控制台
+
+V1.0 第二阶段在同一 Streamlit 入口中增加管理与可观测能力，同时保持安全对话为默认页面：
+
+- 系统总览：从 `request_summary` 审计事件实时聚合 PASS / SANITIZE / BLOCK。
+- 模型管理：管理 Mock、Qwen、DeepSeek 的启用和默认状态，并提供真实连接测试。
+- 安全日志：只展示脱敏请求摘要，支持时间、Action、类别和 Provider 筛选及筛选结果 CSV 导出。
+- 风险统计：从同一审计记录生成 Action、风险类别和时间趋势。
+- 系统状态：检查 Pipeline、安全组件和 Provider 状态；未实测的远程 Provider 显示“未检测”。
+- 系统设置：只读展示适合运营人员查看的状态，不开放核心安全阈值修改。
+
+模型管理使用 `config.yaml` 作为受版本控制的基线，并将启用状态、默认 Provider 和最近连接测试写入：
+
+```text
+data/runtime/model_registry.json
+```
+
+该目录已被 Git 忽略，且不会保存 API Key。Qwen 与 DeepSeek 密钥仍只从环境变量读取。JSONL 日志继续作为本阶段正式持久化方案；管理控制台不会维护第二份统计文件。
+
+每次对话生成不含个人信息的 `request_id`，用于关联 Input Guard、模型调用、OutputGuard 和脱敏审计摘要。若关键安全组件异常，控制台暂停模型调用并明确显示 Fail-Closed 状态。
+
 `data/test_cases/frontend_demo_cases_v2.csv` 的 8 条内置样例全部属于功能 Demo，仅用于页面回归统计，不代表正式独立评估结果。正式指标仍以冻结的 `single_review_independent_gold_v1` 记录为准。
 
 启动控制台：

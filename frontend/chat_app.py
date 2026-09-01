@@ -11,12 +11,14 @@ import streamlit as st
 
 from frontend.adapter import FrontendPipelineAdapter
 from safechat_guard.llm_adapters import LLMAdapterFactory, PROVIDER_LABELS
+from safechat_guard.model_registry import ModelRegistry
 from safechat_guard.pipeline import SafeChatPipeline
 from safechat_guard.version import PRODUCT_VERSION
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = PROJECT_ROOT / "config.yaml"
+MODEL_STATE_PATH = PROJECT_ROOT / "data" / "runtime" / "model_registry.json"
 
 CATEGORY_LABELS = {
     "normal": "正常",
@@ -39,12 +41,14 @@ def load_config() -> dict[str, Any]:
 
 
 @st.cache_resource(show_spinner=False)
+def get_model_registry() -> ModelRegistry:
+    return ModelRegistry(load_config(), state_path=MODEL_STATE_PATH)
+
+
+@st.cache_resource(show_spinner=False)
 def get_chat_adapter(provider: str) -> FrontendPipelineAdapter:
     config = load_config()
-    provider_config = dict(config.get("llm", {}).get("providers", {}).get(provider, {}))
-    if not provider_config and provider != config.get("llm", {}).get("provider"):
-        raise ValueError("所选模型未在配置中定义。")
-    provider_config["provider"] = provider
+    provider_config = get_model_registry().provider_config(provider)
     pipeline = SafeChatPipeline(config, project_root=PROJECT_ROOT)
     pipeline.llm = LLMAdapterFactory.create(provider_config)
     return FrontendPipelineAdapter(pipeline)
@@ -54,7 +58,7 @@ def configure_product_page() -> None:
     st.set_page_config(
         page_title=f"SafeChat-Guard {PRODUCT_VERSION}",
         page_icon=None,
-        layout="centered",
+        layout="wide",
         initial_sidebar_state="expanded",
     )
     st.markdown(
@@ -130,6 +134,7 @@ def render_security_seal(result: dict[str, Any]) -> None:
             "最终动作": ACTION_LABELS.get(result.get("final_action"), result.get("final_action", "unavailable")),
             "检测来源": sorted({str(hit.get("type")) for hit in result.get("hits", []) if hit.get("type")}) or ["未命中规则/语义风险"],
             "是否发送模型": bool(result.get("model_forwarded")),
+            "Request ID": result.get("request_id", "unavailable"),
         }
         if input_action == "sanitize":
             detail["实际发送内容"] = result.get("processed_text", "unavailable")
@@ -143,14 +148,20 @@ def render_message(message: dict[str, Any]) -> None:
             render_security_seal(message["result"])
 
 
-def main() -> None:
-    configure_product_page()
+def render_chat() -> None:
     config = load_config()
-    providers = config.get("llm", {}).get("providers", {"mock": {"model": "offline-mock"}})
-    default_provider = str(config.get("llm", {}).get("provider", "mock"))
+    registry_snapshot = get_model_registry().snapshot()
+    providers = {
+        item["provider"]: item
+        for item in registry_snapshot["providers"]
+        if item["enabled"]
+    }
+    default_provider = str(registry_snapshot.get("default_provider") or "mock")
     init_chat_state(default_provider)
 
     provider_ids = [item for item in ("mock", "qwen", "deepseek") if item in providers]
+    if st.session_state.selected_provider not in provider_ids:
+        st.session_state.selected_provider = default_provider
     selected = st.sidebar.selectbox(
         "当前模型",
         provider_ids,
@@ -209,3 +220,8 @@ def main() -> None:
         st.session_state.chat_messages.append({"role": "assistant", "content": answer, "result": None})
     finally:
         st.session_state.request_in_progress = False
+
+
+def main() -> None:
+    configure_product_page()
+    render_chat()
