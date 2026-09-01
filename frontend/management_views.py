@@ -41,6 +41,34 @@ HEALTH_LABELS = {
     "failed": "连接失败",
     "timeout": "超时",
 }
+CONNECTION_MESSAGES = {
+    "available": "连接可用",
+    "not_configured": "尚未配置 API Key",
+    "authentication_failed": "认证失败，请检查 API Key 配置",
+    "permission_denied": "当前凭据无权访问该模型或服务",
+    "not_found": "模型或接口地址不可用",
+    "rate_limited": "请求受限，请稍后重试或检查账户额度",
+    "timeout": "连接超时，请检查网络或稍后重试",
+    "network_error": "网络连接失败",
+    "ssl_error": "安全连接建立失败",
+    "bad_request": "请求配置不正确",
+    "connection_failed": "连接失败",
+    "unknown_error": "连接失败",
+}
+HEALTH_LABELS.update(
+    {
+        "authentication_failed": "认证失败",
+        "permission_denied": "权限不足",
+        "not_found": "模型或接口不存在",
+        "rate_limited": "请求受限",
+        "network_error": "网络错误",
+        "ssl_error": "安全连接失败",
+        "bad_request": "请求配置错误",
+        "connection_failed": "连接失败",
+        "unknown_error": "连接失败",
+    }
+)
+
 ACTION_COLORS = {"PASS": "#2f7d5b", "SANITIZE": "#b7791f", "BLOCK": "#b94a55"}
 CATEGORY_COLORS = ["#526f9e", "#657faf", "#6d5bd0", "#8a76c8", "#8594aa", "#a06d7a"]
 
@@ -48,9 +76,22 @@ CATEGORY_COLORS = ["#526f9e", "#657faf", "#6d5bd0", "#8a76c8", "#8594aa", "#a06d
 def _health_tone(status: str) -> str:
     if status in {"normal", "available"}:
         return "normal"
-    if status in {"degraded", "timeout"}:
+    if status in {"degraded", "timeout", "rate_limited"}:
         return "degraded"
-    if status in {"abnormal", "failed", "unavailable", "not_configured"}:
+    if status in {
+        "abnormal",
+        "failed",
+        "unavailable",
+        "not_configured",
+        "authentication_failed",
+        "permission_denied",
+        "not_found",
+        "network_error",
+        "ssl_error",
+        "bad_request",
+        "connection_failed",
+        "unknown_error",
+    }:
         return "abnormal"
     return "unknown"
 
@@ -264,10 +305,10 @@ def render_model_management(registry: ModelRegistry) -> None:
             except ModelRegistryError:
                 st.error("该 Provider 当前不可测试。")
             else:
-                label = HEALTH_LABELS.get(result["status"], result["status"])
+                message = CONNECTION_MESSAGES.get(result["status"], "连接失败")
                 latency = result.get("latency_ms")
                 suffix = f"，实测 {latency} ms" if latency is not None else ""
-                st.session_state["last_connection_result"] = f"{label}{suffix}"
+                st.session_state["last_connection_result"] = f"{message}{suffix}"
         if st.session_state.get("last_connection_result"):
             st.info(f"最近连接测试：{st.session_state['last_connection_result']}")
 

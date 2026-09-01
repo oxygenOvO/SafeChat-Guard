@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import tempfile
 import time
@@ -10,8 +11,18 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from .llm_adapters import LLMAdapterFactory, PROVIDER_LABELS
+from .provider_diagnostics import (
+    ProviderErrorDiagnostic,
+    classify_provider_error,
+    sanitize_provider_error,
+)
+
+
+LOGGER = logging.getLogger("safechat.provider")
+
 
 
 class ModelRegistryError(RuntimeError):
@@ -91,30 +102,97 @@ class ModelRegistry:
 
     def test_connection(self, provider: str) -> dict[str, Any]:
         config = self.provider_config(provider)
-        adapter = LLMAdapterFactory.create(config)
-        status = adapter.status()
+        started = time.perf_counter()
+        try:
+            adapter = LLMAdapterFactory.create(config)
+            status = adapter.status()
+        except Exception as exc:
+            return self._connection_failure(
+                provider, config, classify_provider_error(exc), started
+            )
+
         if provider != "mock" and not status.get("key_configured"):
-            result = self._connection_result(provider, "not_configured")
+            elapsed = round((time.perf_counter() - started) * 1000)
+            result = self._connection_result(
+                provider, "not_configured", latency_ms=elapsed
+            )
             self._store_check(result)
+            LOGGER.warning(
+                "provider connection test skipped provider=%s model=%s "
+                "category=not_configured duration_ms=%s",
+                sanitize_provider_error(provider, max_length=80),
+                sanitize_provider_error(config.get("model"), max_length=80),
+                elapsed,
+            )
             return result
         if not status.get("ready"):
-            result = self._connection_result(provider, "unavailable")
-            self._store_check(result)
-            return result
+            return self._connection_failure(
+                provider,
+                config,
+                ProviderErrorDiagnostic(
+                    category="connection_failed",
+                    http_status=None,
+                    error_type="ProviderNotReady",
+                    safe_summary="provider adapter is not ready",
+                ),
+                started,
+            )
 
-        started = time.perf_counter()
         try:
             adapter.chat("Reply with OK.")
         except Exception as exc:
-            elapsed = round((time.perf_counter() - started) * 1000)
-            name = type(exc).__name__.lower()
-            state = "timeout" if "timeout" in name or "timeout" in str(exc).lower() else "failed"
-            result = self._connection_result(provider, state, latency_ms=elapsed)
-        else:
-            elapsed = round((time.perf_counter() - started) * 1000)
-            result = self._connection_result(provider, "available", latency_ms=elapsed)
+            return self._connection_failure(
+                provider, config, classify_provider_error(exc), started
+            )
+
+        elapsed = round((time.perf_counter() - started) * 1000)
+        result = self._connection_result(provider, "available", latency_ms=elapsed)
+        LOGGER.info(
+            "provider connection test succeeded provider=%s model=%s "
+            "category=available duration_ms=%s endpoint_host=%s",
+            sanitize_provider_error(provider, max_length=80),
+            sanitize_provider_error(config.get("model"), max_length=80),
+            elapsed,
+            self._endpoint_host(config),
+        )
         self._store_check(result)
         return result
+
+    def _connection_failure(
+        self,
+        provider: str,
+        config: dict[str, Any],
+        diagnostic: ProviderErrorDiagnostic,
+        started: float,
+    ) -> dict[str, Any]:
+        elapsed = round((time.perf_counter() - started) * 1000)
+        level = logging.ERROR if diagnostic.category == "unknown_error" else logging.WARNING
+        LOGGER.log(
+            level,
+            "provider connection test failed provider=%s model=%s category=%s "
+            "http_status=%s error_type=%s duration_ms=%s endpoint_host=%s summary=%s",
+            sanitize_provider_error(provider, max_length=80),
+            sanitize_provider_error(config.get("model"), max_length=80),
+            diagnostic.category,
+            diagnostic.http_status if diagnostic.http_status is not None else "none",
+            diagnostic.error_type,
+            elapsed,
+            self._endpoint_host(config),
+            diagnostic.safe_summary,
+        )
+        result = self._connection_result(
+            provider, diagnostic.category, latency_ms=elapsed
+        )
+        self._store_check(result)
+        return result
+
+    @staticmethod
+    def _endpoint_host(config: dict[str, Any]) -> str:
+        try:
+            host = urlparse(str(config.get("base_url") or "")).hostname
+        except ValueError:
+            host = None
+        return sanitize_provider_error(host or "unavailable", max_length=120)
 
     def _provider_record(
         self,

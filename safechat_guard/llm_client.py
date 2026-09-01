@@ -5,9 +5,24 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
+from .provider_diagnostics import classify_provider_error
+
 
 class LLMClientError(RuntimeError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        category: str | None = None,
+        http_status: int | None = None,
+        error_type: str | None = None,
+        safe_summary: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.category = category
+        self.http_status = http_status
+        self.error_type = error_type
+        self.safe_summary = safe_summary
 
 
 class MockLLMClient:
@@ -76,7 +91,14 @@ class OpenAICompatibleLLMClient:
             with urlopen(request, timeout=self.timeout_seconds) as response:
                 document = json.loads(response.read().decode("utf-8"))
         except (HTTPError, URLError, TimeoutError, socket.timeout, UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise LLMClientError(f"llm request failed: {type(exc).__name__}") from None
+            diagnostic = classify_provider_error(exc)
+            raise LLMClientError(
+                "llm request failed",
+                category=diagnostic.category,
+                http_status=diagnostic.http_status,
+                error_type=diagnostic.error_type,
+                safe_summary=diagnostic.safe_summary,
+            ) from None
 
         try:
             content = document["choices"][0]["message"]["content"]
