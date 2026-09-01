@@ -1,1 +1,3 @@
 config/action_thresholds_v3.json text eol=lf
+frontend/streamlit_app.py text eol=lf
+data/rules/regex_rules.json text eol=lf

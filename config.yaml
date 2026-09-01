@@ -1,6 +1,7 @@
 {
   "app": {
     "name": "SafeChat-Guard",
+    "version": "1.0.0",
     "host": "127.0.0.1",
     "port": 8000
   },
@@ -24,10 +25,22 @@
   },
   "llm": {
     "provider": "mock",
-    "api_key_env": "QWEN_API_KEY",
-    "base_url": "",
-    "model": "qwen-tiny",
-    "timeout_seconds": 30
+    "model": "offline-mock",
+    "providers": {
+      "mock": {"model": "offline-mock"},
+      "qwen": {
+        "api_key_env": "DASHSCOPE_API_KEY",
+        "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+        "model": "qwen-plus",
+        "timeout_seconds": 30
+      },
+      "deepseek": {
+        "api_key_env": "DEEPSEEK_API_KEY",
+        "base_url": "https://api.deepseek.com/chat/completions",
+        "model": "deepseek-chat",
+        "timeout_seconds": 30
+      }
+    }
   },
   "logging": {
     "path": "data/logs/events.jsonl",

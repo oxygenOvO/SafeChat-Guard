@@ -1,8 +1,11 @@
-# SafeChat-Guard
+# SafeChat-Guard V1.0
 
-面向中文对话场景的大模型输入/输出违规内容过滤与日志统计系统。
+统一网页对话入口、多模型接入、输入/输出双向安全检测的大模型安全网关。
 
 本项目用于人工智能安全竞赛定向题目：面向对话场景的大模型输入/输出违规内容过滤系统。
+当前产品版本为 `1.0.0`。默认使用无需密钥的 Offline Mock；网页侧也可切换 Qwen 与 DeepSeek，
+分别从 `DASHSCOPE_API_KEY`、`DEEPSEEK_API_KEY` 环境变量读取凭据。所有 Provider 均通过
+`SafeChatPipeline`，统一经过输入检测、必要的安全改写、模型调用和 OutputGuard 输出复检。
 
 最终竞赛提交冻结版本为 `1286f3db3e5e73f6ad7543cdbd47ed9227235b5c`（短哈希 `1286f3d`）。`93105e5` 是 earlier/pre-final delivery baseline，不是最终竞赛提交版本。本次仅对齐交付文档；不改变源码、模型、阈值、规则、配置或评估结果。
 
@@ -52,7 +55,7 @@ data/logs/events.jsonl
 
 ## D 组前端安全集成
 
-比赛控制台位于 `frontend/streamlit_app.py`，展示归一化、规则与语义联合检测、分级动作、输出复检、聚合审计和批量评测。适配层以 `SafeChatPipeline.handle_chat` 的公开结果作为唯一最终安全结论：高风险输入不会调用 LLM，服务不可用时显示安全降级状态，风险模型输出不会进入前端视图模型或导出日志。
+默认网页入口位于 `frontend/streamlit_app.py`，呈现 V1.0 安全聊天界面与真实模型状态。旧竞赛控制台辅助函数保留用于回归评测和规则管理兼容，但不再出现在普通用户导航。适配层以 `SafeChatPipeline.handle_chat` 的公开结果作为唯一最终安全结论：高风险输入不会调用 LLM，服务不可用时显示安全降级状态，风险模型输出不会进入前端视图模型或导出日志。
 
 `data/test_cases/frontend_demo_cases_v2.csv` 的 8 条内置样例全部属于功能 Demo，仅用于页面回归统计，不代表正式独立评估结果。正式指标仍以冻结的 `single_review_independent_gold_v1` 记录为准。
 
