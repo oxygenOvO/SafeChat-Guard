@@ -24,7 +24,7 @@ python -m compileall app.py api_server.py safechat_guard scripts tests
 python api_server.py
 ```
 
-默认 `config.yaml` 使用 `llm.provider=mock`，可离线运行且不会产生外部调用。真实 Qwen 模式必须显式选择 `config.real_llm.example.yaml`，API key 只从进程环境变量 `DASHSCOPE_API_KEY` 读取；应用不从 YAML、`.env` 或命令行参数读取真实 key。真实模式要求 HTTPS endpoint；配置或远程服务失败时不静默回退为 mock，`/api/chat` 安全返回 503 且不暴露上游正文或凭据。
+默认 `config.yaml` 使用 `llm.provider=mock`，可离线运行且不会产生外部调用。NSCC Qwen3.5 模式必须显式选择 `config.real_llm.example.yaml`，API key 只从进程环境变量 `NSCC_MAAS_API_KEY` 读取；应用不从 YAML、`.env` 或命令行参数读取真实 key。真实模式要求 HTTPS endpoint；配置或远程服务失败时不静默回退为 mock，`/api/chat` 安全返回 503 且不暴露上游正文或凭据。
 
 启动后检查：
 
@@ -108,16 +108,17 @@ If rollback itself fails, rule management enters degraded mode: automatic rule r
 - `config.yaml` 是默认离线配置，`llm.provider` 必须继续保持 `mock`。
 - `config.real_llm.example.yaml` 是无密钥的真实上游示例。
 - `SAFECHAT_CONFIG_PATH` 仅选择启动配置；未设置时API继续加载仓库根目录的 `config.yaml`。
-- `DASHSCOPE_API_KEY` 必须由进程环境或密钥管理平台注入。应用不会读取配置中的明文key，也不会自动加载 `.env`。
+- `NSCC_MAAS_API_KEY` 必须由进程环境或密钥管理平台注入。应用不会读取配置中的明文 key，也不会自动加载 `.env`。
 - 真实配置缺失、provider未知、endpoint不是HTTPS或密钥未配置时不回退mock；`/ready` 降级或启动显式失败。
 
-供应商官方OpenAI-compatible HTTP endpoint参考：`https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions`。部署到其他区域时必须使用对应区域endpoint和API key，并重新做网络连通性验收。
+NSCC-CS MaaS OpenAI-compatible API 根地址为 `https://maas.nscc-cs.cn/external/api/v1`，客户端最终请求 `https://maas.nscc-cs.cn/external/api/v1/chat/completions`，模型 ID 为 `Qwen3.5`。
 
 ### 启动和检查
 
-先通过部署平台注入 `DASHSCOPE_API_KEY`，再执行：
+先通过部署平台注入 `NSCC_MAAS_API_KEY`，再执行：
 
 ```powershell
+$env:NSCC_MAAS_API_KEY = "你的API_KEY"
 $env:SAFECHAT_CONFIG_PATH = "config.real_llm.example.yaml"
 python api_server.py
 ```

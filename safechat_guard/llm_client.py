@@ -49,6 +49,13 @@ class OpenAICompatibleLLMClient:
         self.base_url = str(config.get("base_url", "")).strip()
         self.timeout_seconds = float(config.get("timeout_seconds", 30))
 
+    @property
+    def chat_completions_url(self) -> str:
+        base_url = self.base_url.rstrip("/")
+        if base_url.endswith("/chat/completions"):
+            return base_url
+        return f"{base_url}/chat/completions"
+
     def status(self) -> dict:
         parsed = urlparse(self.base_url)
         endpoint_valid = parsed.scheme == "https" and bool(parsed.netloc)
@@ -62,7 +69,11 @@ class OpenAICompatibleLLMClient:
             "endpoint_valid": endpoint_valid,
         }
 
-    def chat(self, message: str) -> str:
+    def chat(
+        self,
+        messages: str | list[dict[str, str]],
+        **kwargs,
+    ) -> str:
         status = self.status()
         if not status["endpoint_valid"]:
             raise LLMClientError("llm endpoint is not a valid HTTPS URL")
@@ -71,15 +82,22 @@ class OpenAICompatibleLLMClient:
         if not self.model:
             raise LLMClientError("llm model is not configured")
 
+        request_messages = (
+            [{"role": "user", "content": messages}]
+            if isinstance(messages, str)
+            else messages
+        )
+        if not isinstance(request_messages, list) or not request_messages:
+            raise LLMClientError("llm messages are not configured")
+        request_payload = {"model": self.model, "messages": request_messages}
+        if kwargs.get("max_tokens") is not None:
+            request_payload["max_tokens"] = int(kwargs["max_tokens"])
         payload = json.dumps(
-            {
-                "model": self.model,
-                "messages": [{"role": "user", "content": message}],
-            },
+            request_payload,
             ensure_ascii=False,
         ).encode("utf-8")
         request = Request(
-            self.base_url,
+            self.chat_completions_url,
             data=payload,
             headers={
                 "Authorization": f"Bearer {os.environ[self.api_key_env]}",
@@ -115,6 +133,6 @@ class LLMClientFactory:
         provider = str(config.get("provider", "mock")).lower()
         if provider == "mock":
             return MockLLMClient()
-        if provider in {"qwen", "openai_compatible"}:
+        if provider in {"qwen", "nscc_qwen", "deepseek", "openai_compatible"}:
             return OpenAICompatibleLLMClient(config)
         raise ValueError(f"unsupported llm provider: {provider}")

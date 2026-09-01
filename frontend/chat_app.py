@@ -127,7 +127,11 @@ def render_chat() -> None:
     default_provider = str(registry_snapshot.get("default_provider") or "mock")
     init_chat_state(default_provider)
 
-    provider_ids = [item for item in ("mock", "qwen", "deepseek") if item in providers]
+    provider_ids = [
+        item
+        for item in ("mock", "nscc_qwen", "qwen", "deepseek")
+        if item in providers
+    ]
     if st.session_state.selected_provider not in provider_ids:
         st.session_state.selected_provider = default_provider
     selected = st.sidebar.selectbox(

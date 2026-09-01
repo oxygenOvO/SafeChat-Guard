@@ -158,7 +158,7 @@ def test_mock_connection_remains_available(tmp_path, product_config):
     assert result["status"] == "available"
 
 
-@pytest.mark.parametrize("provider", ["qwen", "deepseek"])
+@pytest.mark.parametrize("provider", ["nscc_qwen", "qwen", "deepseek"])
 def test_remote_provider_logs_only_redacted_structured_diagnostics(
     provider, tmp_path, product_config, monkeypatch, caplog
 ):
@@ -175,7 +175,7 @@ def test_remote_provider_logs_only_redacted_structured_diagnostics(
                 "key_configured": True,
             }
 
-        def chat(self, message):
+        def chat(self, message, **kwargs):
             raise StatusError(
                 401,
                 "Authorization: Bearer test-secret-token "

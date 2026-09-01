@@ -9,7 +9,7 @@ from safechat_guard.pipeline import SafeChatPipeline
 ROOT = Path(__file__).resolve().parents[1]
 
 
-@pytest.mark.parametrize("provider", ["mock", "qwen", "deepseek"])
+@pytest.mark.parametrize("provider", ["mock", "nscc_qwen", "qwen", "deepseek"])
 def test_concrete_provider_adapter_cannot_bypass_pipeline_guards(provider):
     pipeline = SafeChatPipeline.from_config(str(ROOT / "config.yaml"))
     provider_config = pipeline.config["llm"]["providers"][provider]

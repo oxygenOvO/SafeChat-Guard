@@ -6,6 +6,8 @@ from streamlit.testing.v1 import AppTest
 import frontend.chat_app as chat_app
 import frontend.phase2_app as phase2_app
 
+from safechat_guard.model_registry import ModelRegistry
+
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "frontend" / "streamlit_app.py"
 
@@ -13,6 +15,7 @@ APP = ROOT / "frontend" / "streamlit_app.py"
 @pytest.fixture(autouse=True)
 def isolated_model_registry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Keep AppTest independent from the user's local runtime provider state."""
+    monkeypatch.delenv("NSCC_MAAS_API_KEY", raising=False)
     monkeypatch.setattr(chat_app, "MODEL_STATE_PATH", tmp_path / "model_registry.json")
     chat_app.get_model_registry.clear()
     chat_app.get_chat_adapter.clear()
@@ -80,6 +83,40 @@ def test_model_logs_analytics_health_and_settings_pages_start_without_traceback(
         click_nav(app, page)
         assert not app.exception
         assert expected in rendered_text(app)
+
+
+def test_model_management_shows_nscc_qwen35_metadata_and_missing_key():
+    app = load_app()
+    click_nav(app, "模型管理")
+
+    text = rendered_text(app)
+    assert not app.exception
+    assert "Offline Mock" in text
+    assert "Qwen3.5" in text
+    assert "NSCC-CS MaaS" in text
+    assert "DeepSeek" in text
+    assert "未配置" in text
+
+
+def test_nscc_qwen35_mock_401_is_shown_as_authentication_failure(monkeypatch):
+    def authentication_failure(self, provider):
+        assert provider == "nscc_qwen"
+        return {
+            "provider": provider,
+            "status": "authentication_failed",
+            "checked_at": "2026-09-01T00:00:00+00:00",
+            "latency_ms": 12,
+        }
+
+    monkeypatch.setattr(ModelRegistry, "test_connection", authentication_failure)
+    app = load_app()
+    click_nav(app, "模型管理")
+    app.selectbox[0].select("nscc_qwen").run()
+    test_button = next(item for item in app.button if item.label == "测试连接")
+    test_button.click().run()
+
+    assert not app.exception
+    assert "认证失败，请检查 API Key 配置" in rendered_text(app)
 
 
 def test_navigation_preserves_chat_session_state():

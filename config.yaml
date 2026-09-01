@@ -28,6 +28,17 @@
     "model": "offline-mock",
     "providers": {
       "mock": {"model": "offline-mock"},
+      "nscc_qwen": {
+        "display_name": "Qwen3.5",
+        "platform": "NSCC-CS MaaS",
+        "protocol": "openai_compatible",
+        "mode": "remote_api",
+        "api_key_env": "NSCC_MAAS_API_KEY",
+        "base_url": "https://maas.nscc-cs.cn/external/api/v1",
+        "model": "Qwen3.5",
+        "timeout_seconds": 30,
+        "enabled": true
+      },
       "qwen": {
         "api_key_env": "DASHSCOPE_API_KEY",
         "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",

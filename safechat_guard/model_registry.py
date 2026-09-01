@@ -139,7 +139,16 @@ class ModelRegistry:
             )
 
         try:
-            adapter.chat("Reply with OK.")
+            adapter.chat(
+                [
+                    {
+                        "role": "system",
+                        "content": "You are a connection test assistant.",
+                    },
+                    {"role": "user", "content": "Reply with OK."},
+                ],
+                max_tokens=8,
+            )
         except Exception as exc:
             return self._connection_failure(
                 provider, config, classify_provider_error(exc), started
@@ -213,9 +222,13 @@ class ModelRegistry:
             health = "unknown"
         return {
             "provider": provider,
-            "display_name": PROVIDER_LABELS.get(provider, provider),
+            "display_name": config.get("display_name")
+            or PROVIDER_LABELS.get(provider, provider),
+            "platform": config.get("platform")
+            or ("Local" if provider == "mock" else provider),
+            "protocol": config.get("protocol") or ("offline" if provider == "mock" else "openai_compatible"),
             "model": adapter_status.get("model") or config.get("model") or "unavailable",
-            "mode": adapter_status.get("mode", "unknown"),
+            "mode": config.get("mode") or adapter_status.get("mode", "unknown"),
             "key_configured": bool(adapter_status.get("key_configured")),
             "enabled": self._provider_enabled(provider, state),
             "default": False,
@@ -226,7 +239,8 @@ class ModelRegistry:
 
     def _provider_enabled(self, provider: str, state: dict[str, Any]) -> bool:
         configured = state.get("providers", {}).get(provider, {})
-        return configured.get("enabled", True) is not False
+        default_enabled = self._providers.get(provider, {}).get("enabled", True)
+        return configured.get("enabled", default_enabled) is not False
 
     def _store_check(self, result: dict[str, Any]) -> None:
         state = self._read_state()

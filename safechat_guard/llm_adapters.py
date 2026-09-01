@@ -10,6 +10,7 @@ from .llm_client import MockLLMClient, OpenAICompatibleLLMClient
 
 PROVIDER_LABELS = {
     "mock": "Offline Mock",
+    "nscc_qwen": "Qwen3.5",
     "qwen": "Qwen",
     "deepseek": "DeepSeek",
 }
@@ -61,7 +62,7 @@ class OpenAICompatibleAdapter(BaseLLMAdapter):
         self._client = OpenAICompatibleLLMClient({**config, "provider": self.provider})
 
     def chat(self, messages: str | list[dict[str, str]], **kwargs: Any) -> str:
-        return self._client.chat(self.user_text(messages))
+        return self._client.chat(messages, **kwargs)
 
     def status(self) -> dict[str, Any]:
         return self._client.status()
@@ -69,6 +70,10 @@ class OpenAICompatibleAdapter(BaseLLMAdapter):
 
 class QwenAdapter(OpenAICompatibleAdapter):
     provider = "qwen"
+
+
+class NSCCQwenAdapter(OpenAICompatibleAdapter):
+    provider = "nscc_qwen"
 
 
 class DeepSeekAdapter(OpenAICompatibleAdapter):
@@ -79,6 +84,7 @@ class LLMAdapterFactory:
     ADAPTERS = {
         "mock": MockAdapter,
         "qwen": QwenAdapter,
+        "nscc_qwen": NSCCQwenAdapter,
         "deepseek": DeepSeekAdapter,
     }
 

@@ -3,8 +3,9 @@
 统一网页对话入口、多模型接入、输入/输出双向安全检测的大模型安全网关。
 
 本项目用于人工智能安全竞赛定向题目：面向对话场景的大模型输入/输出违规内容过滤系统。
-当前产品版本为 `1.0.0`。默认使用无需密钥的 Offline Mock；网页侧也可切换 Qwen 与 DeepSeek，
-分别从 `DASHSCOPE_API_KEY`、`DEEPSEEK_API_KEY` 环境变量读取凭据。所有 Provider 均通过
+当前产品版本为 `1.0.0`。默认使用无需密钥的 Offline Mock；网页侧也可切换 Qwen3.5、
+兼容保留的 DashScope Qwen 与 DeepSeek，分别从 `NSCC_MAAS_API_KEY`、`DASHSCOPE_API_KEY`、
+`DEEPSEEK_API_KEY` 环境变量读取凭据。所有 Provider 均通过
 `SafeChatPipeline`，统一经过输入检测、必要的安全改写、模型调用和 OutputGuard 输出复检。
 
 最终竞赛提交冻结版本为 `1286f3db3e5e73f6ad7543cdbd47ed9227235b5c`（短哈希 `1286f3d`）。`93105e5` 是 earlier/pre-final delivery baseline，不是最终竞赛提交版本。本次仅对齐交付文档；不改变源码、模型、阈值、规则、配置或评估结果。
@@ -161,15 +162,18 @@ V3冻结版本在自建、一次性运行的330条 `internal_holdout` 上得到�
 
 生产一致性 `170/170` 证明冻结 V3 的直接检测入口与生产对话入口在公开非 holdout 矩阵上的动作和标签一致，不等同于真实世界泛化准确率。200 条人工复核 Gold 当前口径为 provisional single-review gold；第二 reviewer 的 40 条 blind sample 尚未完成时，不称已完成双人独立审核。
 
-默认 [config.yaml](config.yaml) 始终使用 `mock`，用于离线演示和自动测试，不产生外部调用，也不能作为真实联网证据。真实LLM模式必须显式选择 [config.real_llm.example.yaml](config.real_llm.example.yaml)；该示例使用 `qwen` provider，密钥只从进程环境变量 `DASHSCOPE_API_KEY` 读取，配置文件不保存密钥。
+默认 [config.yaml](config.yaml) 始终使用 `mock`，用于离线演示和自动测试，不产生外部调用，也不能作为真实联网证据。真实 LLM 模式必须显式选择 [config.real_llm.example.yaml](config.real_llm.example.yaml)；该示例使用 `nscc_qwen` provider，通过 NSCC-CS MaaS 的 OpenAI-compatible API 调用 `Qwen3.5`，密钥只从进程环境变量 `NSCC_MAAS_API_KEY` 读取。
 
 2026-07-31 已完成真实 Qwen 联网验证：provider=`qwen`、model=`qwen-plus`、status=`passed`，真实上游调用 2 次。五项验收均通过：`pass_forwarded=true`、`block_not_forwarded=true`、`sanitize_forwarded_after_redaction=true`、`upstream_failure_closed_safely=true`、`unsafe_output_blocked=true`。验收输出未打印凭据（`credentials_printed=false`），运行后已清除进程环境变量 `DASHSCOPE_API_KEY`；文档不记录 API key、Authorization 头、提示词或模型原始回答。上游异常和违规输出两项使用本地注入式安全路径测试，不表示 DashScope 发生过真实故障。
 
 ### 真实LLM启动
 
-先通过操作系统、CI或密钥管理平台向进程环境注入 `DASHSCOPE_API_KEY`，不要把真实值写入命令历史、`.env.example`、日志或截图。随后在PowerShell会话中选择示例配置：
+先通过操作系统、CI 或密钥管理平台向进程环境注入 `NSCC_MAAS_API_KEY`，不要把真实值写入源码、配置、`.env.example`、日志或截图。临时 PowerShell 验收方式：
 
 ```powershell
+$env:NSCC_MAAS_API_KEY = "你的API_KEY"
+[bool]$env:NSCC_MAAS_API_KEY
+$env:NSCC_MAAS_API_KEY.Length
 $env:SAFECHAT_CONFIG_PATH = "config.real_llm.example.yaml"
 python api_server.py
 ```
@@ -180,7 +184,7 @@ python api_server.py
 Invoke-RestMethod http://127.0.0.1:8000/ready
 ```
 
-`llm.ready` 应为 `true`，`provider` 应为 `qwen`。示例使用阿里云百炼OpenAI-compatible HTTPS endpoint；区域、模型权限和计费以供应商账号为准。
+`llm.ready` 应为 `true`，`provider` 应为 `nscc_qwen`，模型应为 `Qwen3.5`。最终请求地址为 `https://maas.nscc-cs.cn/external/api/v1/chat/completions`。
 
 ### 真实LLM安全冒烟
 

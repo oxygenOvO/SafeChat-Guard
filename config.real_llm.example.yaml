@@ -23,10 +23,10 @@
     "threshold_config_path": "config/action_thresholds_v3.json"
   },
   "llm": {
-    "provider": "qwen",
-    "api_key_env": "DASHSCOPE_API_KEY",
-    "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
-    "model": "qwen-plus",
+    "provider": "nscc_qwen",
+    "api_key_env": "NSCC_MAAS_API_KEY",
+    "base_url": "https://maas.nscc-cs.cn/external/api/v1",
+    "model": "Qwen3.5",
     "timeout_seconds": 30
   },
   "logging": {

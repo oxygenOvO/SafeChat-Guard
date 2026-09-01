@@ -10,6 +10,7 @@ from safechat_guard.llm_adapters import (
     DeepSeekAdapter,
     LLMAdapterFactory,
     MockAdapter,
+    NSCCQwenAdapter,
     QwenAdapter,
 )
 from safechat_guard.pipeline import SafeChatPipeline
@@ -27,7 +28,12 @@ def remote_config(provider: str) -> dict:
 
 @pytest.mark.parametrize(
     ("provider", "adapter_type"),
-    [("mock", MockAdapter), ("qwen", QwenAdapter), ("deepseek", DeepSeekAdapter)],
+    [
+        ("mock", MockAdapter),
+        ("nscc_qwen", NSCCQwenAdapter),
+        ("qwen", QwenAdapter),
+        ("deepseek", DeepSeekAdapter),
+    ],
 )
 def test_factory_exposes_one_provider_neutral_contract(provider, adapter_type):
     config = {"provider": "mock", "model": "offline-mock"} if provider == "mock" else remote_config(provider)
@@ -47,7 +53,7 @@ def test_mock_accepts_message_lists_without_an_external_call():
     assert adapter.status()["ready"] is True
 
 
-@pytest.mark.parametrize("provider", ["qwen", "deepseek"])
+@pytest.mark.parametrize("provider", ["nscc_qwen", "qwen", "deepseek"])
 def test_remote_adapters_keep_provider_details_inside_adapter(monkeypatch, provider):
     config = remote_config(provider)
     monkeypatch.setenv(config["api_key_env"], "test-secret")
@@ -74,7 +80,7 @@ def test_remote_adapters_keep_provider_details_inside_adapter(monkeypatch, provi
     assert captured["payload"]["model"] == config["model"]
 
 
-@pytest.mark.parametrize("provider", ["mock", "qwen", "deepseek"])
+@pytest.mark.parametrize("provider", ["mock", "nscc_qwen", "qwen", "deepseek"])
 def test_every_provider_is_called_only_inside_the_same_pipeline(tmp_path, monkeypatch, provider):
     project_root = __import__("pathlib").Path(__file__).parents[1]
     pipeline = SafeChatPipeline.from_config(str(project_root / "config.yaml"))
@@ -97,5 +103,7 @@ def test_product_config_lists_only_supported_phase_one_providers():
     config = json.loads((__import__("pathlib").Path(__file__).parents[1] / "config.yaml").read_text(encoding="utf-8"))
 
     assert config["app"]["version"] == "1.0.0"
-    assert set(config["llm"]["providers"]) == {"mock", "qwen", "deepseek"}
+    assert set(config["llm"]["providers"]) == {
+        "mock", "nscc_qwen", "qwen", "deepseek"
+    }
     assert all("api_key" not in provider_config for provider_config in config["llm"]["providers"].values())

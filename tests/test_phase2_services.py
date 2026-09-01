@@ -43,12 +43,15 @@ def request_event(**changes):
 def test_model_registry_uses_config_and_safe_runtime_overlay(tmp_path, product_config, monkeypatch):
     monkeypatch.delenv("DASHSCOPE_API_KEY", raising=False)
     monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.delenv("NSCC_MAAS_API_KEY", raising=False)
     state_path = tmp_path / "runtime" / "models.json"
     registry = ModelRegistry(product_config, state_path=state_path)
 
     initial = registry.snapshot()
     assert initial["default_provider"] == "mock"
-    assert {item["provider"] for item in initial["providers"]} == {"mock", "qwen", "deepseek"}
+    assert {item["provider"] for item in initial["providers"]} == {
+        "mock", "nscc_qwen", "qwen", "deepseek"
+    }
     qwen = next(item for item in initial["providers"] if item["provider"] == "qwen")
     assert qwen["key_configured"] is False
     assert qwen["health"] == "not_configured"
@@ -65,6 +68,7 @@ def test_model_registry_uses_config_and_safe_runtime_overlay(tmp_path, product_c
     assert "dashscope" not in serialized
 
     registry.set_enabled("qwen", False)
+    registry.set_enabled("nscc_qwen", False)
     with pytest.raises(ModelRegistryError, match="at least one"):
         registry.set_enabled("mock", False)
     assert registry.snapshot()["default_provider"] == "mock"
@@ -79,7 +83,7 @@ def test_connection_test_reports_timeout_without_exception_details(
         def status(self):
             return {"provider": "qwen", "ready": True, "key_configured": True}
 
-        def chat(self, message):
+        def chat(self, message, **kwargs):
             raise TimeoutError("secret upstream detail")
 
     monkeypatch.setattr(

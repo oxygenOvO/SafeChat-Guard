@@ -2,6 +2,7 @@ from pathlib import Path
 
 import pytest
 from streamlit.testing.v1 import AppTest
+
 import frontend.chat_app as chat_app
 import frontend.phase2_app as phase2_app
 
@@ -9,9 +10,11 @@ import frontend.phase2_app as phase2_app
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "frontend" / "streamlit_app.py"
 
+
 @pytest.fixture(autouse=True)
 def isolated_model_registry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Keep AppTest independent from the user's local runtime provider state."""
+    monkeypatch.delenv("NSCC_MAAS_API_KEY", raising=False)
     monkeypatch.setattr(chat_app, "MODEL_STATE_PATH", tmp_path / "model_registry.json")
     chat_app.get_model_registry.clear()
     chat_app.get_chat_adapter.clear()
