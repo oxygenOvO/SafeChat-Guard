@@ -101,7 +101,7 @@ def test_audit_read_filter_export_and_recursive_secret_redaction(tmp_path):
     logger = EventLogger(str(tmp_path / "events.jsonl"), retention_days=0)
     logger.write(
         request_event(
-            api_key="super-secret",
+            api_key="your-test-api-key",
             Authorization="Bearer private",
             input="13812345678",
         )
@@ -126,10 +126,10 @@ def test_audit_read_filter_export_and_recursive_secret_redaction(tmp_path):
     assert service.records(start_date=date(2026, 9, 2)) == []
     exported = service.to_csv(records).decode("utf-8-sig")
     assert "req-2" in exported
-    assert "super-secret" not in exported
+    assert "your-test-api-key" not in exported
     assert "Authorization" not in exported
     persisted = json.dumps(logger.read_all(), ensure_ascii=False)
-    assert "super-secret" not in persisted
+    assert "your-test-api-key" not in persisted
     assert "Bearer private" not in persisted
     assert "13812345678" not in persisted
 
