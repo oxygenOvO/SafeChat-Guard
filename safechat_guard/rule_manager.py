@@ -366,9 +366,30 @@ class RuleManager:
             self._commit(state)
             return {**public_report, "imported": report["valid"], **self.metadata()}
 
-    def _read_state(self) -> dict[str, Any]:
+    def backup_snapshot(self) -> dict[str, Any] | None:
+        """Return the validated previous on-disk revision, when available."""
+        with self._lock:
+            if not self.backup_path.is_file():
+                return None
+            return deepcopy(self._read_state(self.backup_path))
+
+    def rollback_to_backup(
+        self, *, expected_revision: int | None = None
+    ) -> dict[str, Any]:
+        """Publish the previous revision as a new monotonic revision."""
+        with self._lock:
+            self._prepare_write(expected_revision)
+            backup = self.backup_snapshot()
+            if backup is None:
+                raise RuleNotFoundError("backup revision does not exist")
+            state = deepcopy(backup)
+            self._commit(state)
+            return {"rolled_back_from": backup["revision"], **self.metadata()}
+
+    def _read_state(self, path: Path | None = None) -> dict[str, Any]:
+        source_path = path or self.storage_path
         try:
-            raw = json.loads(self.storage_path.read_text(encoding="utf-8"))
+            raw = json.loads(source_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
             raise RuleStorageError("user rule storage is unavailable") from exc
         if not isinstance(raw, dict):

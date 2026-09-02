@@ -52,7 +52,7 @@ def test_phase2_navigation_starts_with_focused_safe_chat():
     assert not app.radio
     assert app.session_state["active_page"] == "安全对话"
     nav_labels = {item.label for item in app.button}
-    assert {"安全对话", "系统总览", "模型管理", "安全日志", "风险统计", "系统状态", "系统设置"} <= nav_labels
+    assert {"安全对话", "系统总览", "模型管理", "安全策略", "安全日志", "风险统计", "安全评测", "系统状态", "系统设置"} <= nav_labels
     assert len(app.chat_input) == 1
     assert app.selectbox[0].value == "mock"
     assert "SECURITY OPS" in rendered_text(app)
@@ -80,6 +80,14 @@ def test_model_logs_analytics_health_and_settings_pages_start_without_traceback(
         ("系统状态", "系统状态"),
         ("系统设置", "SafeChat-Guard V1.0"),
     ):
+        click_nav(app, page)
+        assert not app.exception
+        assert expected in rendered_text(app)
+
+
+def test_phase3_policy_and_evaluation_pages_start_without_traceback():
+    app = load_app()
+    for page, expected in (("安全策略", "安全策略中心"), ("安全评测", "安全评测实验室")):
         click_nav(app, page)
         assert not app.exception
         assert expected in rendered_text(app)

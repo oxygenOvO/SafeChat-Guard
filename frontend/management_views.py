@@ -52,6 +52,7 @@ CONNECTION_MESSAGES = {
     "network_error": "网络连接失败",
     "ssl_error": "安全连接建立失败",
     "bad_request": "请求配置不正确",
+    "response_error": "模型已响应，但未返回可用的最终内容",
     "connection_failed": "连接失败",
     "unknown_error": "连接失败",
 }
@@ -64,6 +65,7 @@ HEALTH_LABELS.update(
         "network_error": "网络错误",
         "ssl_error": "安全连接失败",
         "bad_request": "请求配置错误",
+        "response_error": "响应内容不可用",
         "connection_failed": "连接失败",
         "unknown_error": "连接失败",
     }
@@ -90,6 +92,7 @@ def _health_tone(status: str) -> str:
         "ssl_error",
         "bad_request",
         "connection_failed",
+        "response_error",
         "unknown_error",
     }:
         return "abnormal"
@@ -315,7 +318,9 @@ def render_model_management(registry: ModelRegistry) -> None:
             st.info(f"最近连接测试：{st.session_state['last_connection_result']}")
 
 
-def render_audit_logs(audit: AuditService) -> None:
+def render_audit_logs(
+    audit: AuditService, pipeline: SafeChatPipeline | None = None
+) -> None:
     all_records = audit.records()
     page_intro(
         "OPERATIONS / AUDIT",
@@ -367,6 +372,21 @@ def render_audit_logs(audit: AuditService) -> None:
                 "Score": st.column_config.NumberColumn(format="%.3f"),
             },
         )
+        section_header(
+            "安全决策解释",
+            "历史记录仅使用脱敏审计摘要，不恢复原始输入或模型输出",
+        )
+        request_ids = [str(item["request_id"]) for item in records]
+        selected_request = st.selectbox(
+            "选择 Request ID", request_ids, key="audit_explanation_request"
+        )
+        selected_record = next(
+            item for item in records
+            if str(item["request_id"]) == selected_request
+        )
+        from frontend.security_platform_views import render_historical_explanation
+
+        render_historical_explanation(selected_record)
     else:
         st.info("当前筛选条件下暂无安全日志。")
 

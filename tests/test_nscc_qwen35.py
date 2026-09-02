@@ -175,9 +175,9 @@ def test_nscc_connection_success_uses_short_non_streaming_prompt(
     result = registry.test_connection("nscc_qwen")
 
     assert result["status"] == "available"
-    assert calls[0][0][-1] == {"role": "user", "content": "Reply with OK."}
-    assert calls[0][1] == {"max_tokens": 8}
-    assert "stream" not in calls[0][1]
+    assert calls[0][0][-1] == {"role": "user", "content": "Reply with OK only. /no_think"}
+    assert calls[0][1] == {}
+    assert "max_tokens" not in calls[0][1]
 
 
 @pytest.mark.parametrize(
@@ -324,3 +324,49 @@ def test_nscc_pipeline_preserves_all_security_guards_and_audit_context(
     serialized = json.dumps(pass_events, ensure_ascii=False)
     assert "NSCC_MAAS_API_KEY" not in serialized
     assert "Authorization" not in serialized
+
+def test_nscc_reasoning_only_response_is_safely_classified(
+    tmp_path, product_config, monkeypatch, caplog
+):
+    monkeypatch.setenv("NSCC_MAAS_API_KEY", "environment-secret")
+
+    class ReasoningOnlyResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, traceback):
+            return False
+
+        def read(self):
+            return json.dumps(
+                {
+                    "choices": [
+                        {
+                            "finish_reason": "length",
+                            "message": {
+                                "content": "",
+                                "reasoning_content": "private chain of thought",
+                            },
+                        }
+                    ],
+                    "usage": {"completion_tokens": 8},
+                }
+            ).encode("utf-8")
+
+    monkeypatch.setattr(
+        llm_client,
+        "urlopen",
+        lambda request, timeout: ReasoningOnlyResponse(),
+    )
+    registry = ModelRegistry(product_config, state_path=tmp_path / "models.json")
+
+    with caplog.at_level(logging.WARNING, logger="safechat.provider"):
+        result = registry.test_connection("nscc_qwen")
+
+    assert result["status"] == "response_error"
+    assert "category=response_error" in caplog.text
+    assert "error_type=EmptyLLMResponse" in caplog.text
+    assert "reasoning_present=True" in caplog.text
+    assert "finish_reason=length" in caplog.text
+    assert "private chain of thought" not in caplog.text
+    assert "environment-secret" not in caplog.text

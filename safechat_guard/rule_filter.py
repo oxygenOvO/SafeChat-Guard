@@ -238,6 +238,21 @@ class RuleFilter:
         except (KeyError, TypeError, re.error) as exc:
             raise RuleValidationError("candidate user rules failed compilation") from exc
 
+    def test_candidate_rule(self, rule: dict[str, Any], text: str) -> dict[str, Any]:
+        """Compile and test one candidate without touching the active overlay."""
+        if not isinstance(text, str):
+            raise TypeError("text must be a string")
+        self.validate_candidate_rules([rule], self.user_rules_revision + 1)
+        matcher = self._build_user_matchers([rule])[0]
+        matches = self._matcher_matches(matcher, text)
+        return {
+            "matched": bool(matches),
+            "matches": matches,
+            "rule_id": rule["id"],
+            "category": rule["category"],
+            "action": rule["action"],
+        }
+
     @staticmethod
     def _build_user_matchers(
         rules: list[dict[str, Any]],
@@ -249,6 +264,18 @@ class RuleFilter:
                 matcher["compiled"] = re.compile(rule["pattern"], re.IGNORECASE)
             matchers.append(matcher)
         return matchers
+
+    @staticmethod
+    def _matcher_matches(matcher: dict[str, Any], text: str) -> list[str]:
+        rule = matcher["rule"]
+        pattern = rule["pattern"]
+        if rule["pattern_type"] == "regex":
+            return list(
+                dict.fromkeys(
+                    match.group(0) for match in matcher["compiled"].finditer(text)
+                )
+            )
+        return [pattern] if pattern in text else []
 
     def acknowledge_restored_storage(self, revision: int) -> bool:
         if self.rule_manager is None:
@@ -342,16 +369,7 @@ class RuleFilter:
             user_rules_revision = self.user_rules_revision
         for matcher in user_matchers:
             rule = matcher["rule"]
-            pattern = rule["pattern"]
-            if rule["pattern_type"] == "regex":
-                matches = list(
-                    dict.fromkeys(
-                        match.group(0)
-                        for match in matcher["compiled"].finditer(text)
-                    )
-                )
-            else:
-                matches = [pattern] if pattern in text else []
+            matches = self._matcher_matches(matcher, text)
             if matches:
                 detections.append(
                     _UserOverlayDetection(

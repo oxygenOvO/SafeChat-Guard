@@ -106,7 +106,13 @@ def render_security_seal(result: dict[str, Any]) -> None:
         }
         if input_action == "sanitize":
             detail["实际发送内容"] = result.get("processed_text", "unavailable")
-        st.json(detail)
+        explanation = result.get("explanation")
+        if isinstance(explanation, dict):
+            from frontend.security_platform_views import render_decision_explanation
+
+            render_decision_explanation(explanation, show_raw_expander=False)
+        else:
+            st.json(detail)
 
 
 def render_message(message: dict[str, Any]) -> None:

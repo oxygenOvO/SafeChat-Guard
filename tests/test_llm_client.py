@@ -96,3 +96,61 @@ def test_pipeline_returns_safe_service_error_when_remote_llm_is_unavailable(monk
     assert result["service_error"] == "llm_unavailable"
     assert result["raw_reply"] is None
     assert "TEST_QWEN_API_KEY" not in result["reply"]
+
+def test_openai_compatible_client_accepts_text_content_blocks(monkeypatch):
+    monkeypatch.setenv("TEST_QWEN_API_KEY", "test-secret-value")
+    payload = {
+        "choices": [
+            {
+                "message": {
+                    "content": [
+                        {"type": "reasoning", "text": "private reasoning"},
+                        {"type": "text", "text": "第一段"},
+                        {"type": "output_text", "text": {"value": "第二段"}},
+                    ]
+                }
+            }
+        ]
+    }
+    monkeypatch.setattr(
+        llm_module,
+        "urlopen",
+        lambda request, timeout: FakeResponse(payload),
+    )
+    client = OpenAICompatibleLLMClient(qwen_config())
+
+    assert client.chat("测试消息") == "第一段\n第二段"
+
+
+def test_reasoning_only_response_has_safe_structured_error(monkeypatch):
+    monkeypatch.setenv("TEST_QWEN_API_KEY", "test-secret-value")
+    payload = {
+        "choices": [
+            {
+                "finish_reason": "length",
+                "message": {
+                    "content": "",
+                    "reasoning_content": "private chain of thought",
+                },
+            }
+        ],
+        "usage": {"completion_tokens": 8},
+    }
+    monkeypatch.setattr(
+        llm_module,
+        "urlopen",
+        lambda request, timeout: FakeResponse(payload),
+    )
+    client = OpenAICompatibleLLMClient(qwen_config())
+
+    with pytest.raises(LLMClientError) as captured:
+        client.chat("测试消息")
+
+    error = captured.value
+    assert error.category == "response_error"
+    assert error.error_type == "EmptyLLMResponse"
+    assert "finish_reason=length" in error.safe_summary
+    assert "reasoning_present=True" in error.safe_summary
+    assert "reasoning_chars=24" in error.safe_summary
+    assert "completion_count=8" in error.safe_summary
+    assert "private chain of thought" not in error.safe_summary

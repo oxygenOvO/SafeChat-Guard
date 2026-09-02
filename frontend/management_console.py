@@ -40,6 +40,7 @@ CONNECTION_MESSAGES = {
     "network_error": "网络连接失败",
     "ssl_error": "安全连接建立失败",
     "bad_request": "请求配置不正确",
+    "response_error": "模型已响应，但未返回可用的最终内容",
     "connection_failed": "连接失败",
     "unknown_error": "连接失败",
 }
@@ -52,6 +53,7 @@ HEALTH_LABELS.update(
         "network_error": "网络错误",
         "ssl_error": "安全连接失败",
         "bad_request": "请求配置错误",
+        "response_error": "响应内容不可用",
         "connection_failed": "连接失败",
         "unknown_error": "连接失败",
     }

@@ -143,11 +143,10 @@ class ModelRegistry:
                 [
                     {
                         "role": "system",
-                        "content": "You are a connection test assistant.",
+                        "content": "You are a connection test assistant. Reply briefly.",
                     },
-                    {"role": "user", "content": "Reply with OK."},
+                    {"role": "user", "content": "Reply with OK only. /no_think"},
                 ],
-                max_tokens=8,
             )
         except Exception as exc:
             return self._connection_failure(

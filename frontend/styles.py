@@ -243,9 +243,23 @@ html, body, [class*="css"] {
 .sg-seal-row b { color:var(--sg-ink); font-weight:650; }
 .sg-empty { color:var(--sg-muted); text-align:center; padding:3.6rem 1rem 2.6rem; }
 .sg-empty b { display:block; color:var(--sg-navy); font-size:1.08rem; margin-bottom:.35rem; }
+.sg-decision-rail { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:.48rem; margin:.65rem 0 1rem; }
+.sg-stage { position:relative; min-height:112px; padding:.68rem; border:1px solid var(--sg-line); border-top:3px solid var(--sg-blue); border-radius:10px; background:#fff; }
+.sg-stage::after { content:""; position:absolute; right:-.5rem; top:34px; width:.5rem; border-top:1px solid #b9c8dc; }
+.sg-stage:last-child::after { display:none; }
+.sg-stage-index { color:var(--sg-blue); font:750 .62rem/1.2 "IBM Plex Mono",Consolas,monospace; letter-spacing:.08em; }
+.sg-stage-title { color:var(--sg-navy); font-size:.74rem; font-weight:760; margin:.28rem 0; }
+.sg-stage-detail { color:var(--sg-muted); font-size:.66rem; line-height:1.45; overflow-wrap:anywhere; }
+.sg-stage.pass { border-top-color:var(--sg-success); }.sg-stage.sanitize { border-top-color:var(--sg-warning); }.sg-stage.block { border-top-color:var(--sg-danger); }.sg-stage.not_run { border-top-color:#98a5b7; }
+.sg-score-row { display:grid; grid-template-columns:88px 1fr 52px; gap:.6rem; align-items:center; margin:.42rem 0; color:#52637a; font-size:.7rem; }
+.sg-score-track { height:7px; overflow:hidden; border-radius:99px; background:#e9eef5; }
+.sg-score-fill { height:100%; border-radius:99px; background:var(--sg-blue); }
+.sg-policy-lock { border-left:3px solid var(--sg-warning); }
 @media (max-width:900px) {
   .main .block-container { padding-left:1.2rem; padding-right:1.2rem; }
   .sg-kpi { min-height:104px; }
+  .sg-decision-rail { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .sg-stage::after { display:none; }
 }
 @media (max-width:760px) {
   .main .block-container { padding-top:.85rem; }
@@ -256,6 +270,7 @@ html, body, [class*="css"] {
   [data-testid="column"] { min-width:calc(50% - .75rem); flex:1 1 calc(50% - .75rem); }
   .sg-health-row { grid-template-columns:1fr auto; gap:.45rem; }
   .sg-health-detail { grid-column:1 / -1; }
+  .sg-decision-rail { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media (max-width:430px) {
   .main .block-container { padding:.7rem .75rem 5rem; }

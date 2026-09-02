@@ -24,8 +24,10 @@ NAVIGATION = (
     "安全对话",
     "系统总览",
     "模型管理",
+    "安全策略",
     "安全日志",
     "风险统计",
+    "安全评测",
     "系统状态",
     "系统设置",
 )
@@ -33,8 +35,10 @@ NAV_ICONS = {
     "安全对话": ":material/forum:",
     "系统总览": ":material/dashboard:",
     "模型管理": ":material/memory:",
+    "安全策略": ":material/policy:",
     "安全日志": ":material/receipt_long:",
     "风险统计": ":material/monitoring:",
+    "安全评测": ":material/science:",
     "系统状态": ":material/health_and_safety:",
     "系统设置": ":material/settings:",
 }
@@ -134,16 +138,25 @@ def main() -> None:
                 management_views.render_dashboard(audit, health, registry)
             elif page == "模型管理":
                 management_views.render_model_management(registry)
+            elif page == "安全策略":
+                from frontend.security_platform_views import render_policy_center
+                render_policy_center(pipeline)
             elif page == "安全日志":
-                management_views.render_audit_logs(audit)
+                management_views.render_audit_logs(audit, pipeline)
             elif page == "风险统计":
                 management_views.render_risk_analytics(audit)
+            elif page == "安全评测":
+                from frontend.security_platform_views import render_evaluation_lab
+                render_evaluation_lab(pipeline)
             elif page == "系统状态":
                 management_views.render_system_health(health)
             else:
                 management_views.render_settings(registry, pipeline)
-    except Exception:
-        st.error("当前管理数据无法读取，请检查运行配置和审计日志。")
+    except Exception as exc:
+        st.error(
+            "当前管理数据无法读取，请检查运行配置和审计日志。"
+            f"（{type(exc).__name__}）"
+        )
 
     _render_sidebar_status(snapshot, health_snapshot)
 

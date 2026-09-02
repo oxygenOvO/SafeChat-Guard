@@ -128,6 +128,7 @@ def test_provider_error_redaction_is_case_insensitive_and_bounded():
         ("not_found", "模型或接口地址不可用"),
         ("rate_limited", "请求受限，请稍后重试或检查账户额度"),
         ("timeout", "连接超时，请检查网络或稍后重试"),
+        ("response_error", "模型已响应，但未返回可用的最终内容"),
     ],
 )
 def test_ui_connection_messages_are_safe_and_specific(category, expected):

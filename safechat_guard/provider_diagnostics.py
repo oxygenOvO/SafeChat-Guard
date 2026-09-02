@@ -22,6 +22,7 @@ PROVIDER_CONNECTION_CATEGORIES = frozenset(
         "network_error",
         "ssl_error",
         "bad_request",
+        "response_error",
         "connection_failed",
         "unknown_error",
     }

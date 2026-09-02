@@ -5,7 +5,10 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-from .provider_diagnostics import classify_provider_error
+from .provider_diagnostics import (
+    classify_provider_error,
+    sanitize_provider_error,
+)
 
 
 class LLMClientError(RuntimeError):
@@ -119,12 +122,88 @@ class OpenAICompatibleLLMClient:
             ) from None
 
         try:
-            content = document["choices"][0]["message"]["content"]
+            choice = document["choices"][0]
+            message = choice["message"]
         except (KeyError, IndexError, TypeError):
-            raise LLMClientError("llm response schema is invalid") from None
-        if not isinstance(content, str) or not content.strip():
-            raise LLMClientError("llm response content is empty")
-        return content
+            raise LLMClientError(
+                "llm response schema is invalid",
+                category="response_error",
+                error_type="InvalidLLMResponse",
+                safe_summary="llm response schema is invalid",
+            ) from None
+        if not isinstance(choice, dict) or not isinstance(message, dict):
+            raise LLMClientError(
+                "llm response schema is invalid",
+                category="response_error",
+                error_type="InvalidLLMResponse",
+                safe_summary="llm response schema is invalid",
+            )
+
+        content = message.get("content")
+        extracted = self._extract_text_content(content)
+        if extracted is None:
+            raise self._empty_response_error(document, choice, message, content)
+        return extracted
+
+    @staticmethod
+    def _extract_text_content(content) -> str | None:
+        if isinstance(content, str):
+            return content if content.strip() else None
+        if not isinstance(content, list):
+            return None
+
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                if item.strip():
+                    parts.append(item)
+                continue
+            if not isinstance(item, dict):
+                continue
+            item_type = item.get("type")
+            if item_type not in {None, "text", "output_text"}:
+                continue
+            text = item.get("text")
+            if isinstance(text, dict):
+                text = text.get("value")
+            if isinstance(text, str) and text.strip():
+                parts.append(text)
+        return "\n".join(parts) if parts else None
+
+    @staticmethod
+    def _empty_response_error(
+        document: dict,
+        choice: dict,
+        message: dict,
+        content,
+    ) -> LLMClientError:
+        finish_reason = sanitize_provider_error(
+            choice.get("finish_reason") or "unavailable",
+            max_length=40,
+        )
+        reasoning = message.get("reasoning_content")
+        reasoning_length = len(reasoning) if isinstance(reasoning, str) else 0
+        usage = document.get("usage")
+        completion_count = (
+            usage.get("completion_tokens")
+            if isinstance(usage, dict)
+            else None
+        )
+        safe_summary = (
+            "llm response has no final content "
+            f"finish_reason={finish_reason} "
+            f"content_type={type(content).__name__} "
+            f"reasoning_present={reasoning_length > 0} "
+            f"reasoning_chars={reasoning_length} "
+            f"completion_count={completion_count if isinstance(completion_count, int) else 'unavailable'}"
+        )
+        return LLMClientError(
+            "llm response content is empty",
+            category="response_error",
+            error_type="EmptyLLMResponse",
+            safe_summary=safe_summary,
+        )
+
 
 
 class LLMClientFactory:
