@@ -3,6 +3,7 @@ __pycache__/
 *.pyc
 .env
 data/logs/*.jsonl
+data/runtime/
 
 
 # 模型文件（二进制，体积大，不提交）

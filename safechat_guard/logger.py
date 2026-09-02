@@ -12,6 +12,15 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 SENSITIVE_FIELDS = {
     "input",
     "input_text",
+    "api_key",
+    "apikey",
+    "token",
+    "access_token",
+    "refresh_token",
+    "authorization",
+    "authorization_header",
+    "headers",
+    "secret",
     "safe_input",
     "raw_reply",
     "final_reply",
@@ -58,7 +67,7 @@ class EventLogger:
 
     @classmethod
     def _redact_event(cls, value: Any, field: str | None = None) -> Any:
-        if field in SENSITIVE_FIELDS:
+        if isinstance(field, str) and field.casefold() in SENSITIVE_FIELDS:
             if value is None:
                 return None
             if isinstance(value, list):

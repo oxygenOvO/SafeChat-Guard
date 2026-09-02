@@ -8,7 +8,7 @@
 python -m pip install -r requirements.txt -r requirements-dev.txt
 python scripts/security_scan.py
 python -m pytest -q --basetemp=.test_tmp
-# 预期汇总：576 passed
+# 最终冻结 1286f3d 的干净 clone：594 collected；预期汇总为 594 passed
 python scripts/verify_runtime.py --iterations 20
 python -m compileall app.py api_server.py safechat_guard scripts tests
 ```
@@ -16,13 +16,15 @@ python -m compileall app.py api_server.py safechat_guard scripts tests
 运行验证报告默认写入 `.test_tmp/runtime_verification.json`，不会记录开发者本机
 绝对路径，也不应提交缓存或临时报告。
 
+最终竞赛提交冻结版本为 `1286f3d`，干净 frozen clone 收集到 `594 collected`，实测 `594 passed, 1297 warnings in 79.27s`。`576 passed` 是 earlier/pre-final delivery baseline，不再是 final submission test count。测试应在干净 checkout/clone 中执行；若工作区含同名 untracked 测试副本，pytest 自动发现可能产生 collection error，此时不得用 `clean`、`stash -u` 或强制覆盖方式处理未确认的本地文件。
+
 ## 默认 mock 模式启动
 
 ```powershell
 python api_server.py
 ```
 
-默认 `config.yaml` 使用 `llm.provider=mock`，可离线运行且不会产生外部调用。真实 Qwen 模式必须显式选择 `config.real_llm.example.yaml`，API key 只从进程环境变量 `DASHSCOPE_API_KEY` 读取；应用不从 YAML、`.env` 或命令行参数读取真实 key。真实模式要求 HTTPS endpoint；配置或远程服务失败时不静默回退为 mock，`/api/chat` 安全返回 503 且不暴露上游正文或凭据。
+默认 `config.yaml` 使用 `llm.provider=mock`，可离线运行且不会产生外部调用。NSCC Qwen3.5 模式必须显式选择 `config.real_llm.example.yaml`，API key 只从进程环境变量 `NSCC_MAAS_API_KEY` 读取；应用不从 YAML、`.env` 或命令行参数读取真实 key。真实模式要求 HTTPS endpoint；配置或远程服务失败时不静默回退为 mock，`/api/chat` 安全返回 503 且不暴露上游正文或凭据。
 
 启动后检查：
 
@@ -33,6 +35,14 @@ Invoke-RestMethod http://127.0.0.1:8000/ready
 
 `/ready` 是运行时事实来源。语义模型、哈希、阈值与 `min_margin` 均由
 `config/semantic_thresholds_v1.json` 管理；运维文档不得复制这些易过期值。
+
+## V3 能力边界
+
+- V3 正式对抗归一化能力主要覆盖 Unicode/控制字符、符号插入、Emoji、同音、拼音、缩写、重复噪声及受控拆分恢复。
+- `variant_char` 形近字扩展接口存在，但冻结版本的映射表为空，形近字恢复未正式启用；运维人员不得通过现场填充映射表改变冻结行为。
+- 输入 sanitize 由 ActionRouterV3 判定。Sanitizer 对 normalized text 中已定位的 match 做局部改写，然后重新扫描、重新路由；无变化、失败、残余风险或复检异常时升级 block。它不是完整的结构化隐私字段正则系统。
+- OutputGuard 是独立输出安全层，使用基础扫描 detection、自有 `block_threshold=80`、`sanitize_threshold=40`、privacy regex 和 extra high-risk rules。结构化隐私项包括 phone、email、id_card、bank_card、url、ip、wechat、qq、address。
+- 核心训练/输入风险标签为 `normal/ad/porn/violence/sensitive`；OutputGuard 的 `privacy/illegal/self_harm` 等是输出运行时扩展类别，`abuse` 具有输出侧标签和安全响应支持。
 
 ## 日志
 
@@ -98,16 +108,17 @@ If rollback itself fails, rule management enters degraded mode: automatic rule r
 - `config.yaml` 是默认离线配置，`llm.provider` 必须继续保持 `mock`。
 - `config.real_llm.example.yaml` 是无密钥的真实上游示例。
 - `SAFECHAT_CONFIG_PATH` 仅选择启动配置；未设置时API继续加载仓库根目录的 `config.yaml`。
-- `DASHSCOPE_API_KEY` 必须由进程环境或密钥管理平台注入。应用不会读取配置中的明文key，也不会自动加载 `.env`。
+- `NSCC_MAAS_API_KEY` 必须由进程环境或密钥管理平台注入。应用不会读取配置中的明文 key，也不会自动加载 `.env`。
 - 真实配置缺失、provider未知、endpoint不是HTTPS或密钥未配置时不回退mock；`/ready` 降级或启动显式失败。
 
-供应商官方OpenAI-compatible HTTP endpoint参考：`https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions`。部署到其他区域时必须使用对应区域endpoint和API key，并重新做网络连通性验收。
+NSCC-CS MaaS OpenAI-compatible API 根地址为 `https://maas.nscc-cs.cn/external/api/v1`，客户端最终请求 `https://maas.nscc-cs.cn/external/api/v1/chat/completions`，模型 ID 为 `Qwen3.5`。
 
 ### 启动和检查
 
-先通过部署平台注入 `DASHSCOPE_API_KEY`，再执行：
+先通过部署平台注入 `NSCC_MAAS_API_KEY`，再执行：
 
 ```powershell
+$env:NSCC_MAAS_API_KEY = "你的API_KEY"
 $env:SAFECHAT_CONFIG_PATH = "config.real_llm.example.yaml"
 python api_server.py
 ```

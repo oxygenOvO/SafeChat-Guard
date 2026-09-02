@@ -7,6 +7,7 @@ import os
 import warnings
 
 from safechat_guard.pipeline import SafeChatPipeline
+from safechat_guard.decision_explanation_service import DecisionExplanationService
 from safechat_guard.rule_manager import RuleManagerError, apply_rule_transaction
 
 
@@ -28,6 +29,9 @@ class FrontendPipelineAdapter:
             text,
             raw_reply_override=output_override,
             persist=persist,
+        )
+        explanation = DecisionExplanationService(self.pipeline).explain(
+            text, chat_result
         )
         input_result = chat_result["input_filter"]
         output_result = chat_result.get("output_filter")
@@ -139,6 +143,9 @@ class FrontendPipelineAdapter:
             "allowed": chat_result["allowed"],
             "final_allowed": final_allowed,
             "model_forwarded": bool(chat_result.get("model_forwarded", False)),
+            "request_id": chat_result.get("request_id", "unavailable"),
+            "provider": chat_result.get("provider", "unknown"),
+            "model": chat_result.get("model", "unknown"),
             "service_error": service_error,
             "model_loaded": bool(status.get("model_loaded")),
             "model_degradation": (
@@ -147,6 +154,7 @@ class FrontendPipelineAdapter:
                 else "语义模型不可用，规则层继续运行"
             ),
             "record": record,
+            "explanation": explanation,
         }
 
     def record(self, result: dict[str, Any]) -> None:

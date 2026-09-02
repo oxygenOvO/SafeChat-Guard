@@ -1,10 +1,14 @@
-# SafeChat-Guard
+# SafeChat-Guard V1.0
 
-面向中文对话场景的大模型输入/输出违规内容过滤与日志统计系统。
+统一网页对话入口、多模型接入、输入/输出双向安全检测的大模型安全网关。
 
 本项目用于人工智能安全竞赛定向题目：面向对话场景的大模型输入/输出违规内容过滤系统。
+当前产品版本为 `1.0.0`。默认使用无需密钥的 Offline Mock；网页侧也可切换 Qwen3.5、
+兼容保留的 DashScope Qwen 与 DeepSeek，分别从 `NSCC_MAAS_API_KEY`、`DASHSCOPE_API_KEY`、
+`DEEPSEEK_API_KEY` 环境变量读取凭据。所有 Provider 均通过
+`SafeChatPipeline`，统一经过输入检测、必要的安全改写、模型调用和 OutputGuard 输出复检。
 
-本次纯文档修复以提交 `93105e56195ec4be338b58780147e65f88c9b8c9`（短哈希 `93105e5`）为修复前代码基准；除本文档及指定交付文档外，不改变源码、模型、阈值、规则、配置或评估结果。
+最终竞赛提交冻结版本为 `1286f3db3e5e73f6ad7543cdbd47ed9227235b5c`（短哈希 `1286f3d`）。`93105e5` 是 earlier/pre-final delivery baseline，不是最终竞赛提交版本。本次仅对齐交付文档；不改变源码、模型、阈值、规则、配置或评估结果。
 
 ## 核心功能
 
@@ -14,6 +18,8 @@
 - 输出侧二次校验：对大模型回复再次检测，命中违规内容时拦截或脱敏改写。
 - 日志统计：记录每次请求的检测结果、处理动作、风险类别、风险等级和命中规则。
 - Web Demo：提供 Streamlit 安全控制台，以及 `/api/chat`、`/api/detect`、`/api/stats` 接口。
+
+V3 正式启用的对抗归一化能力主要覆盖 Unicode/控制字符、符号插入、Emoji、同音、拼音、缩写、重复噪声及受控拆分恢复。系统预留 `variant_char` 形近字扩展接口，但冻结版本的 `data/maps/variant_char_map.json` 为空，未将形近字恢复作为正式启用能力。
 
 ## 成员 C 交付内容
 
@@ -36,6 +42,10 @@ tests/test_output_guard.py
 - 自伤自杀
 - 隐私泄露
 
+输入侧与输出侧使用不同的动作边界。输入侧由 RuleFilter、SemanticClassifier 和结构化证据进入 ActionRouterV3；输入 sanitize 后，Sanitizer 对 normalized text 中已定位的 match 做局部改写并重新扫描、重新路由。该 Sanitizer 不是完整的结构化隐私字段正则系统。输出侧由独立 OutputGuard 使用基础扫描证据、自有 80/40 阈值、privacy regex 和 extra high-risk rules 进行 sanitize 或安全拒绝；它不会把模型输出重新完整送入 ActionRouterV3。
+
+核心训练/输入风险标签空间仍为 `normal`、`ad`、`porn`、`violence`、`sensitive`。OutputGuard 的 `privacy`、`illegal`、`self_harm` 等属于输出安全运行时扩展类别；`abuse` 具有输出侧标签和安全响应支持，不与核心五分类训练标签混为一谈。
+
 日志采用输入、输出、最终动作分阶段记录；用户输入、模型原始输出和最终文本统一脱敏，仅保留安全审计所需的时间、阶段、类别、风险、动作与命中统计。
 
 日志默认保存到：
@@ -46,7 +56,28 @@ data/logs/events.jsonl
 
 ## D 组前端安全集成
 
-比赛控制台位于 `frontend/streamlit_app.py`，展示归一化、规则与语义联合检测、分级动作、输出复检、聚合审计和批量评测。适配层以 `SafeChatPipeline.handle_chat` 的公开结果作为唯一最终安全结论：高风险输入不会调用 LLM，服务不可用时显示安全降级状态，风险模型输出不会进入前端视图模型或导出日志。
+默认网页入口位于 `frontend/streamlit_app.py`，呈现 V1.0 安全聊天界面与真实模型状态。旧竞赛控制台辅助函数保留用于回归评测和规则管理兼容，但不再出现在普通用户导航。适配层以 `SafeChatPipeline.handle_chat` 的公开结果作为唯一最终安全结论：高风险输入不会调用 LLM，服务不可用时显示安全降级状态，风险模型输出不会进入前端视图模型或导出日志。
+
+## 第二阶段运维控制台
+
+V1.0 第二阶段在同一 Streamlit 入口中增加管理与可观测能力，同时保持安全对话为默认页面：
+
+- 系统总览：从 `request_summary` 审计事件实时聚合 PASS / SANITIZE / BLOCK。
+- 模型管理：管理 Mock、Qwen、DeepSeek 的启用和默认状态，并提供真实连接测试。
+- 安全日志：只展示脱敏请求摘要，支持时间、Action、类别和 Provider 筛选及筛选结果 CSV 导出。
+- 风险统计：从同一审计记录生成 Action、风险类别和时间趋势。
+- 系统状态：检查 Pipeline、安全组件和 Provider 状态；未实测的远程 Provider 显示“未检测”。
+- 系统设置：只读展示适合运营人员查看的状态，不开放核心安全阈值修改。
+
+模型管理使用 `config.yaml` 作为受版本控制的基线，并将启用状态、默认 Provider 和最近连接测试写入：
+
+```text
+data/runtime/model_registry.json
+```
+
+该目录已被 Git 忽略，且不会保存 API Key。Qwen 与 DeepSeek 密钥仍只从环境变量读取。JSONL 日志继续作为本阶段正式持久化方案；管理控制台不会维护第二份统计文件。
+
+每次对话生成不含个人信息的 `request_id`，用于关联 Input Guard、模型调用、OutputGuard 和脱敏审计摘要。若关键安全组件异常，控制台暂停模型调用并明确显示 Fail-Closed 状态。
 
 `data/test_cases/frontend_demo_cases_v2.csv` 的 8 条内置样例全部属于功能 Demo，仅用于页面回归统计，不代表正式独立评估结果。正式指标仍以冻结的 `single_review_independent_gold_v1` 记录为准。
 
@@ -75,7 +106,7 @@ http://127.0.0.1:8000
 python -m pytest -q --basetemp=.test_tmp
 ```
 
-修复前代码基准的最终公开测试结果为 `576 passed`。该结果不包含重新运行 internal holdout。
+最终竞赛冻结提交 `1286f3d` 在干净 frozen clone 中收集到 `594 collected`，实测为 `594 passed, 1297 warnings in 79.27s`。`576 passed` 是 earlier/pre-final delivery baseline，不再是 final submission test count。上述测试均不包含重新运行 internal holdout。
 
 如果没有 pytest，也可以直接做语法检查：
 
@@ -129,15 +160,20 @@ Rule changes use candidate compilation followed by atomic persistence and snapsh
 
 V3冻结版本在自建、一次性运行的330条 `internal_holdout` 上得到：Accuracy 99.39%、Block Recall 100%、Sanitize Recall 100%、Normal FPR 1.54%。这些是项目内部留出集指标，不是官方隐藏测试结果；该留出集仅正式运行一次，运行后未调参、未重跑。
 
-默认 [config.yaml](config.yaml) 始终使用 `mock`，用于离线演示和自动测试，不产生外部调用，也不能作为真实联网证据。真实LLM模式必须显式选择 [config.real_llm.example.yaml](config.real_llm.example.yaml)；该示例使用 `qwen` provider，密钥只从进程环境变量 `DASHSCOPE_API_KEY` 读取，配置文件不保存密钥。
+生产一致性 `170/170` 证明冻结 V3 的直接检测入口与生产对话入口在公开非 holdout 矩阵上的动作和标签一致，不等同于真实世界泛化准确率。200 条人工复核 Gold 当前口径为 provisional single-review gold；第二 reviewer 的 40 条 blind sample 尚未完成时，不称已完成双人独立审核。
+
+默认 [config.yaml](config.yaml) 始终使用 `mock`，用于离线演示和自动测试，不产生外部调用，也不能作为真实联网证据。真实 LLM 模式必须显式选择 [config.real_llm.example.yaml](config.real_llm.example.yaml)；该示例使用 `nscc_qwen` provider，通过 NSCC-CS MaaS 的 OpenAI-compatible API 调用 `Qwen3.5`，密钥只从进程环境变量 `NSCC_MAAS_API_KEY` 读取。
 
 2026-07-31 已完成真实 Qwen 联网验证：provider=`qwen`、model=`qwen-plus`、status=`passed`，真实上游调用 2 次。五项验收均通过：`pass_forwarded=true`、`block_not_forwarded=true`、`sanitize_forwarded_after_redaction=true`、`upstream_failure_closed_safely=true`、`unsafe_output_blocked=true`。验收输出未打印凭据（`credentials_printed=false`），运行后已清除进程环境变量 `DASHSCOPE_API_KEY`；文档不记录 API key、Authorization 头、提示词或模型原始回答。上游异常和违规输出两项使用本地注入式安全路径测试，不表示 DashScope 发生过真实故障。
 
 ### 真实LLM启动
 
-先通过操作系统、CI或密钥管理平台向进程环境注入 `DASHSCOPE_API_KEY`，不要把真实值写入命令历史、`.env.example`、日志或截图。随后在PowerShell会话中选择示例配置：
+先通过操作系统、CI 或密钥管理平台向进程环境注入 `NSCC_MAAS_API_KEY`，不要把真实值写入源码、配置、`.env.example`、日志或截图。临时 PowerShell 验收方式：
 
 ```powershell
+$env:NSCC_MAAS_API_KEY = "你的API_KEY"
+[bool]$env:NSCC_MAAS_API_KEY
+$env:NSCC_MAAS_API_KEY.Length
 $env:SAFECHAT_CONFIG_PATH = "config.real_llm.example.yaml"
 python api_server.py
 ```
@@ -148,7 +184,7 @@ python api_server.py
 Invoke-RestMethod http://127.0.0.1:8000/ready
 ```
 
-`llm.ready` 应为 `true`，`provider` 应为 `qwen`。示例使用阿里云百炼OpenAI-compatible HTTPS endpoint；区域、模型权限和计费以供应商账号为准。
+`llm.ready` 应为 `true`，`provider` 应为 `nscc_qwen`，模型应为 `Qwen3.5`。最终请求地址为 `https://maas.nscc-cs.cn/external/api/v1/chat/completions`。
 
 ### 真实LLM安全冒烟
 

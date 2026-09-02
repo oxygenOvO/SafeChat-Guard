@@ -78,5 +78,13 @@
     "level": "medium",
     "score": 70,
     "reason": "possible identity number"
+  },
+  {
+    "name": "direct_personal_violence_threat",
+    "category": "violence",
+    "pattern": "(?:我|本人|老子)(?:一定|迟早|早晚|马上|现在|就|会|要|想要|准备)?(?:杀(?:了|掉)?|弄死|宰了|伤害)(?:你|他|她|他们|她们|对方|那个人)",
+    "level": "high",
+    "score": 95,
+    "reason": "direct personal violence threat with intent, harmful action, and target"
   }
 ]

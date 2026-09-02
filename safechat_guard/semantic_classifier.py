@@ -172,22 +172,52 @@ class SemanticClassifier:
             "error": self._error,
         }
 
-    def detect(self, text: str) -> list[Detection]:
+    def score_text(self, text: str) -> dict[str, Any]:
+        """Expose real probabilities through the shared production gate."""
+        if not isinstance(text, str):
+            raise TypeError("text must be a string")
         if self.model is None:
-            return []
-        if self._is_protected_safety_context(text):
-            return []
-
+            return {
+                "loaded": False, "scores": {}, "top_category": None,
+                "top_score": None, "normal_score": None,
+                "selected_category": None, "selected_score": None,
+                "threshold": None, "normal_margin": self.min_margin,
+                "category_thresholds": dict(self.category_thresholds),
+                "protected_context": False, "error": self._error,
+            }
         probabilities = self.model.predict_proba([text])[0]
-        selected = select_risk_prediction(
-            self.model.classes_,
-            probabilities,
-            self.category_thresholds,
-            self.min_margin,
+        scores = {
+            str(label): float(probability)
+            for label, probability in zip(
+                self.model.classes_, probabilities, strict=True
+            )
+        }
+        top_category, top_score = max(scores.items(), key=lambda item: item[1])
+        normal_score = float(scores.get("normal", 0.0))
+        protected_context = self._is_protected_safety_context(text)
+        selected = None if protected_context else select_risk_prediction(
+            self.model.classes_, probabilities,
+            self.category_thresholds, self.min_margin,
         )
-        if selected is None:
+        return {
+            "loaded": True, "scores": scores,
+            "top_category": top_category, "top_score": top_score,
+            "normal_score": normal_score,
+            "selected_category": selected[0] if selected else None,
+            "selected_score": selected[1] if selected else None,
+            "threshold": self.category_thresholds.get(top_category),
+            "normal_margin": self.min_margin,
+            "category_thresholds": dict(self.category_thresholds),
+            "protected_context": protected_context, "error": None,
+        }
+
+    def detect(self, text: str) -> list[Detection]:
+        scored = self.score_text(text)
+        label = scored["selected_category"]
+        probability = scored["selected_score"]
+        if label is None or probability is None:
             return []
-        label, probability, normal_probability = selected
+        normal_probability = float(scored["normal_score"] or 0.0)
 
         score = self.category_to_score.get(label, 50)
         if probability > 0.85:

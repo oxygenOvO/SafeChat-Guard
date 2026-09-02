@@ -32,7 +32,9 @@ def test_real_llm_example_preserves_default_mock_and_exercises_safety_chain():
 
     assert default_config["llm"]["provider"] == "mock"
     assert "api_key" not in real_config["llm"]
-    assert real_config["llm"]["api_key_env"] == "DASHSCOPE_API_KEY"
+    assert real_config["llm"]["provider"] == "nscc_qwen"
+    assert real_config["llm"]["api_key_env"] == "NSCC_MAAS_API_KEY"
+    assert real_config["llm"]["model"] == "Qwen3.5"
 
     pipeline = SafeChatPipeline(default_config, project_root=ROOT)
     result = exercise_pipeline(pipeline, SafeFakeRemoteClient())

@@ -1036,5 +1036,11 @@ def main() -> None:
         render_logs_page()
 
 
+# V1.0 defaults to the focused product chat. Legacy console helpers above remain
+# importable for evaluation and rule-management compatibility, but are not part
+# of the ordinary-user navigation.
+from frontend.phase2_app import main as main
+
+
 if __name__ == "__main__":
     main()
