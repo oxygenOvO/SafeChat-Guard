@@ -175,7 +175,3 @@ def main() -> None:
         )
 
     _render_sidebar_status(snapshot, health_snapshot)
-
-
-if __name__ == "__main__":
-    main()

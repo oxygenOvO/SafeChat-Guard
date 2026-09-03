@@ -180,12 +180,20 @@ class EvaluationService:
         raise EvaluationInputError("format must be csv or jsonl")
 
     @staticmethod
-    def to_csv(results: list[dict[str, Any]]) -> bytes:
-        """结果导出为 CSV（UTF-8 BOM）；=+-@ 开头的单元格加前缀防公式注入。"""
+    def to_csv(
+        results: list[dict[str, Any]], *, include_text: bool = False
+    ) -> bytes:
+        """结果导出为 CSV（UTF-8 BOM）；=+-@ 开头的单元格加前缀防公式注入。
+
+        默认不包含原始 text 列（数据最小化原则）；需要导出原文时
+        显式传入 include_text=True。
+        """
         columns = [
-            "index", "text", "label", "expected_action", "rule_hit",
+            "index", "label", "expected_action", "rule_hit",
             "semantic_top_class", "category", "action", "request_id",
         ]
+        if include_text:
+            columns.insert(1, "text")
         buffer = io.StringIO(newline="")
         writer = csv.DictWriter(buffer, fieldnames=columns, extrasaction="ignore")
         writer.writeheader()
@@ -230,10 +238,10 @@ class EvaluationService:
             if mode in {"baseline", "rule_only"}
             else self.pipeline.semantic_classifier.score_text(normalized)
         )
-        routed, fallback = self.pipeline._route_input_all_versions(
+        routed, fallback = self.pipeline.route_input(
             text, normalized, rules, semantics
         )
-        detections = self.pipeline._deduplicate_detections([*rules, *semantics])
+        detections = self.pipeline.deduplicate_detections([*rules, *semantics])
         return {
             "stage": f"evaluation:{mode}",
             "original_text": text,
@@ -250,7 +258,7 @@ class EvaluationService:
             "rewrite_called": False,
             "rewrite_changed": False,
             "rewrite_recheck": None,
-            "detections": self.pipeline._serialize_detections(detections),
+            "detections": self.pipeline.serialize_detections(detections),
             "semantic_explanation": semantic_explanation,
             "fallback_used": fallback,
         }

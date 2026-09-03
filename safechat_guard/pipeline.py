@@ -26,7 +26,8 @@ import warnings
 
 from .action_router import ActionRouter
 from .action_router_v3 import ActionRouterV3
-from .llm_client import LLMClientError, LLMClientFactory
+from .llm_adapters import LLMAdapterFactory
+from .llm_client import LLMClientError
 from .logger import EventLogger
 from .normalizer import TextNormalizer
 from .output_guard import OutputGuard
@@ -105,7 +106,7 @@ class SafeChatPipeline:
             warnings.warn(message, RuntimeWarning, stacklevel=2)
 
         self.sanitizer = Sanitizer()
-        self.llm = LLMClientFactory.create(config.get("llm", {}))
+        self.llm = LLMAdapterFactory.create(config.get("llm", {}))
         logging_config = config.get("logging", {})
         log_path = Path(logging_config.get("path", "data/logs/events.jsonl"))
         if not log_path.is_absolute():
@@ -709,6 +710,21 @@ class SafeChatPipeline:
                 ), True
             return routed, fallback_used
 
+    def route_input(
+        self,
+        original_text: str,
+        normalized_text: str,
+        rule_detections: list,
+        semantic_detections: list,
+    ) -> tuple[dict, bool]:
+        """动作路由公共接口：供评测模块等外部调用方使用。
+
+        返回 (路由结果 dict, 是否使用了降级路径)。
+        """
+        return self._route_input_all_versions(
+            original_text, normalized_text, rule_detections, semantic_detections
+        )
+
     def _route_with_user_overlay_guard(
         self,
         original_text: str,
@@ -1075,3 +1091,12 @@ class SafeChatPipeline:
                 seen.add(key)
                 unique.append(detection)
         return unique
+
+    @staticmethod
+    def deduplicate_detections(detections: list) -> list:
+        """按 (类别, 来源, 命中词组) 去重，保留首次出现的检测（公共接口）。"""
+        return SafeChatPipeline._deduplicate_detections(detections)
+
+    def serialize_detections(self, detections: list) -> list[dict]:
+        """将 Detection 对象序列化为可入库的字典（公共接口，含用户 overlay 脱敏）。"""
+        return self._serialize_detections(detections)
