@@ -21,7 +21,7 @@ import os
 import tempfile
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -39,6 +39,7 @@ class ChatSessionStore:
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self._lock = threading.RLock()
+        self._last_now: datetime | None = None
 
     def list_sessions(self) -> list[dict[str, Any]]:
         """全部会话按最近更新倒序（最新聊天的会话排在最前）。"""
@@ -119,9 +120,19 @@ class ChatSessionStore:
             self._write(state)
             return True
 
-    @staticmethod
-    def _now() -> str:
-        return datetime.now(timezone.utc).isoformat()
+    def _now(self) -> str:
+        """生成单调递增的 UTC 时间戳。
+
+        Windows 系统时钟分辨率约 15.6ms，连续写入可能落在同一时钟刻度内，
+        产生完全相同的 updated_at；稳定排序下相等键会保留文件插入顺序，
+        导致"最近更新"排序失效。这里保证同一进程内时间戳严格递增。
+        """
+        with self._lock:
+            now = datetime.now(timezone.utc)
+            if self._last_now is not None and now <= self._last_now:
+                now = self._last_now + timedelta(microseconds=1)
+            self._last_now = now
+            return now.isoformat()
 
     @staticmethod
     def _derive_title(messages: list[dict[str, Any]]) -> str:
