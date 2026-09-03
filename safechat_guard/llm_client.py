@@ -1,3 +1,22 @@
+"""LLM 底层客户端：Mock 客户端与 OpenAI-compatible HTTP 客户端。
+
+这是模型接入的最底层封装，上层（llm_adapters 的 Adapter、pipeline）都
+最终调用到这里：
+
+- ``MockLLMClient``：离线假模型，固定返回安全回复。用于零配置演示、
+  自动化测试与断网环境，绝不产生真实网络调用。
+- ``OpenAICompatibleLLMClient``：通用 OpenAI Chat Completions 协议客户端
+  （基于标准库 urllib，无第三方依赖）。DeepSeek / DashScope Qwen /
+  NSCC Qwen3.5 等所有真实 Provider 共用这一个实现，仅配置不同。
+
+安全要点：
+- API Key 只从 ``api_key_env`` 指定的环境变量读取，不落盘、不进日志；
+  调用前与使用前各校验一次，避免环境变量被移除导致的裸 KeyError；
+- 请求失败通过 provider_diagnostics 归一化为分类错误（超时/认证失败/
+  限流/连接失败等），抛出的 LLMClientError 不携带密钥或请求正文，
+  保证异常信息可以安全地展示给前端。
+"""
+
 import json
 import os
 import socket
@@ -12,6 +31,12 @@ from .provider_diagnostics import (
 
 
 class LLMClientError(RuntimeError):
+    """LLM 调用失败的统一异常。
+
+    携带脱敏后的分类诊断信息（category/http_status/safe_summary），
+    上层据此决定用户提示文案与 Fail-Closed 行为，原始异常不外泄。
+    """
+
     def __init__(
         self,
         message: str,
@@ -29,6 +54,8 @@ class LLMClientError(RuntimeError):
 
 
 class MockLLMClient:
+    """离线假模型：零配置演示与自动化测试专用，固定返回安全回复。"""
+
     provider = "mock"
 
     def chat(self, message: str) -> str:
@@ -45,6 +72,12 @@ class MockLLMClient:
 
 
 class OpenAICompatibleLLMClient:
+    """通用 OpenAI Chat Completions 协议客户端（纯标准库实现）。
+
+    所有真实 Provider（DeepSeek / DashScope Qwen / NSCC Qwen3.5）共用，
+    差异只在配置：base_url、model、api_key_env、timeout_seconds。
+    """
+
     def __init__(self, config: dict):
         self.provider = str(config.get("provider", "openai_compatible"))
         self.model = str(config.get("model", "")).strip()
@@ -77,6 +110,12 @@ class OpenAICompatibleLLMClient:
         messages: str | list[dict[str, str]],
         **kwargs,
     ) -> str:
+        """执行一次 Chat Completions 调用并返回助手回复文本。
+
+        messages 传字符串时按单条 user 消息处理；传列表时按 OpenAI
+        消息数组处理（多轮对话）。调用前逐项校验 endpoint/密钥/模型，
+        网络与解析异常统一转换为脱敏分类的 LLMClientError。
+        """
         status = self.status()
         if not status["endpoint_valid"]:
             raise LLMClientError("llm endpoint is not a valid HTTPS URL")
@@ -99,11 +138,16 @@ class OpenAICompatibleLLMClient:
             request_payload,
             ensure_ascii=False,
         ).encode("utf-8")
+        api_key = os.environ.get(self.api_key_env)
+        if not api_key:
+            raise LLMClientError(
+                f"llm api key environment variable is not configured: {self.api_key_env}"
+            )
         request = Request(
             self.chat_completions_url,
             data=payload,
             headers={
-                "Authorization": f"Bearer {os.environ[self.api_key_env]}",
+                "Authorization": f"Bearer {api_key}",
                 "Content-Type": "application/json",
             },
             method="POST",

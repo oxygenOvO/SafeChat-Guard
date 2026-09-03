@@ -1,4 +1,4 @@
-"""Truthful component and provider health inspection."""
+"""组件与 Provider 的真实健康检查（不美化、不臆测，未实测即"未检测"）。"""
 
 from __future__ import annotations
 
@@ -10,6 +10,13 @@ from .pipeline import SafeChatPipeline
 
 
 class HealthService:
+    """健康检查服务：汇总安全链路各组件状态并给出 Fail-Closed 结论。
+
+    ``model_calls_allowed`` 是关键安全开关：关键组件（CRITICAL_COMPONENTS）
+    任一异常时为 False，前端与运维控制台据此暂停模型调用。
+    语义分类器作为可降级组件，缺失只标记 degraded 而不阻断。
+    """
+
     CRITICAL_COMPONENTS = {
         "SafeChatPipeline",
         "TextNormalizer",
@@ -25,6 +32,11 @@ class HealthService:
         self.registry = registry
 
     def snapshot(self) -> dict[str, Any]:
+        """构建一次完整健康快照：各组件状态 + 总体结论 + Provider 列表。
+
+        status 取值：normal（关键组件全部正常且无降级）/
+        degraded（正常但语义模型缺失）/ abnormal（关键组件异常）。
+        """
         semantic = self.pipeline.semantic_classifier.status()
         components = [
             self._component("SafeChatPipeline", self.pipeline is not None),

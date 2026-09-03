@@ -1,4 +1,4 @@
-"""Operational analytics derived exclusively from public audit records."""
+"""运维统计分析：只消费公开审计记录，绝不接触敏感原文。"""
 
 from __future__ import annotations
 
@@ -8,8 +8,11 @@ from typing import Any
 
 
 class AnalyticsService:
+    """从 request_summary 审计记录聚合运维统计（管理页"系统总览"数据源）。"""
+
     @staticmethod
     def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
+        """聚合总量、动作分布、风险类别分布、每日请求趋势与异常时间计数。"""
         actions: Counter[str] = Counter()
         categories: Counter[str] = Counter()
         trend: Counter[str] = Counter()

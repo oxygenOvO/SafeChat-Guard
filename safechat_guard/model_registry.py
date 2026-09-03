@@ -1,4 +1,17 @@
-"""Runtime model registry backed by tracked config plus a safe local overlay."""
+"""运行时模型注册表：管理 Provider 的启用状态、默认模型与连接测试结果。
+
+设计要点：
+- 受版本控制的 ``config.yaml`` 是 Provider 配置基线；启用/默认/最近连接
+  测试结果作为"本地 overlay"写入 ``data/runtime/model_registry.json``
+  （该目录被 Git 忽略，且不保存任何 API Key）。
+- ``snapshot()`` 是管理页 Provider 卡片的数据源，融合基线配置与 overlay
+  状态，并即时探测密钥是否已配置（只探测环境变量是否存在，不读明文）。
+- ``test_connection`` 对真实 Provider 发起一次最小化聊天调用（提示词固定、
+  回复长度受限），失败时经 provider_diagnostics 归一化为分类诊断，
+  日志只记录脱敏摘要（provider/model/错误类别/主机名），不记录密钥。
+- 并发安全：所有"读-改-写"状态文件的操作持有类级 RLock，
+  写入使用临时文件 + os.replace 原子替换。
+"""
 
 from __future__ import annotations
 
@@ -6,6 +19,7 @@ import json
 import logging
 import os
 import tempfile
+import threading
 import time
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -32,6 +46,8 @@ class ModelRegistryError(RuntimeError):
 class ModelRegistry:
     """Manage provider availability without persisting credentials."""
 
+    _state_lock = threading.RLock()
+
     def __init__(
         self,
         config: dict[str, Any],
@@ -45,6 +61,11 @@ class ModelRegistry:
         self._base_default = str(llm.get("provider", "mock"))
 
     def snapshot(self) -> dict[str, Any]:
+        """返回全部 Provider 的融合视图（管理页卡片数据源）。
+
+        融合规则：基线配置 + overlay 启用状态 + 密钥探测 + 最近连接测试；
+        默认 Provider 失效（被停用）时自动回退到第一个启用的 Provider。
+        """
         state = self._read_state()
         records = [
             self._provider_record(provider, values, state)
@@ -62,6 +83,7 @@ class ModelRegistry:
         return {"default_provider": default_provider, "providers": records}
 
     def provider_config(self, provider: str) -> dict[str, Any]:
+        """取指定 Provider 的运行配置；未配置或已停用抛 ModelRegistryError。"""
         snapshot = self.snapshot()
         record = next(
             (item for item in snapshot["providers"] if item["provider"] == provider),
@@ -74,33 +96,44 @@ class ModelRegistry:
         return {**deepcopy(self._providers[provider]), "provider": provider}
 
     def set_enabled(self, provider: str, enabled: bool) -> dict[str, Any]:
+        """设置 Provider 启用状态（持锁读改写）；至少保留一个启用中的 Provider。"""
         self._require_provider(provider)
-        state = self._read_state()
-        current = self.snapshot()
-        enabled_ids = [
-            item["provider"] for item in current["providers"] if item["enabled"]
-        ]
-        if not enabled and provider in enabled_ids and len(enabled_ids) == 1:
-            raise ModelRegistryError("at least one provider must remain enabled")
-        provider_state = state.setdefault("providers", {}).setdefault(provider, {})
-        provider_state["enabled"] = bool(enabled)
-        if not enabled and current.get("default_provider") == provider:
-            state["default_provider"] = next(
-                item for item in enabled_ids if item != provider
-            )
-        self._write_state(state)
+        with self._state_lock:
+            state = self._read_state()
+            current = self.snapshot()
+            enabled_ids = [
+                item["provider"] for item in current["providers"] if item["enabled"]
+            ]
+            if not enabled and provider in enabled_ids and len(enabled_ids) == 1:
+                raise ModelRegistryError("at least one provider must remain enabled")
+            provider_state = state.setdefault("providers", {}).setdefault(provider, {})
+            provider_state["enabled"] = bool(enabled)
+            if not enabled and current.get("default_provider") == provider:
+                state["default_provider"] = next(
+                    item for item in enabled_ids if item != provider
+                )
+            self._write_state(state)
         return self.snapshot()
 
     def set_default(self, provider: str) -> dict[str, Any]:
+        """设置默认 Provider；已停用的 Provider 不允许设为默认。"""
         self._require_provider(provider)
-        if not self._provider_enabled(provider, self._read_state()):
-            raise ModelRegistryError("disabled provider cannot be the default")
-        state = self._read_state()
-        state["default_provider"] = provider
-        self._write_state(state)
+        with self._state_lock:
+            if not self._provider_enabled(provider, self._read_state()):
+                raise ModelRegistryError("disabled provider cannot be the default")
+            state = self._read_state()
+            state["default_provider"] = provider
+            self._write_state(state)
         return self.snapshot()
 
     def test_connection(self, provider: str) -> dict[str, Any]:
+        """真实连接测试：发起一次最小化聊天调用并持久化结果。
+
+        返回 {provider, status, checked_at, latency_ms}；status 取值：
+        available / not_configured（密钥未配置，不发真实请求）/
+        connection_failed / timeout / auth_failed 等分类诊断结果。
+        全程日志只记录脱敏摘要，不打印密钥、请求正文或模型回复。
+        """
         config = self.provider_config(provider)
         started = time.perf_counter()
         try:
@@ -208,6 +241,7 @@ class ModelRegistry:
         config: dict[str, Any],
         state: dict[str, Any],
     ) -> dict[str, Any]:
+        """构建单个 Provider 的展示记录（健康状态推断：可用/未配置/未知等）。"""
         adapter = LLMAdapterFactory.create({**config, "provider": provider})
         adapter_status = adapter.status()
         last_check = state.get("last_checks", {}).get(provider)
@@ -242,13 +276,15 @@ class ModelRegistry:
         return configured.get("enabled", default_enabled) is not False
 
     def _store_check(self, result: dict[str, Any]) -> None:
-        state = self._read_state()
-        state.setdefault("last_checks", {})[result["provider"]] = {
-            "status": result["status"],
-            "checked_at": result["checked_at"],
-            "latency_ms": result.get("latency_ms"),
-        }
-        self._write_state(state)
+        """把一次连接测试结果写入 overlay（持锁读改写）。"""
+        with self._state_lock:
+            state = self._read_state()
+            state.setdefault("last_checks", {})[result["provider"]] = {
+                "status": result["status"],
+                "checked_at": result["checked_at"],
+                "latency_ms": result.get("latency_ms"),
+            }
+            self._write_state(state)
 
     @staticmethod
     def _connection_result(
@@ -269,6 +305,7 @@ class ModelRegistry:
             raise ModelRegistryError("provider is not configured")
 
     def _read_state(self) -> dict[str, Any]:
+        """读取 overlay 状态文件；缺失/损坏/版本不符抛 ModelRegistryError 或返回默认。"""
         if not self.state_path.exists():
             return {"version": 1, "providers": {}, "last_checks": {}}
         try:
@@ -280,6 +317,7 @@ class ModelRegistry:
         return state
 
     def _write_state(self, state: dict[str, Any]) -> None:
+        """原子写入 overlay 状态（临时文件 + fsync + os.replace），失败可回退。"""
         state = {"version": 1, **state}
         self.state_path.parent.mkdir(parents=True, exist_ok=True)
         temp_path: Path | None = None

@@ -13,11 +13,12 @@ class MappingNormalizer:
         self.category = category
         self.enabled = True
         self.mapping = provider.load()
+        self._ordered_entries = self._build_ordered_entries()
 
     def normalize(self, text: str) -> tuple[str, dict[str, Any]]:
         current = text
         matches = []
-        for source, info in self._ordered_mapping():
+        for source, info in self._ordered_entries:
             target = info["target"]
             if source not in current:
                 continue
@@ -26,8 +27,11 @@ class MappingNormalizer:
             matches.append(self._match_metadata(source, target, info, count))
         return current, {"category": self.category, "matches": matches}
 
-    def _ordered_mapping(self) -> list[tuple[str, dict[str, Any]]]:
+    def _build_ordered_entries(self) -> list[tuple[str, dict[str, Any]]]:
         return sorted(self.mapping.items(), key=lambda item: len(item[0]), reverse=True)
+
+    def _ordered_mapping(self) -> list[tuple[str, dict[str, Any]]]:
+        return self._ordered_entries
 
     def _match_metadata(
         self, source: str, target: str, info: dict[str, Any], count: int
@@ -51,12 +55,18 @@ class MappingNormalizer:
 
 
 class TokenMappingNormalizer(MappingNormalizer):
+    def __init__(self, name: str, provider: JsonMapProvider, category: str):
+        super().__init__(name, provider, category)
+        self._ordered_patterns = [
+            (source, info, self._pattern_for(source))
+            for source, info in self._ordered_entries
+        ]
+
     def normalize(self, text: str) -> tuple[str, dict[str, Any]]:
         current = text
         matches = []
-        for source, info in self._ordered_mapping():
+        for source, info, pattern in self._ordered_patterns:
             target = info["target"]
-            pattern = self._pattern_for(source)
             current, count = pattern.subn(target, current)
             if count:
                 matches.append(self._match_metadata(source, target, info, count))

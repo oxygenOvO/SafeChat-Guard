@@ -16,6 +16,22 @@ class RuleWritesDisabledError(PermissionError):
     """Raised when a policy mutation is attempted in read-only mode."""
 
 
+_BUILTIN_BLOCK_CATEGORIES = frozenset({"porn", "violence"})
+_BUILTIN_REGEX_BLOCK_SCORE = 80
+
+
+def builtin_keyword_policy(category: str) -> tuple[str, str]:
+    """Single source of truth for displayed builtin keyword action/risk_level."""
+    if category in _BUILTIN_BLOCK_CATEGORIES:
+        return "block", "high"
+    return "sanitize", "medium"
+
+
+def builtin_regex_policy(score: int) -> str:
+    """Single source of truth for displayed builtin regex action."""
+    return "block" if int(score) >= _BUILTIN_REGEX_BLOCK_SCORE else "sanitize"
+
+
 class RuleManagementService:
     """Product service over the existing RuleManager and RuleFilter."""
 
@@ -171,13 +187,14 @@ class RuleManagementService:
     def _all_rules(self) -> list[dict[str, Any]]:
         builtins: list[dict[str, Any]] = []
         for category, words in sorted(self.rule_filter.words.items()):
+            action, risk_level = builtin_keyword_policy(category)
             for index, word in enumerate(words):
                 builtins.append({
                     "id": f"builtin:keyword:{category}:{index}",
                     "pattern": word, "pattern_type": "keyword",
                     "category": category,
-                    "action": "block" if category in {"porn", "violence"} else "sanitize",
-                    "risk_level": "high" if category in {"porn", "violence"} else "medium",
+                    "action": action,
+                    "risk_level": risk_level,
                     "enabled": True, "description": "内置关键词规则",
                     "source": "builtin", "read_only": True,
                 })
@@ -186,7 +203,7 @@ class RuleManagementService:
                 "id": f"builtin:regex:{index}",
                 "pattern": str(rule.get("pattern", "")), "pattern_type": "regex",
                 "category": str(rule.get("category", "sensitive")),
-                "action": "block" if int(rule.get("score", 60)) >= 80 else "sanitize",
+                "action": builtin_regex_policy(int(rule.get("score", 60))),
                 "risk_level": str(rule.get("level", "medium")),
                 "enabled": True,
                 "description": str(rule.get("reason", "内置正则规则")),

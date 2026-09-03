@@ -1,3 +1,19 @@
+"""用户自定义规则的持久化管理器（CRUD + 事务 + 回滚）。
+
+负责用户规则的完整生命周期：
+- 校验：pattern 类型（keyword/phrase/regex）、类别、动作、风险等级、
+  正则可编译性、冲突检测等，非法规则一律拒绝入库；
+- 存储：规则写入独立 JSON 文件，带版本号（revision）与内容哈希（sha256），
+  每次"读-改-写"都用乐观锁校验版本，防止并发修改互相覆盖；
+- 事务：``apply_rule_transaction``（由 rule_manager/管理服务使用）保证
+  "候选编译 → 原子落盘 → 内存快照激活" 三步一致，任一步失败自动回滚；
+- 备份与回滚：``rollback_to_backup`` 可恢复上一版规则集；
+- 导入：支持 UTF-8 CSV/JSON 批量导入，限制大小并做逐行校验。
+
+注意：本模块只管"用户规则"；系统内置词库/正则由 RuleFilter 直接加载，
+内置规则的展示动作策略统一定义在 rule_management_service 中。
+"""
+
 from __future__ import annotations
 
 import csv
@@ -15,6 +31,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 
+# 用户规则允许的取值空间（内置词库不受此限制）
 PATTERN_TYPES = {"keyword", "phrase", "regex"}
 CATEGORIES = {"porn", "violence", "ad", "sensitive"}
 ACTIONS = {"sanitize", "block"}

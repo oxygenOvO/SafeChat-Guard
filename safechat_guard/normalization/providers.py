@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 from typing import Any
 
@@ -24,12 +25,25 @@ class JsonMapProvider:
 
     def load(self) -> dict[str, dict[str, Any]]:
         if not self.path.exists():
+            warnings.warn(
+                f"normalization map not found: {self.path}", RuntimeWarning, stacklevel=2
+            )
             return {}
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8-sig"))
-        except (json.JSONDecodeError, OSError):
+        except (json.JSONDecodeError, OSError) as exc:
+            warnings.warn(
+                f"failed to load normalization map {self.path}: {exc}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
             return {}
         if not isinstance(raw, dict):
+            warnings.warn(
+                f"normalization map {self.path} is not a JSON object",
+                RuntimeWarning,
+                stacklevel=2,
+            )
             return {}
 
         result: dict[str, dict[str, Any]] = {}

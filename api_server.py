@@ -1,9 +1,27 @@
+"""SafeChat-Guard 的唯一正式 HTTP API 入口。
+
+基于标准库 http.server 实现（无 Web 框架依赖），提供：
+
+- ``POST /api/chat``  安全对话（支持可选 history 多轮上下文）
+- ``POST /api/detect`` 仅输入检测
+- ``GET  /health`` ``GET /ready`` 存活与就绪检查
+- ``GET  /api/stats`` ``/api/stats/summary`` ``/api/stats/daily`` 统计
+- ``GET/POST/PATCH/DELETE /api/rules`` ``POST /api/rules/import`` 用户规则管理
+
+安全机制：
+- 规则写操作需要管理授权（X-Admin-Token / Bearer 恒时比较，
+  未配置令牌时仅允许回环地址访问，用于本机开发）；
+- 请求体大小、文本长度、超时均有上限；响应带 nosniff 等安全头；
+- 内部异常统一返回 500 并记录完整堆栈（不向客户端泄露细节）。
+"""
+
 from __future__ import annotations
 
 import hashlib
 import hmac
 import ipaddress
 import json
+import logging
 import os
 import socket
 import warnings
@@ -14,8 +32,16 @@ from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
 
-from safechat_guard.pipeline import SafeChatPipeline
+from safechat_guard.pipeline import (
+    MAX_HISTORY_TURNS,
+    VALID_HISTORY_ROLES,
+    SafeChatPipeline,
+)
 from safechat_guard.logger import StatisticsValidationError
+from safechat_guard.rule_management_service import (
+    builtin_keyword_policy,
+    builtin_regex_policy,
+)
 from safechat_guard.rule_manager import (
     RuleConflictError,
     RuleImportTooLargeError,
@@ -25,6 +51,9 @@ from safechat_guard.rule_manager import (
     RuleValidationError,
     apply_rule_transaction,
 )
+
+
+LOGGER = logging.getLogger("safechat.api")
 
 def dispatch_management_get(handler: Any, parsed: Any, pipeline: Any) -> bool:
     if parsed.path in {"/api/stats/summary", "/api/stats/daily"}:
@@ -291,8 +320,8 @@ def _builtin_rules(
                         "pattern": word,
                         "pattern_type": "keyword",
                         "category": category,
-                        "action": "block" if category in {"porn", "violence"} else "sanitize",
-                        "risk_level": "high" if category in {"porn", "violence"} else "medium",
+                        "action": builtin_keyword_policy(category)[0],
+                        "risk_level": builtin_keyword_policy(category)[1],
                         "enabled": True,
                         "description": "Built-in keyword rule",
                         "source": "builtin",
@@ -310,7 +339,7 @@ def _builtin_rules(
                     "pattern": rule.get("pattern", ""),
                     "pattern_type": "regex",
                     "category": rule.get("category", "sensitive"),
-                    "action": "block" if int(rule.get("score", 60)) >= 80 else "sanitize",
+                    "action": builtin_regex_policy(int(rule.get("score", 60))),
                     "risk_level": rule.get("level", "medium"),
                     "enabled": True,
                     "description": rule.get("reason", "Built-in regex rule"),
@@ -578,6 +607,7 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
         self.connection.settimeout(REQUEST_TIMEOUT_SECONDS)
 
     def _send(self, status: int, body: bytes, content_type: str) -> None:
+        """发送响应并附加安全头（no-store 防缓存、nosniff 防嗅探）。"""
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
@@ -587,10 +617,15 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _send_json(self, payload: dict, status: int = 200) -> None:
+        """以 UTF-8 JSON（ensure_ascii=False，保留中文可读性）发送响应。"""
         body = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
         self._send(status, body, "application/json; charset=utf-8")
 
     def _send_internal_error(self) -> None:
+        """统一 500 处理：记录完整堆栈（服务端排障用），对外只返回通用错误。"""
+        LOGGER.exception(
+            "unhandled API error while handling %s", getattr(self, "path", "?")
+        )
         try:
             self._send_json(
                 error_payload("internal_error", "Internal server error"), status=500
@@ -599,6 +634,12 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
             return
 
     def _read_json(self) -> tuple[dict | None, str | None]:
+        """读取并解析 JSON 请求体，带大小/超时/编码防护。
+
+        返回 (payload, None) 或 (None, 错误码)。错误码：
+        unsupported_media_type / invalid_content_length / request_too_large /
+        request_timeout / invalid_encoding / invalid_json / invalid_json_body。
+        """
         content_type = self.headers.get("Content-Type")
         if (
             content_type
@@ -632,6 +673,10 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
         *,
         optional: bool = False,
     ) -> tuple[str | None, tuple[str, str, int] | None]:
+        """校验文本字段：非空字符串且不超过 MAX_TEXT_CHARS。
+
+        返回 (值, None) 或 (None, (错误码, 提示, HTTP状态码))。
+        """
         value = payload.get(field)
         if optional and value is None:
             return None, None
@@ -649,7 +694,59 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
             )
         return value, None
 
+    @staticmethod
+    def _validate_history_field(
+        payload: dict,
+    ) -> tuple[list[dict[str, str]] | None, tuple[str, str, int] | None]:
+        """校验可选的 history 字段（多轮对话）。
+
+        规则与 pipeline 侧一致：数组且不超过 MAX_HISTORY_TURNS 条、
+        每条为对象、role 限定 user/assistant、content 非空且不超长。
+        缺省（None）表示单轮对话。
+        """
+        history = payload.get("history")
+        if history is None:
+            return None, None
+        if not isinstance(history, list) or len(history) > MAX_HISTORY_TURNS:
+            return None, (
+                "invalid_history",
+                f"history must be a list with at most {MAX_HISTORY_TURNS} messages",
+                422,
+            )
+        for index, item in enumerate(history):
+            if not isinstance(item, dict):
+                return None, (
+                    "invalid_history",
+                    f"history item {index} must be an object",
+                    422,
+                )
+            if item.get("role") not in VALID_HISTORY_ROLES:
+                return None, (
+                    "invalid_history",
+                    f"history item {index} role must be 'user' or 'assistant'",
+                    422,
+                )
+            content = item.get("content")
+            if not isinstance(content, str) or not content.strip():
+                return None, (
+                    "invalid_history",
+                    f"history item {index} content must be a non-empty string",
+                    422,
+                )
+            if len(content) > MAX_TEXT_CHARS:
+                return None, (
+                    "invalid_history",
+                    f"history item {index} exceeds the maximum of "
+                    f"{MAX_TEXT_CHARS} characters",
+                    413,
+                )
+        return history, None
+
     def do_GET(self) -> None:
+        """GET 路由：/health、/ready、/api/stats、管理查询（其余 404）。
+
+        断连类异常静默返回；其余异常统一记录堆栈并返回 500。
+        """
         try:
             parsed = urlparse(self.path)
             if parsed.path == "/health":
@@ -681,6 +778,11 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
             self._send_internal_error()
 
     def do_POST(self) -> None:
+        """POST 路由：/api/chat、/api/detect、管理写操作（其余 404）。
+
+        先统一校验 JSON 请求体（大小/编码/格式），再分发到对应处理器；
+        业务校验错误返回 4xx，未处理异常记录堆栈并返回 500。
+        """
         try:
             parsed = urlparse(self.path)
             payload, error = self._read_json()
@@ -721,8 +823,15 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
                     code, detail, status = validation_error
                     self._send_json(error_payload(code, detail), status=status)
                     return
+                history, history_error = self._validate_history_field(payload)
+                if history_error:
+                    code, detail, status = history_error
+                    self._send_json(error_payload(code, detail), status=status)
+                    return
                 result = pipeline.handle_chat(
-                    message, raw_reply_override=raw_reply_override
+                    message,
+                    raw_reply_override=raw_reply_override,
+                    history=history,
                 )
                 self._send_json(
                     result, status=503 if result.get("service_error") else 200
@@ -745,6 +854,7 @@ class SafeChatApiHandler(BaseHTTPRequestHandler):
             self._send_internal_error()
 
     def _management_mutation(self, method: str) -> None:
+        """PATCH/DELETE 的统一入口：读请求体 → 管理写分发（含授权校验）。"""
         try:
             parsed = urlparse(self.path)
             payload, error = self._read_json()

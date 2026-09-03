@@ -16,12 +16,17 @@ def isolated_model_registry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     """Keep AppTest independent from the user's local runtime provider state."""
     monkeypatch.delenv("NSCC_MAAS_API_KEY", raising=False)
     monkeypatch.setattr(chat_app, "MODEL_STATE_PATH", tmp_path / "model_registry.json")
+    monkeypatch.setattr(
+        chat_app, "SESSION_STORE_PATH", tmp_path / "chat_sessions.json"
+    )
     chat_app.get_model_registry.clear()
     chat_app.get_chat_adapter.clear()
+    chat_app.get_session_store.clear()
     phase2_app.get_operations_pipeline.clear()
     yield
     chat_app.get_model_registry.clear()
     chat_app.get_chat_adapter.clear()
+    chat_app.get_session_store.clear()
     phase2_app.get_operations_pipeline.clear()
 
 

@@ -1,3 +1,18 @@
+"""安全评测服务：非持久化的多模式对比评估与批量指标计算。
+
+支持六种检测模式（baseline / unnormalized_fusion / rule_only /
+semantic_only / fusion / full_pipeline），可在同一文本上对比
+"去掉归一化 / 只用规则 / 只用语义 / 完整管线"的差异，
+直观展示每个组件的价值。
+
+设计约束：
+- 评测过程**不写审计日志**，与生产请求完全隔离；
+- 批量评估的 Macro F1 同时给出两个口径：参与平均的类别集合
+  （evaluated_labels）与固定核心五类（macro_f1_core），
+  保证不同批次之间的指标可比性；
+- CSV 导出对 `=+-@` 开头的单元格做公式注入防护。
+"""
+
 from __future__ import annotations
 
 import csv
@@ -15,6 +30,10 @@ EVALUATION_MODES = {
 }
 MAX_EVALUATION_BYTES = 1024 * 1024
 
+# Fixed core training label space (see README): macro metrics over this set
+# are comparable across batches regardless of which labels a batch contains.
+CORE_CATEGORY_LABELS = ("normal", "ad", "porn", "violence", "sensitive")
+
 
 class EvaluationInputError(ValueError):
     pass
@@ -30,6 +49,7 @@ class EvaluationService:
     def analyze(
         self, text: str, *, mode: str = "full_pipeline", run_id: str | None = None
     ) -> dict[str, Any]:
+        """单文本单模式评测：返回动作/类别/风险与决策解释（不写审计日志）。"""
         if not isinstance(text, str) or not text.strip():
             raise EvaluationInputError("text must be a non-empty string")
         if mode not in EVALUATION_MODES:
@@ -58,6 +78,7 @@ class EvaluationService:
         }
 
     def compare(self, text: str) -> dict[str, Any]:
+        """同一文本跑全部六种模式（同 run_id），直观对比各组件的贡献。"""
         run_id = uuid.uuid4().hex
         results = [
             self.analyze(text, mode=mode, run_id=run_id)
@@ -73,6 +94,11 @@ class EvaluationService:
         }
 
     def batch(self, rows: Iterable[dict[str, Any]]) -> dict[str, Any]:
+        """批量评测：可选 label/expected_action 标注齐全时才产出指标（全有全无）。
+
+        标注不齐时 ground_truth_available=False、metrics=None，但计数与
+        逐条结果仍然返回，方便先看分布再补标注。
+        """
         prepared = list(rows)
         if not prepared:
             raise EvaluationInputError("evaluation input is empty")
@@ -119,6 +145,7 @@ class EvaluationService:
 
     @staticmethod
     def parse_upload(content: bytes, *, format_name: str) -> list[dict[str, Any]]:
+        """解析上传的评测文件（CSV 需含 text 列；JSONL 逐行 JSON 对象）。"""
         if not isinstance(content, bytes) or len(content) > MAX_EVALUATION_BYTES:
             raise EvaluationInputError("evaluation file is invalid or too large")
         try:
@@ -154,6 +181,7 @@ class EvaluationService:
 
     @staticmethod
     def to_csv(results: list[dict[str, Any]]) -> bytes:
+        """结果导出为 CSV（UTF-8 BOM）；=+-@ 开头的单元格加前缀防公式注入。"""
         columns = [
             "index", "text", "label", "expected_action", "rule_hit",
             "semantic_top_class", "category", "action", "request_id",
@@ -170,6 +198,12 @@ class EvaluationService:
         return buffer.getvalue().encode("utf-8-sig")
 
     def _run_mode(self, text: str, mode: str) -> dict[str, Any]:
+        """按指定模式组合检测组件并路由（模拟 pipeline 各层开关）。
+
+        full_pipeline 直接走生产入口 detect_text 保证一致性；
+        其余模式手动组合：baseline/unnormalized_fusion 关闭归一化，
+        rule_only/semantic_only 各自只开一层检测。
+        """
         if mode == "full_pipeline":
             return self.pipeline.detect_text(text)
         views = self.pipeline.normalizer.normalize_views(text)
@@ -222,7 +256,36 @@ class EvaluationService:
         }
 
     @staticmethod
-    def _metrics(rows: list[dict[str, Any]]) -> dict[str, float]:
+    def _label_scores(label: str, rows: list[dict[str, Any]]) -> tuple[float, float]:
+        true_positive = sum(
+            row["label"] == label and row["category"] == label for row in rows
+        )
+        false_positive = sum(
+            row["label"] != label and row["category"] == label for row in rows
+        )
+        false_negative = sum(
+            row["label"] == label and row["category"] != label for row in rows
+        )
+        precision = true_positive / (true_positive + false_positive) \
+            if true_positive + false_positive else 0.0
+        recall = true_positive / (true_positive + false_negative) \
+            if true_positive + false_negative else 0.0
+        f1 = 2 * precision * recall / (precision + recall) \
+            if precision + recall else 0.0
+        return f1, recall
+
+    @classmethod
+    def _macro_scores(
+        cls, labels: Iterable[str], rows: list[dict[str, Any]]
+    ) -> tuple[float, float]:
+        scores = [cls._label_scores(label, rows) for label in labels]
+        if not scores:
+            return 0.0, 0.0
+        f1_values, recall_values = zip(*scores)
+        return sum(f1_values) / len(f1_values), sum(recall_values) / len(recall_values)
+
+    @classmethod
+    def _metrics(cls, rows: list[dict[str, Any]]) -> dict[str, Any]:
         action_accuracy = sum(
             row["action"] == row["expected_action"] for row in rows
         ) / len(rows)
@@ -230,30 +293,17 @@ class EvaluationService:
             row["category"] == row["label"] for row in rows
         ) / len(rows)
         labels = sorted({row["label"] for row in rows})
-        f1_values = []
-        recall_values = []
-        for label in labels:
-            true_positive = sum(
-                row["label"] == label and row["category"] == label for row in rows
-            )
-            false_positive = sum(
-                row["label"] != label and row["category"] == label for row in rows
-            )
-            false_negative = sum(
-                row["label"] == label and row["category"] != label for row in rows
-            )
-            precision = true_positive / (true_positive + false_positive) \
-                if true_positive + false_positive else 0.0
-            recall = true_positive / (true_positive + false_negative) \
-                if true_positive + false_negative else 0.0
-            f1_values.append(
-                2 * precision * recall / (precision + recall)
-                if precision + recall else 0.0
-            )
-            recall_values.append(recall)
+        macro_f1, macro_recall = cls._macro_scores(labels, rows)
+        core_macro_f1, core_macro_recall = cls._macro_scores(
+            CORE_CATEGORY_LABELS, rows
+        )
         return {
             "action_accuracy": action_accuracy,
             "category_accuracy": category_accuracy,
-            "macro_f1": sum(f1_values) / len(f1_values),
-            "macro_recall": sum(recall_values) / len(recall_values),
+            "macro_f1": macro_f1,
+            "macro_recall": macro_recall,
+            "evaluated_labels": labels,
+            "core_labels": list(CORE_CATEGORY_LABELS),
+            "macro_f1_core": core_macro_f1,
+            "macro_recall_core": core_macro_recall,
         }

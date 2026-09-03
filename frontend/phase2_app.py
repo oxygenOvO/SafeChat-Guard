@@ -1,7 +1,15 @@
-"""SafeChat-Guard V1.0 phase-two product shell."""
+"""SafeChat-Guard V1.0 运维控制台外壳（第二阶段九页导航）。
+
+负责页面框架：侧边栏导航（安全对话/系统总览/模型管理/安全策略/
+安全日志/风险统计/安全评测/系统状态/系统设置）、运行摘要状态条，
+以及页面级的异常兜底（管理页异常不影响安全对话本身）。
+
+健康快照与模型注册表快照每帧只获取一次，供导航与页面共用。
+"""
 
 from __future__ import annotations
 
+import logging
 from html import escape
 
 import streamlit as st
@@ -110,6 +118,11 @@ def _render_sidebar_status(snapshot: dict, health_snapshot: dict) -> None:
 
 
 def main() -> None:
+    """控制台主入口：每帧一次获取健康/注册表快照 → 渲染侧边栏 → 分发页面。
+
+    页面渲染的异常统一在此兜底（记录堆栈 + 友好提示），保证单个页面
+    故障不影响整个控制台与安全对话。
+    """
     configure_product_page()
     registry = get_model_registry()
     snapshot = registry.snapshot()
@@ -123,7 +136,7 @@ def main() -> None:
 
     try:
         if page == "安全对话":
-            if not health.snapshot()["model_calls_allowed"]:
+            if not health_snapshot["model_calls_allowed"]:
                 st.error("安全检测模块当前不可用，为避免绕过安全防护，模型调用已暂停。")
             else:
                 st.markdown(
@@ -153,9 +166,12 @@ def main() -> None:
             else:
                 management_views.render_settings(registry, pipeline)
     except Exception as exc:
+        logging.getLogger("safechat.frontend").exception(
+            "failed to render page: %s", page
+        )
         st.error(
             "当前管理数据无法读取，请检查运行配置和审计日志。"
-            f"（{type(exc).__name__}）"
+            f"（{type(exc).__name__}: {exc}）"
         )
 
     _render_sidebar_status(snapshot, health_snapshot)

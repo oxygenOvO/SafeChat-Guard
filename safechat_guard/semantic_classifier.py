@@ -1,3 +1,20 @@
+"""语义风险分类器——输入检测链路的第三层（可降级）。
+
+使用自建语料训练的 TF-IDF + LogisticRegression 轻量模型（joblib 序列化），
+对归一化后的文本输出五个类别的概率：normal / ad / porn / violence / sensitive。
+
+生产判定不是"取最大概率"这么简单，而是经过一个明确的语义门禁
+（select_risk_prediction）：
+1. top 类别必须是风险类（normal 直接放行）；
+2. top 概率必须超过该类别的独立阈值（category_thresholds）；
+3. top 与 normal 的概率差必须超过最小间隔（min_margin），避免模糊判定；
+4. 命中"安全语境"（如医疗、法律、教育场景）时不产生风险检测，
+   防止科普/教学内容被误伤。
+
+模型文件缺失、哈希校验失败或 joblib 未安装时自动降级：
+``score_text`` 返回 loaded=False，规则链路继续运行，不影响可用性。
+"""
+
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
@@ -141,6 +158,7 @@ class SemanticClassifier:
             return None
 
     def _is_protected_safety_context(self, text: str) -> bool:
+        """判断是否属于受保护的 安全/教育/法律 语境（防误伤科普与教学内容）。"""
         if self._safety_router is None:
             return False
         result = self._safety_router.route(text, text, [], [])
@@ -153,6 +171,7 @@ class SemanticClassifier:
         )
 
     def status(self) -> dict[str, Any]:
+        """返回模型加载状态、哈希校验结果、类别阈值等运行时元数据。"""
         return {
             "enabled": self.model is not None,
             "loaded": self.model is not None,
@@ -173,7 +192,13 @@ class SemanticClassifier:
         }
 
     def score_text(self, text: str) -> dict[str, Any]:
-        """Expose real probabilities through the shared production gate."""
+        """对文本执行完整语义评分，返回五类概率与门禁判定详情。
+
+        返回字段：scores（各类概率）、top_category/top_score、normal_score、
+        selected_category/selected_score（通过门禁的风险判定，可能为 None）、
+        protected_context（是否命中安全语境）、threshold 等。
+        模型未加载时返回 loaded=False 的空结果（不抛异常，支持降级）。
+        """
         if not isinstance(text, str):
             raise TypeError("text must be a string")
         if self.model is None:
@@ -211,8 +236,13 @@ class SemanticClassifier:
             "protected_context": protected_context, "error": None,
         }
 
-    def detect(self, text: str) -> list[Detection]:
-        scored = self.score_text(text)
+    def detect(self, text: str, scored: dict[str, Any] | None = None) -> list[Detection]:
+        """把语义评分结果转换为 Detection（命中时恰有一个，未过门禁返回空列表）。
+
+        scored 参数允许传入 score_text 的已有结果，避免重复推理。
+        Detection 分数由类别基础分结合置信度微调（>0.85 加分，<0.6 减分）。
+        """
+        scored = scored if scored is not None else self.score_text(text)
         label = scored["selected_category"]
         probability = scored["selected_score"]
         if label is None or probability is None:

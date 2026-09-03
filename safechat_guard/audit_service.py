@@ -1,4 +1,8 @@
-"""Privacy-preserving read model for SafeChat audit events."""
+"""审计事件的隐私安全读取模型（管理页"安全日志"数据源）。
+
+导出字段 AUDIT_EXPORT_FIELDS 刻意不包含任何文本内容——
+审计查询与导出天生只含元数据（时间/动作/类别/延迟等），原文不可达。
+"""
 
 from __future__ import annotations
 
@@ -39,6 +43,7 @@ class AuditService:
         categories: Iterable[str] | None = None,
         providers: Iterable[str] | None = None,
     ) -> list[dict[str, Any]]:
+        """查询脱敏审计摘要：按日期区间、最终动作、类别、Provider 过滤，倒序返回。"""
         action_filter = set(actions or ())
         category_filter = set(categories or ())
         provider_filter = set(providers or ())
@@ -62,10 +67,12 @@ class AuditService:
         return sorted(rows, key=lambda item: item["time"], reverse=True)
 
     def recent(self, limit: int = 8) -> list[dict[str, Any]]:
+        """最近 limit 条审计摘要（总览页"最近请求"用）。"""
         return self.records()[: max(0, int(limit))]
 
     @staticmethod
     def to_csv(records: list[dict[str, Any]]) -> bytes:
+        """审计记录导出 CSV（UTF-8 BOM）；仅导出白名单字段。"""
         buffer = io.StringIO(newline="")
         writer = csv.DictWriter(buffer, fieldnames=AUDIT_EXPORT_FIELDS, extrasaction="ignore")
         writer.writeheader()

@@ -1,3 +1,22 @@
+"""输出侧二次校验（OutputGuard）——大模型回复的安全闸门。
+
+模型返回的文本并不天然可信（可能包含违规内容或隐私泄露），
+本模块对模型原始输出执行独立的复检链路：
+
+1. 隐私掩码（mask_sensitive_info）：用预编译正则把手机号、邮箱、身份证、
+   银行卡、链接、IP、微信号、QQ、地址等替换为 ``[手机号]`` 等占位符；
+2. 高危词检测（detect_extra_high_risk）：对去空白压缩后的文本匹配
+   EXTRA_HIGH_RISK 词库，命中即 90 分高风险；
+3. 结合输入检测传入的 detections，按 80/40 双阈值决策：
+   - risk_score >= block_threshold(80) → block，返回类别化拒绝话术；
+   - risk_score >= sanitize_threshold(40) 或存在隐私掩码 → sanitize，
+     把具体违禁词替换为 ``[已过滤:类别]``；无具体可替换词时退回通用安全提示；
+   - 否则 pass，原文放行。
+
+注意：输出侧不把结果重新送入 ActionRouter，阈值体系（80/40）与
+输入侧 ActionRouter 配置相互独立，避免两侧策略耦合。
+"""
+
 import re
 from dataclasses import asdict
 from typing import Any
@@ -41,6 +60,14 @@ PRIVACY_PATTERNS: list[tuple[str, re.Pattern[str], str]] = [
     ("qq", re.compile(r"QQ[:： ]?[1-9]\d{4,11}", re.I), "[QQ号]"),
 ]
 
+_ADDRESS_PATTERN = re.compile(
+    r"(?:"
+    r"(?:(?:[\u4e00-\u9fff]{2,}(?:\u7701|\u81ea\u6cbb\u533a|\u5e02|\u81ea\u6cbb\u5dde|\u53bf|\u533a)){1,3}[\u4e00-\u9fffA-Za-z0-9]{0,20}(?:\u8def|\u8857|\u5df7|\u8857\u9053|\u5c0f\u533a|\u697c|\u5355\u5143)?\d+(?:\u53f7|\u5ba4)?)"
+    r"|(?:[\u4e00-\u9fff]{2,}(?:\u8def|\u8857|\u5df7|\u8857\u9053)\d+(?:\u53f7|\u5f04)?)"
+    r"|(?:[\u4e00-\u9fff]{2,}\u5c0f\u533a(?:\d+\u53f7?)?(?:\d+\u680b)?(?:\d+\u5355\u5143)?(?:\d+\u5ba4)?)"
+    r")"
+)
+
 
 EXTRA_HIGH_RISK = {
     "porn": ["约炮", "裸聊", "卖淫", "嫖娼"],
@@ -60,6 +87,19 @@ class OutputGuard:
         self.sanitize_threshold = sanitize_threshold
 
     def process(self, raw_output: str, normalized_text: str, detections: list[Detection]) -> dict[str, Any]:
+        """输出复检主入口。
+
+        参数：
+            raw_output: 模型原始回复；
+            normalized_text: 归一化后的文本（用于高危词匹配）；
+            detections: 输入侧传递下来的检测（如语义命中），与输出侧证据合并评分。
+
+        决策规则：
+            风险分 >= block 阈值(80) → 拦截，返回类别化拒绝话术；
+            风险分 >= sanitize 阈值(40) 或存在隐私掩码 → 脱敏改写
+            （无具体可替换词时退回通用安全提示，绝不回显风险原文）；
+            否则放行原文。
+        """
         raw_output = raw_output or ""
         normalized_text = normalized_text or raw_output
         all_detections = list(detections)
@@ -108,22 +148,20 @@ class OutputGuard:
         }
 
     def mask_sensitive_info(self, text: str) -> tuple[str, list[Detection]]:
+        """掩码文本中的个人隐私字段（手机号/邮箱/证件/银行卡/链接/IP/社交账号/地址）。
+
+        返回 (掩码后文本, 隐私 Detection 列表)；每类命中字段记入 matches。
+        即使无其他风险，存在隐私掩码也足以触发 sanitize 动作。
+        """
         masked = text
         matches: list[str] = []
         for name, pattern, replacement in PRIVACY_PATTERNS:
             if pattern.search(masked):
                 matches.append(name)
                 masked = pattern.sub(replacement, masked)
-        address_pattern = re.compile(
-            r"(?:"
-            r"(?:(?:[\u4e00-\u9fff]{2,}(?:\u7701|\u81ea\u6cbb\u533a|\u5e02|\u81ea\u6cbb\u5dde|\u53bf|\u533a)){1,3}[\u4e00-\u9fffA-Za-z0-9]{0,20}(?:\u8def|\u8857|\u5df7|\u8857\u9053|\u5c0f\u533a|\u697c|\u5355\u5143)?\d+(?:\u53f7|\u5ba4)?)"
-            r"|(?:[\u4e00-\u9fff]{2,}(?:\u8def|\u8857|\u5df7|\u8857\u9053)\d+(?:\u53f7|\u5f04)?)"
-            r"|(?:[\u4e00-\u9fff]{2,}\u5c0f\u533a(?:\d+\u53f7?)?(?:\d+\u680b)?(?:\d+\u5355\u5143)?(?:\d+\u5ba4)?)"
-            r")"
-        )
-        if address_pattern.search(masked):
+        if _ADDRESS_PATTERN.search(masked):
             matches.append("address")
-            masked = address_pattern.sub("[地址]", masked)
+            masked = _ADDRESS_PATTERN.sub("[地址]", masked)
         if not matches:
             return masked, []
         return masked, [
@@ -138,6 +176,10 @@ class OutputGuard:
         ]
 
     def detect_extra_high_risk(self, text: str) -> list[Detection]:
+        """高危词库检测：命中即 90 分（直接达到 block 阈值）。
+
+        匹配前先去空白并转小写，防止用空格/大小写变体绕过。
+        """
         detections: list[Detection] = []
         compact = re.sub(r"\s+", "", text).lower()
         for category, words in EXTRA_HIGH_RISK.items():
@@ -156,6 +198,12 @@ class OutputGuard:
         return detections
 
     def _sanitize_output(self, text: str, detections: list[Detection]) -> str:
+        """执行脱敏改写：把具体违禁词替换为 [已过滤:类别] 占位。
+
+        只替换"词形命中"（关键词/短语/高危词）；正则类命中的内容已由
+        掩码阶段处理，语义类命中没有具体词形可替换——因此本方法可能
+        返回与原文相同的文本，调用方据此回退到通用安全提示。
+        """
         sanitized = text
         for detection in detections:
             label = CATEGORY_LABELS.get(detection.category, detection.category)
@@ -168,6 +216,7 @@ class OutputGuard:
         return sanitized
 
     def _matched_rules(self, detections: list[Detection]) -> list[dict[str, Any]]:
+        """把命中检测展开为规则级明细（类别/分数/来源/命中词），供审计与前端展示。"""
         rules = []
         for detection in detections:
             for match in detection.matches:
@@ -185,6 +234,7 @@ class OutputGuard:
         return rules
 
     def _refusal(self, categories: list[str]) -> str:
+        """按风险类别选择标准拒绝话术；多类别用 mixed 话术。"""
         if len(categories) > 1:
             return STANDARD_RESPONSES["mixed"]
         if not categories:
@@ -192,6 +242,7 @@ class OutputGuard:
         return STANDARD_RESPONSES.get(categories[0], STANDARD_RESPONSES["mixed"])
 
     def _risk_level(self, score: int) -> str:
+        """分数 → 等级映射：>=block 为 high，>=sanitize 为 medium，>0 为 low。"""
         if score >= self.block_threshold:
             return "high"
         if score >= self.sanitize_threshold:

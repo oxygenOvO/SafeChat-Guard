@@ -1,3 +1,14 @@
+"""决策解释服务：把一次真实的 Pipeline 结果还原成人类可读的决策链。
+
+原则是"解释即证据"：优先消费输入结果中已保存的归一化文本、语义分数
+（semantic_explanation）、规则命中与动作路由结论，只做组装不做二次推理，
+确保解释与真实决策完全一致；仅在证据缺失时（如旧结果或手工构造的
+输入）才补跑归一化/语义评分。
+
+同时提供 ``explain_audit_record``：对历史审计摘要的解释——审计日志只存
+脱敏字段，因此历史解释显式标注 [NOT STORED]，绝不尝试还原原文。
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -18,6 +29,13 @@ class DecisionExplanationService:
         provider: str = "not_called",
         model: str = "not_called",
     ) -> dict[str, Any]:
+        """把一次 Pipeline 结果解释为决策链视图。
+
+        result 传 None 时自动跑一次 detect_text；传 handle_chat 完整结果时
+        自动提取 input_filter/output_filter 并关联 request_id/provider/model。
+        归一化轨迹会重跑一次以获得逐步 steps（生产证据优先用于
+        normalized_text 与语义分数），保证解释与真实决策一致。
+        """
         if not isinstance(text, str):
             raise TypeError("text must be a string")
         input_result = result or self.pipeline.detect_text(text)
@@ -126,7 +144,7 @@ class DecisionExplanationService:
 
     @staticmethod
     def explain_audit_record(record: dict[str, Any]) -> dict[str, Any]:
-        """Explain only persisted summary fields; never reconstruct sensitive text."""
+        """解释历史审计摘要：只使用持久化的脱敏字段，原文一律 [NOT STORED]。"""
         return {
             "request_id": record.get("request_id", "unavailable"),
             "provider": record.get("provider", "unknown"),

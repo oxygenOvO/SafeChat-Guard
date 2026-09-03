@@ -1,3 +1,19 @@
+"""JSONL 审计日志与统计模块。
+
+审计日志是本系统的"黑匣子"：每次请求按 输入检测 → 模型输出复检 → 最终动作
+三个阶段分别写入事件，事件之间通过 request_id 关联。
+
+核心安全约束：
+- 所有敏感字段（用户输入、模型原文、脱敏文本、命中词等）在写入前统一
+  替换为占位符（见 SENSITIVE_FIELDS），日志中永远不出现原文与密钥；
+- 写入与统计读取共用一把 RLock，保证 ThreadingHTTPServer 多线程下
+  JSONL 行完整性；
+- 支持按大小轮转（max_bytes/backup_count）与保留天数清理。
+
+对外的 ``stats()`` / ``daily_stats()`` 基于全量日志实时聚合，
+是管理控制台"安全日志/风险统计"页面的数据来源。
+"""
+
 import json
 import threading
 import time
@@ -9,6 +25,8 @@ from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
+# 写入日志前需要被脱敏的字段名集合：任何出现在事件里的同名键，
+# 其值都会被替换为固定占位符，确保原文/密钥永不落盘。
 SENSITIVE_FIELDS = {
     "input",
     "input_text",
@@ -40,6 +58,8 @@ SENSITIVE_FIELDS = {
 
 
 class EventLogger:
+    """JSONL 审计日志器：脱敏写入、大小轮转、按天过期、线程安全统计。"""
+
     def __init__(
         self,
         path: str,
@@ -55,6 +75,10 @@ class EventLogger:
         self.path.parent.mkdir(parents=True, exist_ok=True)
 
     def write(self, event: dict[str, Any]) -> None:
+        """写入一条审计事件：先整树脱敏 → 按需轮转/过期清理 → 追加一行 JSONL。
+
+        全程持锁，保证多线程下行完整性与读写互斥。
+        """
         safe_event = self._redact_event(event)
         safe_event = {"time": datetime.now(timezone.utc).isoformat(), **safe_event}
         line = json.dumps(safe_event, ensure_ascii=False) + "\n"
@@ -67,6 +91,7 @@ class EventLogger:
 
     @classmethod
     def _redact_event(cls, value: Any, field: str | None = None) -> Any:
+        """递归脱敏：SENSITIVE_FIELDS 中的字段值替换为 [REDACTED]（列表保空非空）。"""
         if isinstance(field, str) and field.casefold() in SENSITIVE_FIELDS:
             if value is None:
                 return None
@@ -80,6 +105,11 @@ class EventLogger:
         return value
 
     def read_all(self, since: datetime | None = None) -> list[dict[str, Any]]:
+        """读取全部留存日志文件的事件（可按时间过滤）；坏行跳过并告警。
+
+        注意：全量读入内存且持锁执行，统计期间会阻塞写入——
+        日志很大时统计接口会变慢，属当前设计的已知权衡。
+        """
         events = []
         with self._lock:
             self._prune_expired()
@@ -111,6 +141,7 @@ class EventLogger:
         return events
 
     def stats(self, since: datetime | None = None) -> dict[str, Any]:
+        """全量统计：总数、拦截/改写数、类别/等级/动作/阶段分布、规则与语义命中数。"""
         events = self.read_all(since=since)
         category_counter: Counter[str] = Counter()
         detection_category_counter: Counter[str] = Counter()
@@ -221,14 +252,16 @@ class EventLogger:
         end_date: str | None = None,
         timezone_name: str | None = None,
     ) -> dict[str, Any]:
-        """Aggregate only request_summary events into request-level metrics."""
+        """请求级每日统计：只聚合 request_summary 事件（管理页"风险统计"数据源）。"""
         return request_summary_statistics(
             self.read_all(),
             start_date=start_date,
             end_date=end_date,
             timezone_name=timezone_name,
         )
+
     def _rotate_if_needed(self, incoming_bytes: int) -> None:
+        """日志超过 max_bytes 时按 backup_count 轮转（.1 ← 当前，依次后移）。"""
         if not self.max_bytes or not self.path.exists():
             return
         if self.path.stat().st_size + incoming_bytes <= self.max_bytes:

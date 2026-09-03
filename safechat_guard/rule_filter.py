@@ -1,3 +1,18 @@
+"""关键词/正则规则过滤器——输入检测链路的第二层。
+
+在归一化之后的文本上执行两类检测：
+1. 关键词检测：加载 ``data/lexicons/`` 下的分类词库（ porn/violence/ad/sensitive 等），
+   直接子串匹配，命中即产出 Detection（不同类别对应不同风险分）；
+2. 正则规则检测：加载 ``data/rules/regex_rules.json`` 的结构化正则规则。
+
+同时承载"用户自定义规则 overlay"：用户通过管理接口添加的规则会作为
+Detection 子类（_UserOverlayDetection）注入检测结果，携带可信元数据
+（规则ID、配置动作、版本号），由 Pipeline 在路由前做可信校验——
+用户 block 规则可以直接拦截，无需经过 ActionRouter 重新评估。
+
+线程安全：内部使用 RLock 保护用户规则热更新，更新通过签名比对判断是否需要重载。
+"""
+
 import json
 import re
 import threading
@@ -8,6 +23,8 @@ from .action_router import ActionRouter
 from .models import Detection
 from .rule_manager import RuleManager, RuleManagerError, RuleValidationError
 
+# 上下文相关的"包含式脱敏"例外：某些敏感类关键词命中后，
+# 其子串类别可以被合并处理，避免重复/冲突的脱敏动作。
 _CONTEXTUAL_SANITIZE_SUBSUMED_KEYWORDS = {
     "sensitive": {
         "porn": frozenset({"性伴侣"}),
@@ -16,6 +33,13 @@ _CONTEXTUAL_SANITIZE_SUBSUMED_KEYWORDS = {
 
 
 class _UserOverlayDetection(Detection):
+    """用户自定义规则命中的检测结果。
+
+    继承 Detection 并以 __slots__ 附加可信元数据：所属令牌（owner_token，
+    用于防止跨 RuleFilter 实例伪造）、规则 ID、配置动作与规则版本。
+    Pipeline 通过这些元数据实现"用户 block 规则可信直拦"。
+    """
+
     __slots__ = (
         "_owner_token",
         "_rule_id",
@@ -49,6 +73,13 @@ class _UserOverlayDetection(Detection):
         self._rule_revision = rule_revision
 
 class RuleFilter:
+    """关键词 + 正则 + 用户 overlay 的规则检测器。
+
+    构造时加载内置词库（lexicon_dir 下每个 .txt 文件一个类别）与正则规则
+    （加载时预编译并丢弃非法正则），可选加载通用路由器提供"通用策略检测"。
+    用户规则经 RuleManager 读取，热更新通过文件签名（mtime+size）比对触发。
+    """
+
     def __init__(
         self,
         lexicon_dir: str,
@@ -193,6 +224,7 @@ class RuleFilter:
         return bool(matches) and set(matches).issubset(allowed)
 
     def reload_if_changed(self) -> bool:
+        """检测用户规则文件签名（mtime+size）变化，变化则触发热重载。"""
         if self.rule_manager is None or self._reload_blocked:
             return False
         try:
@@ -206,7 +238,7 @@ class RuleFilter:
         return self.reload_user_rules()
 
     def reload_user_rules(self, *, force: bool = False) -> bool:
-        """Swap in a validated overlay, retaining the last good copy on error."""
+        """重载用户规则 overlay：校验通过才原子换入，失败保留上一份可用副本。"""
         if self.rule_manager is None or (self._reload_blocked and not force):
             return False
         try:
@@ -230,6 +262,7 @@ class RuleFilter:
     def validate_candidate_rules(
         self, rules: list[dict[str, Any]], revision: int
     ) -> None:
+        """校验候选规则集可编译（RuleManager 事务落盘前的守门检查）。"""
         if isinstance(revision, bool) or not isinstance(revision, int) or revision < 0:
             raise RuleValidationError("candidate revision must be a non-negative integer")
         enabled = [rule for rule in rules if rule.get("enabled") is True]
@@ -293,16 +326,25 @@ class RuleFilter:
         return True
 
     def enter_degraded_mode(self) -> None:
+        """进入降级保护：回滚失败后冻结规则热重载，保留最后可信的内存规则。"""
         with self._lock:
             self._reload_blocked = True
             self.reload_error_code = "USER_RULE_TRANSACTION_DEGRADED"
+
     def is_user_overlay_detection(self, detection: Detection) -> bool:
+        """判断是否为本过滤器发出的用户 overlay 命中（令牌比对，防跨实例伪造）。"""
         return (
             type(detection) is _UserOverlayDetection
             and detection._owner_token is self._overlay_token
         )
+
     def user_overlay_metadata(self, detection: Detection) -> dict[str, Any] | None:
-        """Return trusted metadata only for this filter's active overlay snapshot."""
+        """返回 overlay 命中的可信元数据；仅当规则仍在当前激活快照中有效。
+
+        Pipeline 在路由前调用本方法：只有这里返回 configured_action=block
+        的命中才会被可信直拦——伪造的 Detection 因令牌/版本校验不通过
+        拿不到元数据，无法触发直拦。
+        """
         if not self.is_user_overlay_detection(detection):
             return None
         with self._lock:
@@ -322,6 +364,12 @@ class RuleFilter:
             "rule_revision": detection._rule_revision,
         }
     def detect(self, text: str) -> list[Detection]:
+        """对文本执行全部规则检测（每次调用前先检查用户规则热更新）。
+
+        流程：通用策略路由（命中安全语境时跳过普通词库误报）→
+        内置关键词（porn/violence 80 分高危，其余 55 分）→
+        内置正则（预编译，IGNORECASE）→ 用户 overlay（持锁读取匹配器）。
+        """
         self.reload_if_changed()
         detections: list[Detection] = []
         policy_result, protected = self._generalized_policy(text)

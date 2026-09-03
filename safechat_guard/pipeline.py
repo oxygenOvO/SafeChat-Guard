@@ -1,3 +1,20 @@
+"""SafeChatPipeline——系统的主流程编排器。
+
+一次完整的对话请求（handle_chat）依次经过：
+
+1. 输入检测（_filter_text）：
+   对抗归一化 → 关键词/正则/语义三层检测 → V2/V3 动作路由 →
+   高风险直接拦截（不调模型）；中风险脱敏改写后重扫复检，
+   复检不通过则升级为拦截。
+2. 模型调用：只把脱敏后的消息（及可选的多轮历史）发给 LLM；
+   调用失败返回安全的 llm_unavailable 兜底回复（Fail-Closed）。
+3. 输出复检（_filter_output）：OutputGuard 对模型原文再次扫描，
+   拦截或掩码改写后;才把最终文本返回给用户。
+
+全程通过 EventLogger 分阶段写入脱敏审计事件（request_id 关联），
+用户输入、模型原文、最终文本统一脱敏后落盘。
+"""
+
 from __future__ import annotations
 
 import json
@@ -23,11 +40,37 @@ from .semantic_config import (
 )
 
 
+def _accepts_scored_kwarg(method) -> bool:
+    import inspect
+
+    try:
+        parameters = inspect.signature(method).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(
+        parameter.name == "scored" or parameter.kind is parameter.VAR_KEYWORD
+        for parameter in parameters
+    )
+
+
+MAX_HISTORY_TURNS = 20
+VALID_HISTORY_ROLES = frozenset({"user", "assistant"})
+
+
 class SafeChatPipeline:
+    """安全检测主管线：组装归一化、规则、语义、路由、脱敏、LLM 与输出复检。
+
+    所有组件在构造时一次性初始化；语义分类器缺失时自动降级（除非
+    ``semantic.required=true`` 强制失败）；V2/V3 路由器加载失败同样
+    降级并记录错误码（action_router_error_code / action_router_v3_error_code），
+    由健康检查与 Fail-Closed 逻辑消费。
+    """
+
     def __init__(self, config: dict, *, project_root: str | Path | None = None):
         self.config = config
         self.project_root = Path(project_root or Path.cwd()).resolve()
         self.package_root = Path(__file__).resolve().parent.parent
+        # 归一化器：同音/Emoji 映射表位于包内 data/maps/
         self.normalizer = TextNormalizer(
             str(self.package_root / "data/maps/homophone_map.json"),
             str(self.package_root / "data/maps/emoji_map.json"),
@@ -81,8 +124,13 @@ class SafeChatPipeline:
         self.action_router_error_code = None
         try:
             self.action_router = ActionRouter(self._resolve_action_rules_path())
-        except Exception:
+        except Exception as exc:
             self.action_router_error_code = "ROUTER_UNAVAILABLE"
+            warnings.warn(
+                f"action router unavailable: {exc}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
         self.action_router_v3 = None
         self.action_router_v3_error_code = None
         action_v3_options = config.get("action_v3", {})
@@ -110,6 +158,7 @@ class SafeChatPipeline:
 
     @classmethod
     def from_config(cls, path: str):
+        """从配置文件路径构建管线（配置解析以文件所在目录为项目根）。"""
         config_path = Path(path).resolve()
         with config_path.open("r", encoding="utf-8-sig") as file:
             return cls(json.load(file), project_root=config_path.parent)
@@ -119,15 +168,34 @@ class SafeChatPipeline:
         message: str,
         raw_reply_override: str | None = None,
         persist: bool = True,
+        history: list[dict[str, str]] | None = None,
     ) -> dict:
+        """安全对话的唯一公共入口。
+
+        参数：
+            message: 用户本轮输入（将经过完整输入检测链路）；
+            raw_reply_override: 跳过真实模型、直接指定模型原文（仅测试/演示用）；
+            persist: 是否写入审计日志；
+            history: 可选多轮对话历史（最多保留最近 MAX_HISTORY_TURNS 条），
+                仅包含 user/assistant 消息；历史内容均为已通过双向检测的内容。
+
+        返回包含 input_filter / output_filter / final_action /
+        model_forwarded / request_id 等字段的完整结果字典。
+        """
         started = time.perf_counter()
         if not isinstance(message, str):
             raise TypeError("message must be a string")
         if raw_reply_override is not None and not isinstance(raw_reply_override, str):
             raise TypeError("raw_reply_override must be a string or None")
+        chat_history = self._normalize_history(history)
         try:
             llm_status = self.llm.status()
-        except Exception:
+        except Exception as exc:
+            warnings.warn(
+                f"llm status check failed: {exc}",
+                RuntimeWarning,
+                stacklevel=2,
+            )
             llm_status = {}
         audit_context = {
             "request_id": uuid.uuid4().hex,
@@ -190,13 +258,15 @@ class SafeChatPipeline:
             if raw_reply_override is not None:
                 raw_reply = raw_reply_override
             else:
-                try:
-                    raw_reply = self.llm.chat(safe_message)
-                except LLMClientError:
-                    model_forwarded = True
-                    raise
+                model_forwarded = True
+                if chat_history:
+                    request_messages = [
+                        *chat_history,
+                        {"role": "user", "content": safe_message},
+                    ]
+                    raw_reply = self.llm.chat(request_messages)
                 else:
-                    model_forwarded = True
+                    raw_reply = self.llm.chat(safe_message)
         except LLMClientError:
             input_result["model_forwarded"] = model_forwarded
             result = {
@@ -287,17 +357,59 @@ class SafeChatPipeline:
         )
 
     def detect_text(self, text: str) -> dict:
+        """仅执行输入检测链路（不调用模型），供 /api/detect 与评测使用。"""
         return self._filter_text(text, stage="detect")
 
+    @staticmethod
+    def _normalize_history(
+        history: list[dict[str, str]] | None,
+    ) -> list[dict[str, str]]:
+        """校验并截断可选的对话历史。
+
+        规则：只能是 user/assistant 消息；内容必须是非空字符串；
+        超过 MAX_HISTORY_TURNS 条时只保留最近的记录。
+        不合法直接抛 ValueError（API 层映射为 422）。
+        """
+        if history is None:
+            return []
+        if not isinstance(history, list):
+            raise ValueError("history must be a list of message objects")
+        if len(history) > MAX_HISTORY_TURNS:
+            history = history[-MAX_HISTORY_TURNS:]
+        normalized: list[dict[str, str]] = []
+        for index, item in enumerate(history):
+            if not isinstance(item, dict):
+                raise ValueError(f"history item {index} must be an object")
+            role = item.get("role")
+            content = item.get("content")
+            if role not in VALID_HISTORY_ROLES:
+                raise ValueError(
+                    f"history item {index} role must be 'user' or 'assistant'"
+                )
+            if not isinstance(content, str) or not content.strip():
+                raise ValueError(f"history item {index} content must be a non-empty string")
+            normalized.append({"role": role, "content": content})
+        return normalized
+
     def _scan_text(self, text: str) -> tuple[str, list]:
-        normalized, rule_detections, semantic_detections = (
+        """便捷扫描：三层扫描后返回 (归一化文本, 去重后的全部命中)。"""
+        normalized, rule_detections, semantic_detections, _semantic_scores = (
             self._scan_text_layers(text)
         )
         return normalized, self._deduplicate_detections(
             [*rule_detections, *semantic_detections]
         )
 
-    def _scan_text_layers(self, text: str) -> tuple[str, list, list]:
+    def _scan_text_layers(
+        self, text: str
+    ) -> tuple[str, list, list, dict | None]:
+        """单文本三层扫描：归一化 → 规则检测 → 语义检测。
+
+        返回 (归一化文本, 规则命中列表, 语义命中列表, 语义分数详情)。
+        语义分数详情（score_text 的原始输出）随检测结果一起返回，
+        供决策解释服务消费，避免解释阶段重复推理。
+        对缺少 score_text 接口的测试替身自动降级为只调 detect()。
+        """
         view_builder = getattr(self.normalizer, "normalize_views", None)
         if callable(view_builder):
             views = view_builder(text)
@@ -307,10 +419,26 @@ class SafeChatPipeline:
             normalized = self.normalizer.normalize(text)
             adversarial = normalized
         rule_detections = self.rule_filter.detect(adversarial)
-        semantic_detections = self.semantic_classifier.detect(normalized)
-        return normalized, rule_detections, semantic_detections
+        score_reader = getattr(self.semantic_classifier, "score_text", None)
+        if callable(score_reader):
+            semantic_scores = score_reader(normalized)
+        else:
+            semantic_scores = None
+        detect_method = self.semantic_classifier.detect
+        if semantic_scores is not None and _accepts_scored_kwarg(detect_method):
+            semantic_detections = detect_method(
+                normalized, scored=semantic_scores
+            )
+        else:
+            semantic_detections = detect_method(normalized)
+        return normalized, rule_detections, semantic_detections, semantic_scores
 
     def _filter_output(self, text: str) -> dict:
+        """输出侧复检：OutputGuard 扫描 + 改写后再复检。
+
+        sanitize 改写完成后会对改写文本再跑一次完整扫描与 OutputGuard，
+        若复检仍有风险则升级为拦截并返回类别化拒绝话术。
+        """
         if not isinstance(text, str):
             raise TypeError("output text must be a string")
         normalized, detections = self._scan_text(text)
@@ -347,10 +475,17 @@ class SafeChatPipeline:
         return result
 
     def _filter_text(self, text: str, stage: str) -> dict:
+        """输入侧完整检测链路（含脱敏改写与复检）。
+
+        流程：三层扫描 → 动作路由 → 显式硬拦升级 →
+        若动作为 sanitize：脱敏改写（改写失败/为空/无变化都安全降级为 block），
+        改写成功后对新文本重扫+重路由复检，复检 pass 才放行改写文本。
+        返回的字典会进入审计日志（敏感字段由 logger 统一脱敏）。
+        """
         started = time.perf_counter()
         if not isinstance(text, str):
             raise TypeError("text must be a string")
-        normalized, rule_detections, semantic_detections = (
+        normalized, rule_detections, semantic_detections, semantic_scores = (
             self._scan_text_layers(text)
         )
         detections = self._deduplicate_detections(
@@ -430,6 +565,7 @@ class SafeChatPipeline:
                             re_normalized,
                             re_rule_detections,
                             re_semantic_detections,
+                            _re_semantic_scores,
                         ) = self._scan_text_layers(rewritten)
                         re_detections = self._deduplicate_detections(
                             [*re_rule_detections, *re_semantic_detections]
@@ -515,6 +651,7 @@ class SafeChatPipeline:
             "recheck_action": recheck_action,
             "rewrite_recheck": rewrite_recheck,
             "detections": self._serialize_detections(detections),
+            "semantic_explanation": semantic_scores,
             "semantic_model_status": self._semantic_model_status(),
             "fallback_used": fallback_used,
             "model_forwarded": False,
@@ -528,6 +665,11 @@ class SafeChatPipeline:
         rule_detections: list,
         semantic_detections: list,
     ) -> tuple[dict, bool]:
+        """动作路由总入口：V2 路由为基础，V3 启用时做证据增强叠加。
+
+        返回 (路由结果, 是否使用了降级路径)。V3 路由异常时：
+        required=true 返回 Fail-Closed 拦截结果；否则回退 V2 结果。
+        """
         routed, fallback_used = self._route_with_user_overlay_guard(
             original_text,
             normalized_text,
@@ -562,6 +704,13 @@ class SafeChatPipeline:
         rule_detections: list,
         semantic_detections: list,
     ) -> tuple[dict, bool]:
+        """用户可信 block 规则前置守卫。
+
+        命中用户 overlay 的 block 规则时，直接生成硬拦截结果
+        （reason_codes=USER_RULE_BLOCK），不进入 ActionRouter 重新评估——
+        用户显式配置的拦截规则优先级最高，语义分数无法降级它。
+        其余情况交给 _route_input 正常路由。
+        """
         metadata_reader = getattr(self.rule_filter, "user_overlay_metadata", None)
         if not callable(metadata_reader):
             return self._route_input(
@@ -602,6 +751,7 @@ class SafeChatPipeline:
         )
 
     def _serialize_detections(self, detections: list) -> list[dict]:
+        """把 Detection 对象序列化为可入库的字典；用户 overlay 命中词脱敏。"""
         serialized = []
         overlay_checker = getattr(self.rule_filter, "is_user_overlay_detection", None)
         for detection in detections:
@@ -615,6 +765,12 @@ class SafeChatPipeline:
         routed: dict,
         rule_detections: list,
     ) -> bool:
+        """V2 时代的显式硬拦兼容判定。
+
+        当路由动作为 sanitize，但存在关键词/正则来源、分数达到 block 阈值的
+        高危命中（且不是语义证据触发）时，升级为硬拦截——保证历史版本中
+        "高分关键词必须拦"的语义在 V3 叠加下不被削弱。
+        """
         return (
             routed["action"] == "sanitize"
             and "SEMANTIC_RISK_EVIDENCE" not in routed.get("reason_codes", [])
@@ -668,6 +824,13 @@ class SafeChatPipeline:
         semantic_detections: list,
         reason_code: str,
     ) -> dict:
+        """路由器不可用时的 Fail-Closed 决策。
+
+        依据剩余证据保守决策：
+        - 无任何命中且语义模型也不可用 → 拦截（无法证明安全）；
+        - 无任何命中但语义可用 → 放行（有模型背书）；
+        - 有命中 → 以最高分命中拦截，显式高危规则命中标记 hard_block。
+        """
         detections = [*rule_detections, *semantic_detections]
         if not detections:
             semantic_available = self._semantic_model_status() == "loaded"
@@ -718,6 +881,7 @@ class SafeChatPipeline:
         }
 
     def _resolve_action_rules_path(self) -> Path:
+        """解析 V2 路由规则文件路径（配置可覆盖，默认包内 config/action_rules_v1.json）。"""
         configured = self.config.get("action_router", {}).get("rules_path")
         if configured:
             path = Path(configured)
@@ -725,6 +889,7 @@ class SafeChatPipeline:
         return (self.package_root / "config/action_rules_v1.json").resolve()
 
     def _semantic_model_status(self) -> str:
+        """语义模型状态摘要：loaded / unavailable。"""
         status = self.semantic_classifier.status()
         return "loaded" if status.get("loaded") else "unavailable"
 
@@ -739,6 +904,7 @@ class SafeChatPipeline:
         final_allowed: bool,
         started: float,
     ) -> dict:
+        """构造对外的公共结果字段（各分支结果 dict 的公共投影 + 耗时统计）。"""
         return {
             "action": input_result["action"],
             "final_action": final_action,
@@ -760,6 +926,7 @@ class SafeChatPipeline:
 
     @staticmethod
     def _final_action(input_action: str, output_action: str | None) -> str:
+        """汇总输入/输出两侧动作为最终动作：任一侧更严格则取更严格者。"""
         if input_action == "block" or output_action == "block":
             return "block"
         if input_action == "sanitize" or output_action == "sanitize":
@@ -775,6 +942,12 @@ class SafeChatPipeline:
         persist: bool,
         audit_context: dict,
     ) -> dict:
+        """请求收尾：补齐公共字段并写入 request_summary 汇总审计事件。
+
+        request_summary 是统计服务（stats/daily_stats/管理页总览）的
+        唯一数据源：每条持久化请求恰好对应一条汇总，包含最终动作、
+        风险类别/等级/分数、是否调模型、是否脱敏、耗时等聚合字段。
+        """
         result["latency_ms"] = max(
             0, round((time.perf_counter() - started) * 1000)
         )
@@ -826,6 +999,7 @@ class SafeChatPipeline:
         *,
         portable_paths: bool = False,
     ) -> dict:
+        """聚合日志统计并附加语义模型与 LLM 运行状态（管理页数据源）。"""
         stats = self.logger.stats(since=since)
         semantic_status = dict(self.semantic_classifier.status())
         semantic_status["required"] = self.semantic_required
@@ -841,6 +1015,8 @@ class SafeChatPipeline:
 
     @staticmethod
     def _public_output_result(result: dict) -> dict:
+        """输出结果的对外投影：pass 原样返回；有风险时原文相关字段全部置空、
+        命中词脱敏为 [REDACTED]，确保风险原文不离开服务端。"""
         if result.get("action") == "pass":
             return result
         public = dict(result)
@@ -857,6 +1033,7 @@ class SafeChatPipeline:
         return public
 
     def _portable_path(self, value: str) -> str:
+        """把绝对路径转为相对项目根的可移植路径（日志/对外展示用）。"""
         path = Path(value)
         try:
             return path.resolve().relative_to(self.project_root).as_posix()
@@ -864,27 +1041,20 @@ class SafeChatPipeline:
             return path.name
 
     def _write_event(self, event: dict, persist: bool) -> None:
+        """写入一条审计事件；写失败只告警不中断主流程（不改变安全响应）。"""
         if persist:
             try:
                 self.logger.write(event)
-            except Exception:
+            except Exception as exc:
                 warnings.warn(
-                    "audit event could not be persisted",
+                    f"audit event could not be persisted: {exc}",
                     RuntimeWarning,
                     stacklevel=2,
                 )
 
-    def _risk_level(self, score: int) -> str:
-        if score >= int(self.config["risk"].get("block_threshold", 80)):
-            return "high"
-        if score >= int(self.config["risk"].get("sanitize_threshold", 40)):
-            return "medium"
-        if score > 0:
-            return "low"
-        return "none"
-
     @staticmethod
     def _deduplicate_detections(detections: list) -> list:
+        """按 (类别, 来源, 命中词组) 去重，保留首次出现的检测。"""
         unique = []
         seen = set()
         for detection in detections:

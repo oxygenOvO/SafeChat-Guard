@@ -1,3 +1,18 @@
+"""V3 动作路由器——基于风险证据增强的最终动作决策。
+
+V3 不替换 V2 路由（action_router.py），而是在 V2 结果之上做"证据增强"：
+用轻量词表从文本中抽取多组风险证据（风险实体、操作意图、真实目标、
+执行条件、安全语境等），结合双模型（risk/block 两个 joblib 分类器）的
+分数与可配置阈值，对 V2 的动作做保留、升级或降级。
+
+核心思想：单看关键词分数容易误判，"实体 + 操作 + 目标"的局部共现
+（has_local_pair，默认窗口 36 字符）才更可信。例如"炸药"是风险实体，
+但配合"图书馆/博物馆"等安全语境或否定表达时应降级处理。
+
+阈值来自外部配置文件（config/action_thresholds_v3.json），
+模型文件带 SHA256 校验，加载失败时可配置为必需（required）或降级回 V2。
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -132,16 +147,29 @@ class RiskEvidenceExtractorV3:
     """Extract bounded, deduplicated evidence groups rather than sample rules."""
 
     @staticmethod
-    def _matches(text: str, terms: tuple[str, ...]) -> list[str]:
+    def _term_spans(text: str, term: str) -> list[int]:
+        starts = []
+        if not term:
+            return starts
+        index = text.find(term)
+        while index != -1:
+            starts.append(index)
+            index = text.find(term, index + 1)
+        return starts
+
+    @classmethod
+    def _matches(cls, text: str, terms: tuple[str, ...]) -> list[str]:
         return [term for term in terms if term in text]
 
     def extract(self, text: str) -> dict[str, list[str]]:
+        """抽取全部证据组（去重保序）：风险实体/操作意图/真实目标/执行条件等。"""
         return {
             group: list(dict.fromkeys(self._matches(text, terms)))
             for group, terms in _EVIDENCE_TERMS.items()
         }
 
     def infer_category(self, text: str, fallback: str = "normal") -> str:
+        """按词表命中次数推断最可能的风险类别（无命中返回 fallback）。"""
         counts = {
             category: sum(term in text for term in terms)
             for category, terms in _CATEGORY_TERMS.items()
@@ -149,25 +177,29 @@ class RiskEvidenceExtractorV3:
         best = max(counts, key=lambda category: (counts[category], -CATEGORIES.index(category)))
         return best if counts[best] else fallback
 
-    @staticmethod
+    @classmethod
     def has_local_pair(
+        cls,
         text: str,
         left_terms: list[str],
         right_terms: list[str],
         *,
         max_distance: int = 36,
     ) -> bool:
+        """判断左右两组词是否存在"局部共现"（任一对词条跨度 <= max_distance）。
+
+        这是 V3 的核心可信度信号：风险实体只有与操作意图/目标临近出现
+        才计为有效证据，避免"隔离段落里的无害词"被误判。
+        """
         left_spans = [
             (index, index + len(term))
             for term in left_terms
-            for index in range(len(text))
-            if text.startswith(term, index)
+            for index in cls._term_spans(text, term)
         ]
         right_spans = [
             (index, index + len(term))
             for term in right_terms
-            for index in range(len(text))
-            if text.startswith(term, index)
+            for index in cls._term_spans(text, term)
         ]
         return any(
             max(0, max(a_start, b_start) - min(a_end, b_end)) <= max_distance
@@ -175,16 +207,18 @@ class RiskEvidenceExtractorV3:
             for b_start, b_end in right_spans
         )
 
-    @staticmethod
+    @classmethod
     def active_operation_terms(
-        text: str, operation_terms: list[str], *, negation_window: int = 8
+        cls,
+        text: str,
+        operation_terms: list[str],
+        *,
+        negation_window: int = 8,
     ) -> list[str]:
+        """筛出"有效"的操作词：前 negation_window 个字符内出现否定词的剔除。"""
         active = []
         for term in operation_terms:
-            starts = [
-                index for index in range(len(text))
-                if text.startswith(term, index)
-            ]
+            starts = cls._term_spans(text, term)
             if any(
                 not any(
                     negation in text[max(0, index - negation_window):index]
@@ -194,6 +228,9 @@ class RiskEvidenceExtractorV3:
             ):
                 active.append(term)
         return active
+
+
+_EVIDENCE_EXTRACTOR = RiskEvidenceExtractorV3()
 
 
 class ActionRouterV3:
@@ -206,12 +243,13 @@ class ActionRouterV3:
             raise RuntimeError(models.error or "V3 action models unavailable")
         self.models = models
         self.thresholds = thresholds
-        self.extractor = RiskEvidenceExtractorV3()
+        self.extractor = _EVIDENCE_EXTRACTOR
 
     @classmethod
     def from_config(
         cls, project_root: str | Path, threshold_path: str | Path
     ) -> "ActionRouterV3":
+        """从阈值配置构建路由器：加载阈值并校验双模型 SHA256 后实例化。"""
         root = Path(project_root)
         threshold_file = Path(threshold_path)
         if not threshold_file.is_absolute():
@@ -229,7 +267,12 @@ class ActionRouterV3:
 
     @staticmethod
     def _unsafe_intent(text: str, evidence: dict[str, list[str]]) -> bool:
-        extractor = RiskEvidenceExtractorV3()
+        """判定是否存在"不安全意图"。
+
+        规则：安全语境且无覆盖词 → 不是；有严重直接证据 → 是；
+        覆盖词与风险实体局部共现 → 是；操作词与实体/目标局部共现 → 是。
+        """
+        extractor = _EVIDENCE_EXTRACTOR
         active_operations = extractor.active_operation_terms(
             text, evidence["operation_intent"]
         )
@@ -262,10 +305,15 @@ class ActionRouterV3:
     def _evidence_score(
         text: str, evidence: dict[str, list[str]]
     ) -> float:
+        """按证据组合计算 0~1 的连续证据分。
+
+        严重直接证据 → 1.0；实体+操作 → 0.86~0.9（低危操作 0.58）；
+        操作+目标 → 0.9；其余组合递减。该分数与模型概率融合后参与动作决策。
+        """
         groups = {group for group, matches in evidence.items() if matches}
         if "severe_direct_evidence" in groups:
             return 1.0
-        extractor = RiskEvidenceExtractorV3()
+        extractor = _EVIDENCE_EXTRACTOR
         active_operations = extractor.active_operation_terms(
             text, evidence["operation_intent"]
         )
@@ -310,6 +358,16 @@ class ActionRouterV3:
         base_result: dict[str, Any] | None = None,
         scores: ActionScoresV3 | None = None,
     ) -> dict[str, Any]:
+        """V3 路由决策主入口（以 V2 结果为基座做证据增强）。
+
+        决策优先级：
+        1. V2 硬拦 → 保留（V3 不削弱显式规则拦截）；
+        2. 严重直接证据且非安全语境 → block；
+        3. 安全语境且无不安全意图 → pass（教育/科普等场景防误伤）；
+        4. 双模型分数 + 证据分达到类别阈值 → block；
+        5. V2 判 sanitize 或 风险分+实体证据达阈值 → sanitize；
+        6. 其余 → pass。
+        """
         text = normalized_text or original_text
         evidence = self.extractor.extract(text)
         category = (

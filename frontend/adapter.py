@@ -1,3 +1,13 @@
+"""前端视图模型适配层：把 Pipeline 的完整结果转换为"只含展示字段"的视图模型。
+
+核心原则（安全边界）：
+- Pipeline 的 ``handle_chat`` 公共结果是**唯一**最终安全结论来源，
+  适配层只做投影与汇总，绝不绕过它直接调用私有检测方法或 LLM；
+- 模型原始输出永远不进入视图模型（model_response 只留状态描述，
+  model_output_hidden 恒为 True），有风险的原文不会泄漏到前端；
+- 本地记录（record）与日志同样只保存 [REDACTED] 占位。
+"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -23,12 +33,24 @@ class FrontendPipelineAdapter:
         output_override: str | None = None,
         *,
         persist: bool = True,
+        history: list[dict[str, str]] | None = None,
     ) -> dict[str, Any]:
+        """把一次对话请求转换为完整的前端视图模型。
+
+        内部委托 pipeline.handle_chat（唯一安全结论来源），并补充：
+        决策解释、基线对比（未归一化的原始检测，仅诊断用）、
+        输入/输出命中汇总、处理策略描述、脱敏记录等展示字段。
+        final_action 兜底推断保证视图层拿到 pass/sanitize/block 三值之一。
+        """
         # The public chat entry is the only authority for the final safety action.
+        chat_kwargs: dict[str, Any] = {}
+        if history is not None:
+            chat_kwargs["history"] = history
         chat_result = self.pipeline.handle_chat(
             text,
             raw_reply_override=output_override,
             persist=persist,
+            **chat_kwargs,
         )
         explanation = DecisionExplanationService(self.pipeline).explain(
             text, chat_result
