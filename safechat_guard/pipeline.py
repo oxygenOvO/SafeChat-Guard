@@ -360,15 +360,18 @@ class SafeChatPipeline:
         """仅执行输入检测链路（不调用模型），供 /api/detect 与评测使用。"""
         return self._filter_text(text, stage="detect")
 
-    @staticmethod
     def _normalize_history(
+        self,
         history: list[dict[str, str]] | None,
     ) -> list[dict[str, str]]:
-        """校验并截断可选的对话历史。
+        """校验、截断并做基础安全扫描的对话历史。
 
         规则：只能是 user/assistant 消息；内容必须是非空字符串；
         超过 MAX_HISTORY_TURNS 条时只保留最近的记录。
-        不合法直接抛 ValueError（API 层映射为 422）。
+        user 消息额外经过归一化 + 规则层扫描：命中已知危险规则的
+        历史条目会被移除，防止旧版本会话文件中的不安全内容
+        通过 history 路径绕过当前输入检测直接进入模型。
+        不合法条目直接抛 ValueError（API 层映射为 422）。
         """
         if history is None:
             return []
@@ -389,7 +392,16 @@ class SafeChatPipeline:
             if not isinstance(content, str) or not content.strip():
                 raise ValueError(f"history item {index} content must be a non-empty string")
             normalized.append({"role": role, "content": content})
-        return normalized
+        safe: list[dict[str, str]] = []
+        for item in normalized:
+            if item["role"] != "user":
+                safe.append(item)
+                continue
+            normalized_text = self.normalizer.normalize(item["content"])
+            detections = self.rule_filter.detect(normalized_text)
+            if not detections:
+                safe.append(item)
+        return safe
 
     def _scan_text(self, text: str) -> tuple[str, list]:
         """便捷扫描：三层扫描后返回 (归一化文本, 去重后的全部命中)。"""

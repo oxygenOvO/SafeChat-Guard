@@ -288,10 +288,9 @@ def render_chat() -> None:
         if item.get("role") in ("user", "assistant")
         and isinstance(item.get("content"), str)
     ]
-    st.session_state.chat_messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
-
+    st.session_state.chat_messages.append({"role": "user", "content": prompt})
     st.session_state.request_in_progress = True
     try:
         with st.chat_message("assistant"):
@@ -305,6 +304,13 @@ def render_chat() -> None:
                 st.markdown(answer)
                 if result:
                     render_security_seal(result)
+        input_action = result.get("action", "block") if result else "block"
+        if input_action == "block":
+            st.session_state.chat_messages.pop()
+        else:
+            safe_user = result.get("safe_input")
+            if isinstance(safe_user, str) and safe_user.strip():
+                st.session_state.chat_messages[-1]["content"] = safe_user
         st.session_state.chat_messages.append({"role": "assistant", "content": answer, "result": result})
         store.save_session(
             str(st.session_state.chat_session_id),

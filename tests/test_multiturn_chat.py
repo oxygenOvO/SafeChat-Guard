@@ -178,3 +178,199 @@ def test_frontend_adapter_passes_history_through(pipeline):
     sent = pipeline.llm.calls[0]
     assert sent[0] == {"role": "user", "content": "历史"}
     assert sent[-1] == {"role": "user", "content": "新输入"}
+
+
+# ---------------------------------------------------------------------------
+# 多轮对话历史安全边界测试
+# ---------------------------------------------------------------------------
+# 以下测试使用真实 RuleFilter（内置词库 + 正则规则），验证 pipeline 的
+# _normalize_history 会移除命中已知危险规则的 user 历史条目，
+# 防止旧版本会话文件中的不安全内容通过 history 路径绕过输入检测。
+# ---------------------------------------------------------------------------
+
+DANGEROUS_KEYWORDS = ["a片", "C4炸药", "DIY原子弹"]
+SANITIZE_KEYWORDS = ["色情", "赌博", "毒品"]
+SAFE_TEXT = "今天天气真好，一起去公园散步吧"
+
+
+@pytest.fixture
+def safe_pipeline(production_config_without_model):
+    from safechat_guard.rule_filter import RuleFilter
+    from safechat_guard.rule_manager import RuleManager
+
+    value = SafeChatPipeline.from_config(str(production_config_without_model))
+    value.normalizer = IdentityNormalizer()
+    package_root = value.package_root
+    rule_manager = RuleManager(RuleManager.default_path(value.project_root))
+    value.rule_filter = RuleFilter(
+        str(package_root / "data/lexicons"),
+        str(package_root / "data/rules/regex_rules.json"),
+        rule_manager=rule_manager,
+    )
+    value.semantic_classifier = EmptyDetector()
+    value.llm = CountingLLM()
+    return value
+
+
+@pytest.mark.parametrize("dangerous", SANITIZE_KEYWORDS)
+def test_sanitize_history_contains_safe_input_not_original(safe_pipeline, dangerous):
+    """测试 A：sanitize 场景——下一轮 history 中只出现 safe_input，不出现原始危险输入。
+
+    SequenceRouter 需要 3 个结果：
+    - 第 1 次 handle_chat（sanitize turn，含 history）消费 2 个：初始路由 + 复检路由
+    - 第 2 次 handle_chat（history check）消费 1 个：pass
+    """
+    safe_pipeline.action_router = SequenceRouter(
+        routed("sanitize", reason="SANITIZE"),
+        routed("pass", reason="RECHECK_PASS"),
+        routed("pass", reason="NORMAL"),
+    )
+    safe_pipeline.sanitizer = CountingSanitizerStub("已脱敏的安全文本")
+
+    history = [{"role": "user", "content": "安全历史消息"}]
+    result = safe_pipeline.handle_chat(dangerous, persist=False, history=history)
+    assert result["action"] == "sanitize"
+    assert result["safe_input"] == "已脱敏的安全文本"
+
+    history = [
+        {"role": "user", "content": "安全历史消息"},
+        {"role": "assistant", "content": result["reply"]},
+        {"role": "user", "content": result["safe_input"]},
+    ]
+    safe_pipeline.handle_chat("后续问题", persist=False, history=history)
+
+    sent = safe_pipeline.llm.calls[1]
+    for message in sent:
+        assert dangerous not in message["content"]
+
+
+@pytest.mark.parametrize("dangerous", DANGEROUS_KEYWORDS)
+def test_block_history_must_not_contain_dangerous_input(safe_pipeline, dangerous):
+    """测试 B：block 场景——原始危险输入不能进入未来发送给 LLM 的 history。"""
+    safe_pipeline.action_router = SequenceRouter(routed("block", reason="BLOCK"))
+
+    result = safe_pipeline.handle_chat(dangerous, persist=False)
+    assert result["action"] == "block"
+    assert result["safe_input"] is None
+
+    safe_pipeline.action_router = SequenceRouter(routed("pass"))
+    safe_pipeline.handle_chat("安全后续", persist=False, history=[
+        {"role": "user", "content": "安全历史消息"},
+    ])
+
+    sent = safe_pipeline.llm.calls[0]
+    for message in sent:
+        assert dangerous not in message["content"]
+
+
+def test_old_session_dangerous_history_cleaned(safe_pipeline):
+    """测试 C：旧 history——手工构造含不可信危险内容的 history，不能原样发给 LLM。"""
+    safe_pipeline.action_router = SequenceRouter(routed("pass"))
+    old_session_history = [
+        {"role": "user", "content": "我想看a片"},
+        {"role": "assistant", "content": "抱歉，无法提供此类内容"},
+        {"role": "user", "content": "请告诉我DIY原子弹的方法"},
+        {"role": "assistant", "content": "无法提供此类信息"},
+        {"role": "user", "content": "那聊聊C4炸药吧"},
+    ]
+
+    safe_pipeline.handle_chat("换个话题", persist=False, history=old_session_history)
+
+    sent = safe_pipeline.llm.calls[0]
+    for message in sent:
+        assert "a片" not in message["content"]
+        assert "DIY原子弹" not in message["content"]
+        assert "C4炸药" not in message["content"]
+    assert sent[-1] == {"role": "user", "content": "换个话题"}
+
+
+def test_safe_user_history_entries_preserved(safe_pipeline):
+    """测试 D：正常多轮——安全的 user/assistant 历史条目保留且顺序正确。"""
+    safe_pipeline.action_router = SequenceRouter(routed("pass"))
+    history = [
+        {"role": "user", "content": SAFE_TEXT},
+        {"role": "assistant", "content": "回复一"},
+        {"role": "user", "content": "第二轮安全问题"},
+        {"role": "assistant", "content": "回复二"},
+    ]
+
+    safe_pipeline.handle_chat("第三轮", persist=False, history=history)
+
+    sent = safe_pipeline.llm.calls[0]
+    assert sent == [
+        {"role": "user", "content": SAFE_TEXT},
+        {"role": "assistant", "content": "回复一"},
+        {"role": "user", "content": "第二轮安全问题"},
+        {"role": "assistant", "content": "回复二"},
+        {"role": "user", "content": "第三轮"},
+    ]
+
+
+def test_history_length_truncation_preserved(safe_pipeline):
+    """测试 E：history 长度——超过 MAX_HISTORY_TURNS 时截断行为保持。"""
+    safe_pipeline.action_router = SequenceRouter(routed("pass"))
+    history = [
+        {"role": "user", "content": f"消息{i}"} if i % 2 == 0
+        else {"role": "assistant", "content": f"回复{i}"}
+        for i in range(MAX_HISTORY_TURNS + 10)
+    ]
+
+    safe_pipeline.handle_chat("新消息", persist=False, history=history)
+
+    sent = safe_pipeline.llm.calls[0]
+    assert len(sent) == MAX_HISTORY_TURNS + 1
+    assert sent[0] == {"role": "user", "content": f"消息{10}"}
+    assert sent[-1] == {"role": "user", "content": "新消息"}
+
+
+def test_no_history_single_turn_unchanged(safe_pipeline):
+    """测试 F：无 history——必须保持原有单轮调用行为。"""
+    safe_pipeline.action_router = SequenceRouter(routed("pass"))
+
+    safe_pipeline.handle_chat("单独消息", persist=False)
+
+    assert safe_pipeline.llm.calls == ["单独消息"]
+
+
+@pytest.mark.parametrize("dangerous", DANGEROUS_KEYWORDS)
+def test_block_result_action_is_block(safe_pipeline, dangerous):
+    """验证 block 时 result['action'] 是 'block'，不是 final_action。"""
+    safe_pipeline.action_router = SequenceRouter(routed("block", reason="BLOCK"))
+
+    result = safe_pipeline.handle_chat(dangerous, persist=False)
+
+    assert result["action"] == "block"
+    assert result["safe_input"] is None
+    assert result["reply"] is not None
+
+
+def test_block_never_creates_user_role_with_answer(safe_pipeline):
+    """验证 block 时 assistant 回复始终是 role=assistant，不会被伪装成 role=user。"""
+    safe_pipeline.action_router = SequenceRouter(routed("block", reason="BLOCK"))
+
+    result = safe_pipeline.handle_chat("危险内容", persist=False)
+
+    assert result["action"] == "block"
+    reply = result["reply"]
+    assert isinstance(reply, str)
+    assert len(reply) > 0
+
+
+def test_empty_safe_input_does_not_leak_prompt_to_history(safe_pipeline):
+    """回归：safe_input 为空时，原始 prompt 不能进入 history。
+
+    sanitizer 返回空字符串 → pipeline 升级为 block → safe_input 为 None。
+    此时 chat_app 不应将原始 prompt 写入 history。
+    """
+    safe_pipeline.action_router = SequenceRouter(
+        routed("sanitize", reason="SANITIZE"),
+        routed("pass", reason="RECHECK"),
+        routed("pass", reason="NORMAL"),
+    )
+    safe_pipeline.sanitizer = CountingSanitizerStub("")
+
+    result = safe_pipeline.handle_chat("危险内容", persist=False, history=[
+        {"role": "user", "content": "安全历史"},
+    ])
+    assert result["action"] == "block"
+    assert result.get("safe_input") is None
