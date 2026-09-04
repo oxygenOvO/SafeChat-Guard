@@ -103,8 +103,8 @@ def render_policy_center(pipeline: Any) -> None:
         info_card("写操作已由 SAFECHAT_ENABLE_RULE_WRITES=false 锁定。查看、筛选、校验、测试、版本与 Diff 仍可使用。")
     query_col, category_col, type_col = st.columns([2, 1, 1])
     query = query_col.text_input("搜索", placeholder="Rule ID、说明或规则内容")
-    category = category_col.selectbox("Category", ["全部", "porn", "violence", "ad", "sensitive"])
-    pattern_type = type_col.selectbox("类型", ["全部", "keyword", "phrase", "regex"])
+    category = category_col.selectbox("风险类别", ["全部", "porn", "violence", "ad", "sensitive"])
+    pattern_type = type_col.selectbox("规则匹配模式", ["全部", "keyword", "phrase", "regex"])
     catalog = service.catalog(
         query=query,
         category=None if category == "全部" else category,
@@ -115,7 +115,18 @@ def render_policy_center(pipeline: Any) -> None:
     with k2: kpi_card("筛选结果", len(catalog["rules"]), "filter", "purple", "内置 + 用户规则")
     with k3: kpi_card("写操作", "开启" if service.writes_enabled else "关闭", "lock", "warning", "环境变量保护")
     rows = [{key: rule.get(key) for key in ("id", "category", "pattern_type", "risk_level", "action", "enabled", "read_only")} for rule in catalog["rules"]]
-    st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+    display_rows = pd.DataFrame(rows).rename(
+        columns={
+            "id": "规则 ID",
+            "category": "风险类别",
+            "pattern_type": "规则匹配模式",
+            "risk_level": "风险等级",
+            "action": "处置动作",
+            "enabled": "是否启用",
+            "read_only": "是否只读",
+        }
+    )
+    st.dataframe(display_rows, use_container_width=True, hide_index=True)
     if catalog["rules"]:
         selected_id = st.selectbox("查看规则详情", [rule["id"] for rule in catalog["rules"]])
         selected = service.get_rule(selected_id)
