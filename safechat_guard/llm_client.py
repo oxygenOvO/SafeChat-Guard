@@ -251,6 +251,12 @@ class OpenAICompatibleLLMClient:
 
 
 class LLMClientFactory:
+    """Deprecated compatibility factory for direct low-level client consumers.
+
+    Production code creates provider adapters through `LLMAdapterFactory`. This
+    class remains importable for callers that still depend on the former client API.
+    """
+
     @staticmethod
     def create(config: dict):
         provider = str(config.get("provider", "mock")).lower()

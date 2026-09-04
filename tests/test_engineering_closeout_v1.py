@@ -25,13 +25,22 @@ ROOT = Path(__file__).resolve().parents[1]
 class TestProviderFactoryUnified:
     """Pipeline 应通过 LLMAdapterFactory 创建模型，而非 LLMClientFactory。"""
 
-    def test_pipeline_uses_adapter_factory_not_client_factory(self):
-        """SafeChatPipeline.__init__ 调用 LLMAdapterFactory.create。"""
+    def test_pipeline_uses_adapter_factory_not_client_factory(self, monkeypatch):
+        """SafeChatPipeline.__init__ 应在运行时调用 Adapter Factory。"""
         import safechat_guard.pipeline as pipeline_mod
-        source = (ROOT / "safechat_guard" / "pipeline.py").read_text(encoding="utf-8")
-        assert "LLMAdapterFactory" in source
-        assert "LLMClientFactory" not in source
 
+        created = {}
+        original_create = pipeline_mod.LLMAdapterFactory.create
+
+        def capture_create(config):
+            created["provider"] = config.get("provider", "mock")
+            return original_create(config)
+
+        monkeypatch.setattr(pipeline_mod.LLMAdapterFactory, "create", capture_create)
+        pipeline = SafeChatPipeline.from_config(str(ROOT / "config.yaml"))
+
+        assert created == {"provider": "mock"}
+        assert isinstance(pipeline.llm, BaseLLMAdapter)
     @pytest.mark.parametrize("provider", ["mock", "qwen", "nscc_qwen", "deepseek"])
     def test_all_providers_create_through_adapter_factory(self, provider):
         """所有已知 Provider 均可通过 LLMAdapterFactory 创建。"""
