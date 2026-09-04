@@ -1,4 +1,4 @@
-# SafeChat-Guard V1.0
+# SafeChat-Guard 大模型对话内容安全防护系统 V1.0
 
 统一网页对话入口、多模型接入、输入/输出双向安全检测的大模型安全网关。
 
@@ -32,7 +32,7 @@ SafeChat-Guard 面向对话场景，对所有进入大模型的内容做输入�
 
 - 内置 Provider：**Offline Mock**（默认，零配置）、**DeepSeek**、
   **通义 Qwen**（DashScope）、**Qwen3.5**（NSCC-CS MaaS），
-  全部走 OpenAI-compatible 协议。
+  全部走 OpenAI-compatible 协议。生产调用链为 `SafeChatPipeline → LLMAdapterFactory → BaseLLMAdapter → OpenAICompatibleAdapter → OpenAICompatibleLLMClient`。
 - API Key 仅从环境变量读取，不落盘、不进日志；密钥未配置时 Provider 显示
   “未配置”，不产生真实调用。
 - 网页端“模型管理”页可启用/停用 Provider、设置默认模型并执行真实连接测试。
@@ -96,7 +96,7 @@ python -m streamlit run frontend/streamlit_app.py
 | 安全策略 | 用户规则管理与安全策略查看 |
 | 安全日志 | 脱敏请求摘要，支持时间/动作/类别/Provider 筛选与 CSV 导出 |
 | 风险统计 | 动作、风险类别与时间趋势图 |
-| 安全评测 | 多检测模式对比、批量样本评估、指标导出 |
+| 安全评测 | 多检测模式对比、批量样本评估、指标导出；CSV 默认不包含原始 `text` |
 | 系统状态 | Pipeline、安全组件与 Provider 健康检查（Fail-Closed 展示） |
 | 系统设置 | 只读展示运行配置 |
 
@@ -206,10 +206,11 @@ safechat_guard/            # 核心安全检测包
 api_server.py              # 唯一正式 HTTP API 入口
 app.py                     # 兼容启动包装器
 frontend/                  # Streamlit 控制台
-  streamlit_app.py         # 唯一网页入口
+  streamlit_app.py         # V1.0 薄入口，委托 product_app.main
   chat_app.py              # 安全对话页（多轮对话 + 会话管理）
   session_store.py         # 本地会话持久化
-  phase2_app.py            # 运维控制台外壳（九页导航）
+  product_app.py           # 正式九页产品控制台实现
+  phase2_app.py            # 旧模块名兼容导入，仅转发 main
   management_views.py      # 管理/日志/统计页面
   security_platform_views.py  # 安全策略与安全评测页面
   adapter.py               # Pipeline 与前端之间的视图模型适配层
@@ -225,7 +226,8 @@ models/                    # 语义分类模型（joblib）
 templates/ static/         # 早期 Web Demo 页面资源
 tests/                     # pytest 测试用例
 scripts/                   # 评测、冒烟与运维脚本
-docs/                      # 运维手册、需求追溯等文档
+archive/legacy_frontend/  # 已退出正式入口的旧竞赛 UI
+docs/                      # 运维手册、需求追溯与发布说明
 ```
 
 ## 配置说明
@@ -255,7 +257,8 @@ python -m pytest -q --basetemp=.test_tmp
 ```
 
 测试覆盖核心检测链路、API 集成、前端冒烟、规则生命周期、模型降级、
-安全不变量与验收回归。CI（GitHub Actions）在 ubuntu/windows 矩阵上执行
+安全不变量与验收回归。基线提交 `a508f38` 共 `765 passed`（`2570 warnings`）。
+CI（GitHub Actions）在 ubuntu/windows 矩阵上执行
 安全扫描、全量测试、运行时验证与语法编译检查。
 
 ## 相关文档

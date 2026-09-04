@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
-import frontend.streamlit_app as frontend_app
+import archive.legacy_frontend.streamlit_app as frontend_app
 from frontend.adapter import FrontendPipelineAdapter
 from safechat_guard.pipeline import SafeChatPipeline
 
