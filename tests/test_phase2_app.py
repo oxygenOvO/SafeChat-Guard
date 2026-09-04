@@ -4,7 +4,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 import frontend.chat_app as chat_app
-import frontend.phase2_app as phase2_app
+import frontend.product_app as product_app
 
 from safechat_guard.model_registry import ModelRegistry
 
@@ -23,12 +23,12 @@ def isolated_model_registry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     chat_app.get_model_registry.clear()
     chat_app.get_chat_adapter.clear()
     chat_app.get_session_store.clear()
-    phase2_app.get_operations_pipeline.clear()
+    product_app.get_operations_pipeline.clear()
     yield
     chat_app.get_model_registry.clear()
     chat_app.get_chat_adapter.clear()
     chat_app.get_session_store.clear()
-    phase2_app.get_operations_pipeline.clear()
+    product_app.get_operations_pipeline.clear()
 
 
 def load_app() -> AppTest:

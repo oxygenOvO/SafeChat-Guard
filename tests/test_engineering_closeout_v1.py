@@ -266,19 +266,27 @@ class TestEvaluationCsvDataMinimization:
 # ---------------------------------------------------------------------------
 
 class TestStreamlitEntrypointConvergence:
-    """phase2_app 不应作为独立入口，唯一正式入口为 streamlit_app.py。"""
+    """正式入口、产品实现和历史兼容模块应各自保持单一职责。"""
 
     def test_phase2_app_has_no_main_guard(self):
-        """phase2_app.py 不应包含 if __name__ == '__main__' 块。"""
+        """兼容模块不应成为另一个可执行入口。"""
         source = (ROOT / "frontend" / "phase2_app.py").read_text(encoding="utf-8")
         assert '__name__ == "__main__"' not in source
         assert "__name__ == '__main__'" not in source
 
-    def test_streamlit_app_imports_phase2_main(self):
-        """streamlit_app.py 应导入 phase2_app.main 作为主入口。"""
-        source = (ROOT / "frontend" / "streamlit_app.py").read_text(encoding="utf-8")
-        assert "from frontend.phase2_app import main" in source
+    def test_product_and_compatibility_modules_share_main(self):
+        """兼容导入应解析到正式产品入口，而不是复制实现。"""
+        from frontend.phase2_app import main as compatibility_main
+        from frontend.product_app import main as product_main
 
+        assert compatibility_main is product_main
+
+    def test_streamlit_app_exports_product_main(self):
+        """正式 Streamlit 入口应直接委托给产品模块。"""
+        from frontend.product_app import main as product_main
+        from frontend.streamlit_app import main as streamlit_main
+
+        assert streamlit_main is product_main
     def test_streamlit_app_has_main_guard(self):
         """streamlit_app.py 保留 __name__ == '__main__' 块作为正式入口。"""
         source = (ROOT / "frontend" / "streamlit_app.py").read_text(encoding="utf-8")
