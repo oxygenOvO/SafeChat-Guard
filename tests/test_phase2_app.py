@@ -98,6 +98,25 @@ def test_phase3_policy_and_evaluation_pages_start_without_traceback():
         assert expected in rendered_text(app)
 
 
+def test_policy_page_uses_clear_filter_and_table_labels():
+    app = load_app()
+    click_nav(app, "安全策略")
+
+    labels = {item.label for item in app.selectbox}
+    assert {"风险类别", "规则匹配模式"} <= labels
+    assert "Category" not in labels
+    assert "类型" not in labels
+    assert {
+        "规则 ID",
+        "风险类别",
+        "规则匹配模式",
+        "风险等级",
+        "处置动作",
+        "是否启用",
+        "是否只读",
+    } <= set(app.dataframe[0].value.columns)
+
+
 def test_model_management_shows_nscc_qwen35_metadata_and_missing_key():
     app = load_app()
     click_nav(app, "模型管理")
